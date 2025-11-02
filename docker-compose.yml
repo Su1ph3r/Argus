@@ -1,0 +1,139 @@
+version: '3.8'
+
+services:
+  # ScoutSuite for multi-cloud security auditing
+  scoutsuite:
+    image: rossja/ncc-scoutsuite:latest
+    container_name: scoutsuite
+    environment:
+      # AWS Credentials
+      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+      - AWS_SESSION_TOKEN=${AWS_SESSION_TOKEN}
+      - AWS_DEFAULT_REGION=${AWS_DEFAULT_REGION:-us-east-1}
+      # Azure Credentials
+      - AZURE_SUBSCRIPTION_ID=${AZURE_SUBSCRIPTION_ID}
+      - AZURE_CLIENT_ID=${AZURE_CLIENT_ID}
+      - AZURE_CLIENT_SECRET=${AZURE_CLIENT_SECRET}
+      - AZURE_TENANT_ID=${AZURE_TENANT_ID}
+      # GCP Credentials
+      - GOOGLE_APPLICATION_CREDENTIALS=/root/.gcp/credentials.json
+    volumes:
+      - ./reports/scoutsuite:/opt/scoutsuite-report
+      - ./credentials:/root/.aws:ro
+      - ./credentials/azure:/root/.azure:ro
+      - ./credentials/gcp:/root/.gcp:ro
+      - ./scripts/scoutsuite:/scripts
+    networks:
+      - cloud-audit-net
+    working_dir: /opt
+    entrypoint: ["/bin/bash", "-c"]
+    command: ["tail -f /dev/null"]  # Keep container running
+
+  # Prowler for AWS/Azure CIS compliance checking
+  prowler:
+    image: toniblyx/prowler:latest
+    container_name: prowler
+    environment:
+      # AWS Configuration
+      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+      - AWS_SESSION_TOKEN=${AWS_SESSION_TOKEN}
+      - AWS_DEFAULT_REGION=${AWS_DEFAULT_REGION:-us-east-1}
+      # Azure Configuration
+      - AZURE_SUBSCRIPTION_ID=${AZURE_SUBSCRIPTION_ID}
+      - AZURE_CLIENT_ID=${AZURE_CLIENT_ID}
+      - AZURE_CLIENT_SECRET=${AZURE_CLIENT_SECRET}
+      - AZURE_TENANT_ID=${AZURE_TENANT_ID}
+      # Prowler Configuration
+      - PROWLER_OUTPUT_FORMATS=html,json,csv
+    volumes:
+      - ./reports/prowler:/prowler/output
+      - ./credentials:/root/.aws:ro
+      - ./credentials/azure:/root/.azure:ro
+      - ./scripts/prowler:/scripts
+      - ./prowler-config:/prowler/config
+    networks:
+      - cloud-audit-net
+    working_dir: /prowler
+    entrypoint: ["/bin/bash", "-c"]
+    command: ["tail -f /dev/null"]  # Keep container running
+
+  # Web server to view HTML reports
+  nginx:
+    image: nginx:alpine
+    container_name: report-viewer
+    ports:
+      - "8080:80"
+    volumes:
+      - ./reports:/usr/share/nginx/html:ro
+      - ./nginx-config/default.conf:/etc/nginx/conf.d/default.conf:ro
+    networks:
+      - cloud-audit-net
+    depends_on:
+      - scoutsuite
+      - prowler
+
+  # PostgreSQL for storing structured results
+  postgres:
+    image: postgres:14-alpine
+    container_name: audit-db
+    environment:
+      - POSTGRES_DB=cloudaudit
+      - POSTGRES_USER=audituser
+      - POSTGRES_PASSWORD=${DB_PASSWORD:-secretpassword}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./db-init:/docker-entrypoint-initdb.d
+    ports:
+      - "5432:5432"
+    networks:
+      - cloud-audit-net
+
+  # Grafana for visualization
+  grafana:
+    image: grafana/grafana:latest
+    container_name: audit-dashboard
+    environment:
+      - GF_SECURITY_ADMIN_USER=${GRAFANA_USER:-admin}
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD:-admin}
+      - GF_INSTALL_PLUGINS=
+    ports:
+      - "3000:3000"
+    volumes:
+      - grafana-storage:/var/lib/grafana
+      - ./grafana/dashboards:/etc/grafana/provisioning/dashboards
+      - ./grafana/datasources:/etc/grafana/provisioning/datasources
+    networks:
+      - cloud-audit-net
+    depends_on:
+      - postgres
+
+  # Custom report processor/aggregator
+  report-processor:
+    build:
+      context: ./report-processor
+      dockerfile: Dockerfile
+    container_name: report-processor
+    environment:
+      - DB_HOST=postgres
+      - DB_NAME=cloudaudit
+      - DB_USER=audituser
+      - DB_PASSWORD=${DB_PASSWORD:-secretpassword}
+    volumes:
+      - ./reports:/reports
+      - ./processed-reports:/processed
+    networks:
+      - cloud-audit-net
+    depends_on:
+      - postgres
+      - prowler
+      - scoutsuite
+
+networks:
+  cloud-audit-net:
+    driver: bridge
+
+volumes:
+  postgres-data:
+  grafana-storage:
