@@ -1,0 +1,47 @@
+# Environment files
+.env
+.env.local
+
+# Credentials
+credentials/
+*.pem
+*.key
+*.json
+*.pfx
+
+# Reports (may contain sensitive data)
+reports/
+processed-reports/
+
+# Database
+postgres-data/
+
+# Grafana storage
+grafana-storage/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.Python
+env/
+venv/
+.venv
+
+# Logs
+*.log
+
+# Temporary files
+*.tmp
+*.bak
+*~
