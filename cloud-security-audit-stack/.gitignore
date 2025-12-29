@@ -1,0 +1,135 @@
+# ============================================================================
+# Cloud Security Audit Stack - Git Ignore
+# ============================================================================
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# Credentials (NEVER COMMIT THESE)
+credentials/
+*.pem
+*.key
+*.crt
+*.p12
+*.pfx
+*.json
+*_rsa
+*_dsa
+*_ecdsa
+*_ed25519
+service-account*.json
+kubeconfigs/
+
+# Reports and outputs
+reports/
+remediation-scripts/
+logs/
+*.log
+*.html
+*.csv
+
+# Database files
+*.db
+*.sqlite
+*.sqlite3
+
+# Docker volumes
+volumes/
+
+# Terraform
+iac-code/**/.terraform/
+iac-code/**/.terraform.lock.hcl
+iac-code/**/terraform.tfstate
+iac-code/**/terraform.tfstate.backup
+iac-code/**/.terraform.tfstate.lock.info
+iac-code/**/override.tf
+iac-code/**/override.tf.json
+iac-code/**/*_override.tf
+iac-code/**/*_override.tf.json
+iac-code/**/*.tfvars
+iac-code/**/*.tfvars.json
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+*.cover
+.hypothesis/
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+.tox/
+.nox/
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+*.sublime-project
+*.sublime-workspace
+
+# Backup files
+*.bak
+*.backup
+*.old
+*.orig
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+
+# Archives
+*.zip
+*.tar
+*.tar.gz
+*.tgz
+*.rar
+
+# OS specific
+Thumbs.db
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Docker
+.dockerignore
+
+# Secrets
+secrets/
+.secrets/
+*.secret
+
+# Local configuration overrides
+config/local/
+docker-compose.override.yml
