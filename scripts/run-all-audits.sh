@@ -13,6 +13,18 @@ PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
 REPORTS_DIR="$PROJECT_DIR/reports"
 LOG_FILE="$PROJECT_DIR/logs/audit-$(date +%Y%m%d_%H%M%S).log"
 
+# CLI Options (defaults)
+DRY_RUN=false
+SEVERITY_FILTER=""
+OUTPUT_FORMAT="default"
+PROFILE=""
+EXECUTED_TOOLS=()
+TOTAL_FINDINGS=0
+CRITICAL_COUNT=0
+HIGH_COUNT=0
+MEDIUM_COUNT=0
+LOW_COUNT=0
+
 # Colors
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -43,6 +55,93 @@ log() {
     esac
 }
 
+# Show help
+show_help() {
+    cat << EOF
+Cloud Security Audit Stack - Run All Audits
+
+Usage: $(basename "$0") [OPTIONS]
+
+Options:
+    --dry-run           Show commands without executing them
+    --severity LEVELS   Filter by severity (comma-separated: critical,high,medium,low)
+    --output FORMAT     Output format: default, json
+    --profile NAME      Use scan profile (quick, comprehensive, compliance-only)
+    -h, --help          Show this help message
+
+Examples:
+    $(basename "$0") --dry-run
+    $(basename "$0") --severity critical,high
+    $(basename "$0") --output json --profile quick
+    $(basename "$0") --dry-run --severity critical --profile comprehensive
+
+Environment Variables:
+    ENABLE_PROWLER, ENABLE_SCOUTSUITE, ENABLE_CLOUDSPLOIT, etc.
+    See .env.example for full list
+
+EOF
+}
+
+# Parse command line arguments
+parse_args() {
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --dry-run)
+                DRY_RUN=true
+                shift
+                ;;
+            --severity)
+                SEVERITY_FILTER="$2"
+                shift 2
+                ;;
+            --output)
+                OUTPUT_FORMAT="$2"
+                shift 2
+                ;;
+            --profile|-p)
+                PROFILE="$2"
+                shift 2
+                ;;
+            -h|--help)
+                show_help
+                exit 0
+                ;;
+            *)
+                log WARN "Unknown option: $1"
+                shift
+                ;;
+        esac
+    done
+}
+
+# Run tool with dry-run support
+run_tool() {
+    local tool_name=$1
+    shift
+    local command="$@"
+
+    EXECUTED_TOOLS+=("$tool_name")
+
+    if [ "$DRY_RUN" = "true" ]; then
+        log INFO "[DRY-RUN] Would execute: docker-compose run --rm $command"
+        return 0
+    else
+        docker-compose run --rm $command || {
+            log ERROR "$tool_name failed"
+            return 1
+        }
+    fi
+}
+
+# Get severity flag for tools that support it
+get_severity_flag() {
+    if [ -n "$SEVERITY_FILTER" ]; then
+        echo "--severity $(echo $SEVERITY_FILTER | tr ',' ' ')"
+    else
+        echo "--severity critical high medium low"
+    fi
+}
+
 # Check if Docker Compose is running
 check_docker() {
     if ! docker-compose ps >/dev/null 2>&1; then
@@ -67,45 +166,45 @@ run_aws_audits() {
     # Prowler
     if [ "${ENABLE_PROWLER:-true}" = "true" ]; then
         log INFO "Running Prowler..."
-        docker-compose run --rm prowler aws \
+        run_tool "prowler" prowler aws \
             --output-modes json,html,csv \
             --output-directory /reports \
-            --severity critical high medium low \
-            --log-file /logs/prowler.log || log ERROR "Prowler failed"
+            $(get_severity_flag) \
+            --log-file /logs/prowler.log
     fi
-    
+
     # ScoutSuite
     if [ "${ENABLE_SCOUTSUITE:-true}" = "true" ]; then
         log INFO "Running ScoutSuite for AWS..."
-        docker-compose run --rm scoutsuite-aws || log ERROR "ScoutSuite AWS failed"
+        run_tool "scoutsuite-aws" scoutsuite-aws
     fi
-    
+
     # CloudSploit
     if [ "${ENABLE_CLOUDSPLOIT:-true}" = "true" ]; then
         log INFO "Running CloudSploit for AWS..."
-        docker-compose run --rm cloudsploit || log ERROR "CloudSploit failed"
+        run_tool "cloudsploit" cloudsploit
     fi
-    
+
     # Cloud Custodian
     if [ "${ENABLE_CUSTODIAN:-true}" = "true" ]; then
         log INFO "Running Cloud Custodian..."
         if [ -d "$PROJECT_DIR/policies" ] && [ "$(ls -A $PROJECT_DIR/policies/*.yml 2>/dev/null)" ]; then
-            docker-compose run --rm cloud-custodian || log ERROR "Cloud Custodian failed"
+            run_tool "cloud-custodian" cloud-custodian
         else
             log WARN "No Cloud Custodian policies found in ./policies/"
         fi
     fi
-    
+
     # CloudMapper
     if [ "${ENABLE_CLOUDMAPPER:-true}" = "true" ]; then
         log INFO "Running CloudMapper..."
-        docker-compose run --rm cloudmapper || log ERROR "CloudMapper failed"
+        run_tool "cloudmapper" cloudmapper
     fi
-    
+
     # Cartography
     if [ "${ENABLE_CARTOGRAPHY:-true}" = "true" ]; then
         log INFO "Running Cartography..."
-        docker-compose run --rm cartography || log ERROR "Cartography failed"
+        run_tool "cartography" cartography
     fi
     
     log INFO "AWS audits complete"
@@ -126,31 +225,31 @@ run_kubernetes_audits() {
     # kube-bench
     if [ "${ENABLE_KUBE_BENCH:-true}" = "true" ]; then
         log INFO "Running kube-bench..."
-        docker-compose run --rm kube-bench || log ERROR "kube-bench failed"
+        run_tool "kube-bench" kube-bench
     fi
-    
+
     # Kubescape
     if [ "${ENABLE_KUBESCAPE:-true}" = "true" ]; then
         log INFO "Running Kubescape..."
-        docker-compose run --rm kubescape || log ERROR "Kubescape failed"
+        run_tool "kubescape" kubescape
     fi
-    
+
     # kube-hunter
     if [ "${ENABLE_KUBE_HUNTER:-false}" = "true" ]; then
         log WARN "Running kube-hunter (active testing)..."
-        docker-compose run --rm kube-hunter || log ERROR "kube-hunter failed"
+        run_tool "kube-hunter" kube-hunter
     fi
-    
+
     # Trivy
     if [ "${ENABLE_TRIVY:-true}" = "true" ]; then
         log INFO "Running Trivy for Kubernetes..."
-        docker-compose run --rm trivy config /kubeconfigs --output /reports/trivy/k8s-config-scan.json || log ERROR "Trivy failed"
+        run_tool "trivy" trivy config /kubeconfigs --output /reports/trivy/k8s-config-scan.json
     fi
-    
+
     # Popeye
     if [ "${ENABLE_POPEYE:-true}" = "true" ]; then
         log INFO "Running Popeye..."
-        docker-compose run --rm popeye || log ERROR "Popeye failed"
+        run_tool "popeye" popeye
     fi
     
     log INFO "Kubernetes audits complete"
@@ -171,19 +270,19 @@ run_iac_scans() {
     # Checkov
     if [ "${ENABLE_CHECKOV:-true}" = "true" ]; then
         log INFO "Running Checkov..."
-        docker-compose run --rm checkov || log ERROR "Checkov failed"
+        run_tool "checkov" checkov
     fi
-    
+
     # Terrascan
     if [ "${ENABLE_TERRASCAN:-true}" = "true" ]; then
         log INFO "Running Terrascan..."
-        docker-compose run --rm terrascan || log ERROR "Terrascan failed"
+        run_tool "terrascan" terrascan
     fi
-    
+
     # tfsec
     if [ "${ENABLE_TFSEC:-true}" = "true" ]; then
         log INFO "Running tfsec..."
-        docker-compose run --rm tfsec || log ERROR "tfsec failed"
+        run_tool "tfsec" tfsec
     fi
     
     log INFO "IaC scans complete"
@@ -208,20 +307,25 @@ run_container_scans() {
         log INFO "Running Trivy image scans..."
         for image in $images; do
             log INFO "Scanning image: $image"
-            docker-compose run --rm trivy image "$image" \
+            run_tool "trivy" trivy image "$image" \
                 --format json \
-                --output "/reports/trivy/$(echo $image | tr '/:' '_').json" || log ERROR "Trivy image scan failed for $image"
+                --output "/reports/trivy/$(echo $image | tr '/:' '_').json"
         done
     fi
-    
+
     # Grype image scans
     if [ "${ENABLE_GRYPE:-true}" = "true" ]; then
         log INFO "Running Grype image scans..."
         for image in $images; do
             log INFO "Scanning image: $image"
-            docker-compose run --rm grype "$image" \
-                -o json \
-                > "$REPORTS_DIR/grype/$(echo $image | tr '/:' '_').json" || log ERROR "Grype image scan failed for $image"
+            if [ "$DRY_RUN" = "true" ]; then
+                log INFO "[DRY-RUN] Would execute: docker-compose run --rm grype $image -o json > $REPORTS_DIR/grype/$(echo $image | tr '/:' '_').json"
+            else
+                docker-compose run --rm grype "$image" \
+                    -o json \
+                    > "$REPORTS_DIR/grype/$(echo $image | tr '/:' '_').json" || log ERROR "Grype image scan failed for $image"
+            fi
+            EXECUTED_TOOLS+=("grype")
         done
     fi
     
@@ -233,24 +337,52 @@ generate_summary() {
     log INFO "========================================"
     log INFO "Generating Summary Report"
     log INFO "========================================"
-    
+
+    local timestamp=$(date -Iseconds)
     local summary_file="$REPORTS_DIR/summary-$(date +%Y%m%d_%H%M%S).txt"
-    
+    local json_summary_file="$REPORTS_DIR/summary_latest.json"
+
+    # Count findings from JSON reports
+    local total=0
+    local critical=0
+    local high=0
+    local medium=0
+    local low=0
+
+    # Parse existing JSON reports for severity counts
+    for json_file in $(find "$REPORTS_DIR" -name "*.json" -type f 2>/dev/null); do
+        if [ -f "$json_file" ]; then
+            # Try to count findings - different tools have different formats
+            local count=$(jq 'if type == "array" then length elif type == "object" and .findings then .findings | length else 0 end' "$json_file" 2>/dev/null || echo "0")
+            total=$((total + count))
+
+            # Try to count by severity (Prowler format)
+            critical=$((critical + $(jq '[.[] | select(.Severity == "critical" or .severity == "critical")] | length' "$json_file" 2>/dev/null || echo "0")))
+            high=$((high + $(jq '[.[] | select(.Severity == "high" or .severity == "high")] | length' "$json_file" 2>/dev/null || echo "0")))
+            medium=$((medium + $(jq '[.[] | select(.Severity == "medium" or .severity == "medium")] | length' "$json_file" 2>/dev/null || echo "0")))
+            low=$((low + $(jq '[.[] | select(.Severity == "low" or .severity == "low")] | length' "$json_file" 2>/dev/null || echo "0")))
+        fi
+    done
+
+    # Generate text summary
     {
         echo "Cloud Security Audit Stack - Summary Report"
         echo "Generated: $(date)"
         echo "==========================================="
         echo ""
-        
-        # Count findings by tool
-        echo "Findings by Tool:"
-        find "$REPORTS_DIR" -name "*.json" -type f | while read file; do
-            local tool=$(basename $(dirname "$file"))
-            local count=$(jq '. | length' "$file" 2>/dev/null || echo "0")
-            echo "  $tool: $count findings"
-        done
+
+        echo "Tools Executed: ${#EXECUTED_TOOLS[@]}"
+        echo "  ${EXECUTED_TOOLS[*]:-none}"
         echo ""
-        
+
+        echo "Findings Summary:"
+        echo "  Total:    $total"
+        echo "  Critical: $critical"
+        echo "  High:     $high"
+        echo "  Medium:   $medium"
+        echo "  Low:      $low"
+        echo ""
+
         # Report locations
         echo "Reports available at:"
         echo "  Web Interface: http://localhost:${NGINX_PORT:-8080}/reports"
@@ -258,28 +390,74 @@ generate_summary() {
         echo "  PostgreSQL: docker-compose exec postgresql psql -U auditor -d security_audits"
         echo "  File System: $REPORTS_DIR"
         echo ""
-        
+
     } | tee "$summary_file"
-    
+
+    # Always generate JSON summary for the web interface badges
+    cat > "$json_summary_file" << EOF
+{
+    "timestamp": "$timestamp",
+    "dry_run": $DRY_RUN,
+    "severity_filter": "${SEVERITY_FILTER:-all}",
+    "profile": "${PROFILE:-default}",
+    "tools_executed": [$(printf '"%s",' "${EXECUTED_TOOLS[@]}" | sed 's/,$//')],
+    "findings": {
+        "total": $total,
+        "critical": $critical,
+        "high": $high,
+        "medium": $medium,
+        "low": $low
+    }
+}
+EOF
+
+    # Generate additional JSON output if requested
+    if [ "$OUTPUT_FORMAT" = "json" ]; then
+        log INFO "JSON output mode - summary written to: $json_summary_file"
+        cat "$json_summary_file"
+    fi
+
     log INFO "Summary report saved to: $summary_file"
+    log INFO "JSON summary saved to: $json_summary_file"
 }
 
 # Main execution
 main() {
+    # Parse command line arguments first
+    parse_args "$@"
+
     log INFO "========================================"
     log INFO "Cloud Security Audit Stack"
     log INFO "Starting Full Security Audit"
     log INFO "========================================"
     log INFO "Start time: $(date)"
+
+    # Show configuration
+    if [ "$DRY_RUN" = "true" ]; then
+        log WARN "DRY RUN MODE - Commands will be shown but not executed"
+    fi
+    if [ -n "$SEVERITY_FILTER" ]; then
+        log INFO "Severity filter: $SEVERITY_FILTER"
+    fi
+    if [ -n "$PROFILE" ]; then
+        log INFO "Using scan profile: $PROFILE"
+    fi
     echo ""
-    
+
     # Load environment variables
     if [ -f "$PROJECT_DIR/.env" ]; then
         set -a
         source "$PROJECT_DIR/.env"
         set +a
     fi
-    
+
+    # Load scan profile if specified (overrides .env settings)
+    if [ -n "$PROFILE" ] && [ -f "$SCRIPT_DIR/profile-loader.sh" ]; then
+        log INFO "Loading profile: $PROFILE"
+        source "$SCRIPT_DIR/profile-loader.sh"
+        eval "$(load_profile "$PROFILE")"
+    fi
+
     # Check prerequisites
     check_docker
     

@@ -49,6 +49,11 @@ This stack is designed for **penetration testing** and **security configuration 
 │  │   (Storage)  │  │ (Asset Graph)│  │  (Reports)   │      │
 │  └──────────────┘  └──────────────┘  └──────────────┘      │
 │                                                               │
+│  ┌──────────────┐  ┌──────────────┐                         │
+│  │  FastAPI     │  │   Grafana    │                         │
+│  │  (REST API)  │  │ (Dashboards) │                         │
+│  └──────────────┘  └──────────────┘                         │
+│                                                               │
 └─────────────────────────────────────────────────────────────┘
 ```
 
@@ -82,6 +87,15 @@ This stack is designed for **penetration testing** and **security configuration 
 - **Asset Mapping**: Cartography + Neo4j
 - **Web Interface**: Nginx for report viewing
 - **Remediation Guidelines**: Detailed commands and steps for fixing issues
+- **Real-time Dashboard**: Grafana with security overview panels
+- **REST API**: FastAPI for programmatic access
+
+### CLI Features
+- **Scan Profiles**: Quick, comprehensive, and compliance-only presets
+- **Dry-run Mode**: Preview commands without execution
+- **Severity Filtering**: Target specific severity levels
+- **JSON Output**: Machine-readable scan summaries
+- **Scan Comparison**: Compare findings between scans with MTTR tracking
 
 ## Prerequisites
 
@@ -179,6 +193,19 @@ docker-compose logs -f
 # Run all audits across all platforms
 ./scripts/run-all-audits.sh
 
+# Using scan profiles
+./scripts/run-all-audits.sh --profile quick           # Fast scan (5-10 min)
+./scripts/run-all-audits.sh --profile comprehensive   # Full scan (30-60 min)
+./scripts/run-all-audits.sh --profile compliance-only # Compliance focused
+
+# CLI options
+./scripts/run-all-audits.sh --dry-run                 # Preview without executing
+./scripts/run-all-audits.sh --severity critical,high  # Filter by severity
+./scripts/run-all-audits.sh --output json             # JSON summary output
+
+# Combine options
+./scripts/run-all-audits.sh --profile quick --dry-run --severity critical
+
 # Run specific provider audit
 ./scripts/run-audit.sh aws
 ./scripts/run-audit.sh azure
@@ -196,6 +223,10 @@ docker-compose run kubescape scan --submit=false
 # Web interface
 open http://localhost:8080/reports
 
+# Grafana dashboard
+open http://localhost:3000
+# Login: admin / admin (or as configured in .env)
+
 # Neo4j graph database
 open http://localhost:7474
 # Login: neo4j / cloudsecurity
@@ -206,6 +237,146 @@ ls -R reports/
 # Query findings database
 docker-compose exec postgresql psql -U auditor -d security_audits
 ```
+
+### REST API
+
+The stack includes a FastAPI-based REST API for programmatic access:
+
+```bash
+# Health check
+curl http://localhost:8000/api/health
+
+# List all findings
+curl http://localhost:8000/api/findings
+
+# Filter findings by severity
+curl "http://localhost:8000/api/findings?severity=critical"
+
+# Filter by cloud provider
+curl "http://localhost:8000/api/findings?cloud_provider=aws"
+
+# Get specific finding
+curl http://localhost:8000/api/findings/{id}
+
+# Update finding status
+curl -X PATCH http://localhost:8000/api/findings/{id} \
+  -H "Content-Type: application/json" \
+  -d '{"status": "resolved"}'
+
+# Trigger a new scan
+curl -X POST http://localhost:8000/api/scans \
+  -H "Content-Type: application/json" \
+  -d '{"profile": "quick", "providers": ["aws"]}'
+
+# Get scan status
+curl http://localhost:8000/api/scans/{scan_id}
+
+# Export findings to CSV
+curl http://localhost:8000/api/exports/csv -o findings.csv
+
+# Export findings to JSON
+curl http://localhost:8000/api/exports/json -o findings.json
+```
+
+### Grafana Dashboard
+
+Access the real-time security dashboard at `http://localhost:3000`:
+
+**Dashboard Panels:**
+- **Critical/High/Medium/Low Findings**: Severity stat counters
+- **Findings by Severity**: Pie chart breakdown
+- **Findings Trend**: 30-day time series
+- **Top Vulnerable Resource Types**: Table with severity counts
+- **Findings by Cloud Provider**: Distribution chart
+- **Findings by Tool**: Scanner coverage breakdown
+- **Recent Scans**: Latest scan history table
+
+**Customization:**
+```bash
+# Dashboard files location
+grafana/dashboards/security-overview.json
+
+# Add custom dashboards
+cp my-dashboard.json grafana/dashboards/
+docker-compose restart grafana
+```
+
+### Scan Profiles
+
+Pre-configured profiles optimize scanning for different use cases:
+
+**Quick Profile** (`--profile quick`):
+- Prowler (critical/high only)
+- Kubescape (NSA framework)
+- Checkov
+- Estimated time: 5-10 minutes
+
+**Comprehensive Profile** (`--profile comprehensive`):
+- All tools enabled
+- All severity levels
+- Full compliance frameworks
+- Estimated time: 30-60 minutes
+
+**Compliance-Only Profile** (`--profile compliance-only`):
+- Prowler, kube-bench, Kubescape
+- CIS, SOC2, HIPAA frameworks
+- Estimated time: 15-20 minutes
+
+**Custom Profiles:**
+```yaml
+# profiles/custom.yml
+name: custom
+description: My custom scan profile
+tools:
+  prowler:
+    enabled: true
+    severity: critical,high
+  kubescape:
+    enabled: true
+    framework: nsa,cis
+  checkov:
+    enabled: true
+```
+
+### Comparing Scans
+
+Compare findings between scans to track security posture changes:
+
+```bash
+# Compare by scan IDs
+python3 report-processor/compare_scans.py \
+  --baseline-id abc123 \
+  --current-id def456
+
+# Compare by dates
+python3 report-processor/compare_scans.py \
+  --baseline-date 2024-01-01 \
+  --current-date 2024-01-15
+
+# Include MTTR (Mean Time To Resolution) metrics
+python3 report-processor/compare_scans.py \
+  --baseline-id abc123 \
+  --current-id def456 \
+  --include-mttr
+
+# Output formats
+python3 report-processor/compare_scans.py \
+  --baseline-id abc123 \
+  --current-id def456 \
+  --output json    # or: table, csv
+
+# Compare JSON files (backward compatible)
+python3 report-processor/compare_scans.py \
+  --baseline reports/scan1.json \
+  --current reports/scan2.json
+```
+
+**Comparison Output Includes:**
+- New findings (appeared in current scan)
+- Resolved findings (fixed since baseline)
+- Persistent findings (unchanged)
+- Severity breakdown for each category
+- MTTR statistics by severity level
 
 ### Container Security Scanning
 
@@ -601,8 +772,10 @@ For issues, questions, or contributions:
 
 - [ ] Add support for IBM Cloud
 - [ ] Integrate additional K8s tools (kube-linter, polaris)
-- [ ] API endpoint for programmatic access
+- [x] API endpoint for programmatic access
 - [ ] Automated scheduled scanning
-- [ ] Grafana dashboards for metrics visualization
+- [x] Grafana dashboards for metrics visualization
 - [ ] Export findings to SIEM platforms
+- [ ] Slack/Teams notifications for critical findings
+- [ ] Multi-tenancy support
 

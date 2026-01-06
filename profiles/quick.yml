@@ -1,0 +1,58 @@
+# Quick Scan Profile
+# Fast security assessment focusing on critical and high severity issues
+# Estimated duration: 5-10 minutes
+
+name: quick
+description: Fast scan for immediate security posture check
+duration_estimate: "5-10 minutes"
+
+# Severity filter - only scan for critical and high issues
+severity_filter: "critical,high"
+
+tools:
+  # AWS Tools
+  aws:
+    prowler:
+      enabled: true
+      options:
+        severity: "critical,high"
+        # Focus on most critical checks
+        checks: "iam,s3,ec2_security_groups,rds,cloudtrail"
+    scoutsuite:
+      enabled: false
+    cloudsploit:
+      enabled: false
+    custodian:
+      enabled: false
+    cloudmapper:
+      enabled: false
+    cartography:
+      enabled: false
+
+  # Kubernetes Tools
+  kubernetes:
+    kube_bench:
+      enabled: true
+    kubescape:
+      enabled: true
+      options:
+        frameworks: "nsa"  # Only NSA framework for speed
+    kube_hunter:
+      enabled: false
+    trivy:
+      enabled: false
+    grype:
+      enabled: false
+    popeye:
+      enabled: false
+
+  # Infrastructure-as-Code Tools
+  iac:
+    checkov:
+      enabled: true
+      options:
+        frameworks: "terraform"
+    terrascan:
+      enabled: false
+    tfsec:
+      enabled: false

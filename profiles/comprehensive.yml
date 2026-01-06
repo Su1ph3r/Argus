@@ -1,0 +1,56 @@
+# Comprehensive Scan Profile
+# Full security audit across all tools and checks
+# Estimated duration: 30-60 minutes
+
+name: comprehensive
+description: Full security audit with all tools enabled
+duration_estimate: "30-60 minutes"
+
+# No severity filter - scan everything
+severity_filter: "critical,high,medium,low"
+
+tools:
+  # AWS Tools - All enabled
+  aws:
+    prowler:
+      enabled: true
+      options:
+        severity: "critical,high,medium,low"
+    scoutsuite:
+      enabled: true
+    cloudsploit:
+      enabled: true
+    custodian:
+      enabled: true
+    cloudmapper:
+      enabled: true
+    cartography:
+      enabled: true
+
+  # Kubernetes Tools - All enabled
+  kubernetes:
+    kube_bench:
+      enabled: true
+    kubescape:
+      enabled: true
+      options:
+        frameworks: "nsa,mitre,cis"
+    kube_hunter:
+      enabled: true
+    trivy:
+      enabled: true
+    grype:
+      enabled: true
+    popeye:
+      enabled: true
+
+  # Infrastructure-as-Code Tools - All enabled
+  iac:
+    checkov:
+      enabled: true
+      options:
+        frameworks: "terraform,cloudformation,kubernetes,helm,arm"
+    terrascan:
+      enabled: true
+    tfsec:
+      enabled: true

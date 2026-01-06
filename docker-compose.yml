@@ -344,6 +344,68 @@ services:
       retries: 3
     restart: unless-stopped
 
+  # ============================================================================
+  # REST API
+  # ============================================================================
+
+  api:
+    build: ./api
+    container_name: security-api
+    ports:
+      - "${API_PORT:-8000}:8000"
+    environment:
+      - DB_HOST=postgresql
+      - DB_PORT=5432
+      - DB_NAME=${POSTGRES_DB:-security_audits}
+      - DB_USER=${POSTGRES_USER:-auditor}
+      - DB_PASSWORD=${POSTGRES_PASSWORD:-changeme}
+      - API_KEY=${API_KEY:-}
+      - API_CORS_ORIGINS=${API_CORS_ORIGINS:-http://localhost:8080,http://localhost:3000}
+    volumes:
+      - ./reports:/reports:ro
+      - ./scripts:/app/scripts:ro
+    depends_on:
+      postgresql:
+        condition: service_healthy
+    networks:
+      - security-net
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+
+  # ============================================================================
+  # Monitoring & Dashboards
+  # ============================================================================
+
+  grafana:
+    image: grafana/grafana:10.2-alpine
+    container_name: grafana
+    environment:
+      - GF_SECURITY_ADMIN_USER=${GRAFANA_USER:-admin}
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD:-admin}
+      - GF_INSTALL_PLUGINS=grafana-clock-panel,grafana-piechart-panel
+      - GF_SERVER_ROOT_URL=http://localhost:${GRAFANA_PORT:-3000}
+    ports:
+      - "${GRAFANA_PORT:-3000}:3000"
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
+    depends_on:
+      postgresql:
+        condition: service_healthy
+    networks:
+      - security-net
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+
 # ============================================================================
 # Networks
 # ============================================================================
@@ -373,4 +435,6 @@ volumes:
   trivy-cache:
     driver: local
   grype-cache:
+    driver: local
+  grafana-data:
     driver: local

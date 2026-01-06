@@ -1,0 +1,68 @@
+# Compliance-Only Scan Profile
+# Focused on compliance framework assessments
+# Estimated duration: 15-20 minutes
+
+name: compliance-only
+description: Compliance framework focused scanning (CIS, SOC2, PCI-DSS, HIPAA)
+duration_estimate: "15-20 minutes"
+
+# Scan all severities for compliance completeness
+severity_filter: "critical,high,medium,low"
+
+# Target compliance frameworks
+compliance_frameworks:
+  - CIS
+  - SOC2
+  - PCI-DSS
+  - HIPAA
+  - NIST
+  - GDPR
+
+tools:
+  # AWS Tools - Compliance focused
+  aws:
+    prowler:
+      enabled: true
+      options:
+        severity: "critical,high,medium,low"
+        # Prowler supports direct compliance checks
+        compliance: "cis_level1,cis_level2,soc2,pci_dss,hipaa,gdpr"
+    scoutsuite:
+      enabled: true
+    cloudsploit:
+      enabled: false
+    custodian:
+      enabled: false
+    cloudmapper:
+      enabled: false
+    cartography:
+      enabled: false
+
+  # Kubernetes Tools - Compliance focused
+  kubernetes:
+    kube_bench:
+      enabled: true  # CIS Kubernetes Benchmark
+    kubescape:
+      enabled: true
+      options:
+        frameworks: "cis"  # CIS framework for K8s
+    kube_hunter:
+      enabled: false
+    trivy:
+      enabled: false
+    grype:
+      enabled: false
+    popeye:
+      enabled: false
+
+  # Infrastructure-as-Code Tools - Compliance focused
+  iac:
+    checkov:
+      enabled: true
+      options:
+        # Checkov has built-in compliance frameworks
+        frameworks: "terraform,cloudformation,kubernetes"
+    terrascan:
+      enabled: false
+    tfsec:
+      enabled: false
