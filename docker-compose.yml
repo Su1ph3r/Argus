@@ -6,38 +6,32 @@ services:
   # ============================================================================
   
   prowler:
-    image: prowler-cloud/prowler:latest
+    image: toniblyx/prowler:latest
     container_name: prowler
     volumes:
       - ./reports/prowler:/reports
-      - ./credentials/aws:/root/.aws:ro
+      - ./credentials/aws:/home/prowler/.aws:ro
       - ./logs:/logs
     environment:
-      - AWS_SHARED_CREDENTIALS_FILE=/root/.aws/credentials
-      - AWS_CONFIG_FILE=/root/.aws/config
-    command: |
-      aws
-      --output-modes json,html,csv
-      --output-directory /reports
-      --log-file /logs/prowler.log
+      - AWS_SHARED_CREDENTIALS_FILE=/home/prowler/.aws/credentials
+      - AWS_CONFIG_FILE=/home/prowler/.aws/config
+      - HOME=/home/prowler
+    command: aws --output-formats json-ocsf html csv --output-directory /reports
     networks:
       - security-net
     restart: unless-stopped
   
   scoutsuite-aws:
-    image: rossja/scoutsuite:latest
+    image: opendevsecops/scoutsuite:latest
     container_name: scoutsuite-aws
     volumes:
       - ./reports/scoutsuite:/reports
       - ./credentials/aws:/root/.aws:ro
-    command: |
-      aws
-      --report-dir /reports/aws
-      --no-browser
+    command: --provider aws --report-dir /reports/aws --no-browser
     networks:
       - security-net
     restart: unless-stopped
-  
+
   pacu:
     image: rhinosecuritylabs/pacu:latest
     container_name: pacu
@@ -276,7 +270,7 @@ services:
   # ============================================================================
   
   cartography:
-    image: lyft/cartography:latest
+    image: ghcr.io/lyft/cartography:latest
     container_name: cartography
     depends_on:
       - neo4j
@@ -355,9 +349,9 @@ services:
     ports:
       - "${NGINX_PORT:-8080}:80"
     volumes:
-      - ./reports:/usr/share/nginx/html/reports:ro
+      - ./reports:/reports:ro
       - ./nginx.conf:/etc/nginx/nginx.conf:ro
-      - ./static:/usr/share/nginx/html:ro
+      - ./static:/static:ro
       - ./logs/nginx:/var/log/nginx
     networks:
       - security-net
@@ -405,7 +399,7 @@ services:
   # ============================================================================
 
   grafana:
-    image: grafana/grafana:10.2-alpine
+    image: grafana/grafana:latest
     container_name: grafana
     environment:
       - GF_SECURITY_ADMIN_USER=${GRAFANA_USER:-admin}
