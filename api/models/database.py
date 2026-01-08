@@ -50,7 +50,7 @@ class Scan(Base):
     high_findings = Column(Integer, default=0)
     medium_findings = Column(Integer, default=0)
     low_findings = Column(Integer, default=0)
-    metadata = Column(JSONB)
+    scan_metadata = Column("metadata", JSONB)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
@@ -103,7 +103,7 @@ class Asset(Base):
     asset_type = Column(String(128))
     asset_name = Column(String(256))
     tags = Column(JSONB)
-    metadata = Column(JSONB)
+    asset_metadata = Column("metadata", JSONB)
     security_findings_count = Column(Integer, default=0)
     last_scanned = Column(DateTime)
     is_active = Column(Boolean, default=True)
