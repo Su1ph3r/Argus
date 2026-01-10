@@ -52,10 +52,10 @@ This stack is designed for **penetration testing** and **security configuration 
 │  │   (Storage)  │  │ (Asset Graph)│  │  (Reports)   │      │
 │  └──────────────┘  └──────────────┘  └──────────────┘      │
 │                                                               │
-│  ┌──────────────┐  ┌──────────────┐                         │
-│  │  FastAPI     │  │   Grafana    │                         │
-│  │  (REST API)  │  │ (Dashboards) │                         │
-│  └──────────────┘  └──────────────┘                         │
+│  ┌──────────────┐                                            │
+│  │  FastAPI     │                                            │
+│  │  (REST API)  │                                            │
+│  └──────────────┘                                            │
 │                                                               │
 └─────────────────────────────────────────────────────────────┘
 ```
@@ -92,7 +92,6 @@ This stack is designed for **penetration testing** and **security configuration 
 - **Asset Mapping**: Cartography + Neo4j
 - **Web Interface**: Nginx for report viewing
 - **Remediation Guidelines**: Detailed commands and steps for fixing issues
-- **Real-time Dashboard**: Grafana with security overview panels
 - **REST API**: FastAPI for programmatic access
 
 ### CLI Features
@@ -251,10 +250,6 @@ docker-compose run kubescape scan --submit=false
 # Web interface
 open http://localhost:8080/reports
 
-# Grafana dashboard
-open http://localhost:3000
-# Login: admin / admin (or as configured in .env)
-
 # Neo4j graph database
 open http://localhost:7474
 # Login: neo4j / cloudsecurity
@@ -304,29 +299,6 @@ curl http://localhost:8000/api/exports/csv -o findings.csv
 
 # Export findings to JSON
 curl http://localhost:8000/api/exports/json -o findings.json
-```
-
-### Grafana Dashboard
-
-Access the real-time security dashboard at `http://localhost:3000`:
-
-**Dashboard Panels:**
-- **Critical/High/Medium/Low Findings**: Severity stat counters
-- **Findings by Severity**: Pie chart breakdown
-- **Findings Trend**: 30-day time series
-- **Top Vulnerable Resource Types**: Table with severity counts
-- **Findings by Cloud Provider**: Distribution chart
-- **Findings by Tool**: Scanner coverage breakdown
-- **Recent Scans**: Latest scan history table
-
-**Customization:**
-```bash
-# Dashboard files location
-grafana/dashboards/security-overview.json
-
-# Add custom dashboards
-cp my-dashboard.json grafana/dashboards/
-docker-compose restart grafana
 ```
 
 ### Scan Profiles
@@ -804,7 +776,6 @@ For issues, questions, or contributions:
 - [x] Integrate additional K8s tools (kube-linter, polaris)
 - [x] API endpoint for programmatic access
 - [ ] Automated scheduled scanning
-- [x] Grafana dashboards for metrics visualization
 - [ ] Export findings to SIEM platforms
 - [ ] Slack/Teams notifications for critical findings
 - [ ] Multi-tenancy support

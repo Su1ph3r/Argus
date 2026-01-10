@@ -380,6 +380,7 @@ services:
     volumes:
       - ./reports:/reports:ro
       - ./scripts:/app/scripts:ro
+      - ./report-processor:/app/report-processor:ro
     depends_on:
       postgresql:
         condition: service_healthy

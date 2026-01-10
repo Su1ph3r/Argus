@@ -22,6 +22,7 @@ import ToastService from 'primevue/toastservice'
 import Paginator from 'primevue/paginator'
 import Accordion from 'primevue/accordion'
 import AccordionTab from 'primevue/accordiontab'
+import Dialog from 'primevue/dialog'
 
 // Styles - Use dark theme as base since our CSS variables handle theming
 import 'primevue/resources/themes/lara-dark-indigo/theme.css'
@@ -54,5 +55,6 @@ app.component('Toast', Toast)
 app.component('Paginator', Paginator)
 app.component('Accordion', Accordion)
 app.component('AccordionTab', AccordionTab)
+app.component('Dialog', Dialog)
 
 app.mount('#app')

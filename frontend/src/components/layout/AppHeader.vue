@@ -30,6 +30,10 @@
           <i class="pi pi-list"></i>
           <span>Findings</span>
         </router-link>
+        <router-link to="/attack-paths" class="nav-link" :class="{ active: $route.path.startsWith('/attack-paths') }">
+          <i class="pi pi-sitemap"></i>
+          <span>Attack Paths</span>
+        </router-link>
         <a href="/reports/" class="nav-link" target="_blank" rel="noopener">
           <i class="pi pi-folder"></i>
           <span>Reports</span>

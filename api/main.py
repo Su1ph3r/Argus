@@ -11,7 +11,7 @@ import logging
 import time
 
 from config import get_settings
-from routers import health_router, scans_router, findings_router, exports_router
+from routers import health_router, scans_router, findings_router, exports_router, attack_paths_router
 
 # Configure logging
 logging.basicConfig(
@@ -93,6 +93,7 @@ app.include_router(health_router, prefix="/api")
 app.include_router(scans_router, prefix="/api")
 app.include_router(findings_router, prefix="/api")
 app.include_router(exports_router, prefix="/api")
+app.include_router(attack_paths_router, prefix="/api")
 
 
 # Root endpoint
@@ -117,7 +118,8 @@ async def api_root():
             "health": "/api/health",
             "scans": "/api/scans",
             "findings": "/api/findings",
-            "exports": "/api/exports"
+            "exports": "/api/exports",
+            "attack_paths": "/api/attack-paths"
         }
     }
 

@@ -213,3 +213,103 @@ class ExportResponse(BaseModel):
     record_count: int
     download_url: str
     generated_at: datetime
+
+
+# ============================================================================
+# Attack Path Schemas
+# ============================================================================
+
+class AttackPathNode(BaseModel):
+    """Node in an attack path."""
+    id: str
+    type: str = Field(description="Node type: entry_point, resource, or target")
+    name: str
+    resource_id: Optional[str] = None
+    region: Optional[str] = None
+
+
+class AttackPathEdge(BaseModel):
+    """Edge in an attack path."""
+    id: str
+    source: str
+    target: str
+    type: str
+    name: str
+    finding_id: Optional[int] = None
+    exploitability: str = "theoretical"
+    impact: str = "medium"
+
+
+class PoCStep(BaseModel):
+    """Single step in a Proof of Concept."""
+    step: int
+    name: str
+    description: str
+    command: str
+    mitre_technique: Optional[str] = None
+    requires_auth: bool = False
+
+
+class AttackPathResponse(BaseModel):
+    """Response schema for attack path details."""
+    id: int
+    path_id: str
+    scan_id: Optional[UUID] = None
+    name: str
+    description: Optional[str] = None
+    entry_point_type: str
+    entry_point_id: Optional[str] = None
+    entry_point_name: Optional[str] = None
+    target_type: str
+    target_description: Optional[str] = None
+    nodes: List[AttackPathNode]
+    edges: List[AttackPathEdge]
+    finding_ids: List[int] = []
+    risk_score: int
+    exploitability: str
+    impact: str
+    hop_count: int
+    requires_authentication: bool = False
+    requires_privileges: bool = False
+    poc_available: bool = False
+    poc_steps: List[PoCStep] = []
+    mitre_tactics: List[str] = []
+    aws_services: List[str] = []
+    created_at: Optional[datetime] = None
+
+    class Config:
+        from_attributes = True
+
+
+class AttackPathListResponse(BaseModel):
+    """Response schema for listing attack paths."""
+    paths: List[AttackPathResponse]
+    total: int
+    page: int
+    page_size: int
+
+
+class AttackPathSummary(BaseModel):
+    """Summary statistics for attack paths."""
+    total_paths: int = 0
+    critical_paths: int = 0
+    high_risk_paths: int = 0
+    medium_risk_paths: int = 0
+    low_risk_paths: int = 0
+    entry_point_types: Dict[str, int] = {}
+    target_types: Dict[str, int] = {}
+    top_mitre_tactics: List[str] = []
+    avg_risk_score: float = 0.0
+
+
+class AttackPathAnalyzeRequest(BaseModel):
+    """Request to trigger attack path analysis."""
+    scan_id: Optional[UUID] = Field(default=None, description="Specific scan to analyze")
+    max_depth: int = Field(default=5, ge=1, le=10, description="Maximum path depth")
+
+
+class AttackPathAnalyzeResponse(BaseModel):
+    """Response from attack path analysis."""
+    paths_discovered: int
+    analysis_time_ms: int
+    summary: AttackPathSummary

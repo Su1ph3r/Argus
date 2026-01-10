@@ -123,3 +123,36 @@ class Asset(Base):
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class AttackPath(Base):
+    """Attack path model for penetration testing analysis."""
+    __tablename__ = "attack_paths"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    path_id = Column(String(64), unique=True)
+    scan_id = Column(UUID(as_uuid=True), ForeignKey("scans.scan_id"))
+    name = Column(String(256))
+    description = Column(Text)
+    entry_point_type = Column(String(64))
+    entry_point_id = Column(String(512))
+    entry_point_name = Column(String(256))
+    target_type = Column(String(64))
+    target_description = Column(String(256))
+    nodes = Column(JSONB)
+    edges = Column(JSONB)
+    finding_ids = Column(JSONB)  # Array stored as JSONB
+    risk_score = Column(Integer, default=0)
+    exploitability = Column(String(32), default="theoretical")
+    impact = Column(String(32), default="medium")
+    hop_count = Column(Integer, default=0)
+    requires_authentication = Column(Boolean, default=False)
+    requires_privileges = Column(Boolean, default=False)
+    poc_available = Column(Boolean, default=False)
+    poc_steps = Column(JSONB)
+    mitre_tactics = Column(JSONB)  # Array stored as JSONB
+    aws_services = Column(JSONB)   # Array stored as JSONB
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    scan = relationship("Scan")

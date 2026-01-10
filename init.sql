@@ -141,6 +141,35 @@ CREATE TABLE IF NOT EXISTS container_images (
     updated_at TIMESTAMP DEFAULT NOW()
 );
 
+-- Attack paths table (for penetration testing attack chain analysis)
+CREATE TABLE IF NOT EXISTS attack_paths (
+    id SERIAL PRIMARY KEY,
+    path_id VARCHAR(64) UNIQUE NOT NULL,
+    scan_id UUID REFERENCES scans(scan_id) ON DELETE CASCADE,
+    name VARCHAR(256) NOT NULL,
+    description TEXT,
+    entry_point_type VARCHAR(64) NOT NULL,
+    entry_point_id VARCHAR(512),
+    entry_point_name VARCHAR(256),
+    target_type VARCHAR(64) NOT NULL,
+    target_description VARCHAR(256),
+    nodes JSONB NOT NULL,
+    edges JSONB NOT NULL,
+    finding_ids INTEGER[],
+    risk_score INTEGER NOT NULL DEFAULT 0,
+    exploitability VARCHAR(32) NOT NULL DEFAULT 'theoretical',
+    impact VARCHAR(32) NOT NULL DEFAULT 'medium',
+    hop_count INTEGER NOT NULL DEFAULT 0,
+    requires_authentication BOOLEAN DEFAULT FALSE,
+    requires_privileges BOOLEAN DEFAULT FALSE,
+    poc_available BOOLEAN DEFAULT FALSE,
+    poc_steps JSONB,
+    mitre_tactics TEXT[],
+    aws_services TEXT[],
+    created_at TIMESTAMP DEFAULT NOW(),
+    updated_at TIMESTAMP DEFAULT NOW()
+);
+
 -- ============================================================================
 -- Indexes for Performance
 -- ============================================================================
@@ -172,6 +201,13 @@ CREATE INDEX IF NOT EXISTS idx_k8s_resource_type ON k8s_resources(resource_type)
 -- Container images indexes
 CREATE INDEX IF NOT EXISTS idx_images_registry ON container_images(registry);
 CREATE INDEX IF NOT EXISTS idx_images_vulnerabilities ON container_images(vulnerabilities_critical, vulnerabilities_high);
+
+-- Attack paths indexes
+CREATE INDEX IF NOT EXISTS idx_attack_paths_scan ON attack_paths(scan_id);
+CREATE INDEX IF NOT EXISTS idx_attack_paths_risk ON attack_paths(risk_score DESC);
+CREATE INDEX IF NOT EXISTS idx_attack_paths_entry ON attack_paths(entry_point_type);
+CREATE INDEX IF NOT EXISTS idx_attack_paths_target ON attack_paths(target_type);
+CREATE INDEX IF NOT EXISTS idx_attack_paths_exploitability ON attack_paths(exploitability);
 
 -- ============================================================================
 -- Views for Reporting
@@ -266,6 +302,10 @@ CREATE TRIGGER update_k8s_resources_updated_at BEFORE UPDATE ON k8s_resources
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
 CREATE TRIGGER update_container_images_updated_at BEFORE UPDATE ON container_images
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+DROP TRIGGER IF EXISTS update_attack_paths_updated_at ON attack_paths;
+CREATE TRIGGER update_attack_paths_updated_at BEFORE UPDATE ON attack_paths
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
 -- ============================================================================

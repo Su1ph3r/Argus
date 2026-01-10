@@ -16,6 +16,11 @@ const routes = [
     name: 'finding-detail',
     component: () => import('../views/FindingDetailView.vue'),
     props: true
+  },
+  {
+    path: '/attack-paths',
+    name: 'attack-paths',
+    component: () => import('../views/AttackPathsView.vue')
   }
 ]
 
