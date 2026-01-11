@@ -2,7 +2,7 @@
 # Nubicustos - Git Ignore
 # ============================================================================
 
-# Claude Code instructions (local only)
+# Local development configuration
 CLAUDE.md
 
 # Environment files
