@@ -1335,3 +1335,34 @@ class ComplianceSummaryResponse(BaseModel):
     total_failed: int
     overall_pass_percentage: float
     by_framework: list[ComplianceFrameworkSummary]
+
+
+class ComplianceAffectedResource(BaseModel):
+    """Resource that failed a compliance control."""
+
+    resource_id: str
+    resource_type: str | None = None
+    resource_name: str | None = None
+    region: str | None = None
+    account_id: str | None = None
+    status: str  # "fail", "open"
+    reason: str | None = None  # Why it failed
+
+
+class ComplianceControlDetail(BaseModel):
+    """Detailed compliance control with affected resources and remediation."""
+
+    control_id: str
+    control_title: str | None = None
+    control_description: str | None = None
+    requirement: str | None = None
+    framework: str
+    severity: str | None = None
+    status: str  # "pass" or "fail"
+    affected_resources: list[ComplianceAffectedResource] = []
+    total_resources_checked: int = 0
+    resources_passed: int = 0
+    resources_failed: int = 0
+    remediation_guidance: str | None = None
+    remediation_cli: str | None = None  # AWS CLI command if applicable
+    reference_url: str | None = None

@@ -12,6 +12,12 @@ const routes = [
     component: () => import('../views/ComplianceView.vue'),
   },
   {
+    path: '/compliance/:framework/:controlId',
+    name: 'compliance-control-detail',
+    component: () => import('../views/ComplianceControlDetailView.vue'),
+    props: true,
+  },
+  {
     path: '/findings',
     name: 'findings',
     component: () => import('../views/FindingsView.vue'),

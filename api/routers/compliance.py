@@ -28,7 +28,9 @@ from sqlalchemy.orm import Session
 
 from models.database import get_db
 from models.schemas import (
+    ComplianceAffectedResource,
     ComplianceControl,
+    ComplianceControlDetail,
     ComplianceFrameworkDetail,
     ComplianceFrameworksResponse,
     ComplianceFrameworkSummary,
@@ -252,6 +254,136 @@ async def get_framework_details(
         framework=framework,
         controls=controls,
         summary=summary,
+    )
+
+
+@router.get("/frameworks/{framework}/controls/{control_id}", response_model=ComplianceControlDetail)
+async def get_control_details(
+    framework: str = Path(
+        ...,
+        min_length=1,
+        max_length=64,
+        pattern=r"^[a-zA-Z0-9\-_\s\.]+$",
+        description="Framework name (e.g., CIS, PCI-DSS, SOC2)",
+    ),
+    control_id: str = Path(
+        ...,
+        min_length=1,
+        max_length=128,
+        description="Control ID (e.g., 1.1, 2.1.1)",
+    ),
+    db: Session = Depends(get_db),
+):
+    """
+    Get detailed information for a specific compliance control.
+
+    Returns control metadata, affected resources, and remediation guidance.
+
+    Args:
+        framework: The framework name (e.g., "CIS", "PCI-DSS")
+        control_id: The control identifier within the framework
+
+    Returns:
+        ComplianceControlDetail: Full control details with affected resources
+
+    Raises:
+        HTTPException: 404 if control not found
+    """
+    # Get all findings that have this control under this framework
+    query = text("""
+        SELECT
+            f.id,
+            f.title,
+            f.description,
+            f.status,
+            f.severity,
+            f.resource_id,
+            f.resource_type,
+            f.resource_name,
+            f.region,
+            f.account_id,
+            f.remediation,
+            f.remediation_code
+        FROM findings f
+        WHERE f.compliance_frameworks ? :framework
+          AND f.compliance_frameworks->:framework ? :control_id
+        ORDER BY f.status DESC, f.severity DESC
+    """)
+
+    result = db.execute(query, {"framework": framework, "control_id": control_id})
+    rows = result.fetchall()
+
+    if not rows:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Control '{control_id}' not found in framework '{framework}'"
+        )
+
+    # Process results
+    affected_resources = []
+    control_title = None
+    control_description = None
+    severity = None
+    remediation_guidance = None
+    remediation_cli = None
+    failed_count = 0
+    passed_count = 0
+
+    for row in rows:
+        finding_id, title, description, status, sev, resource_id, resource_type, \
+            resource_name, region, account_id, remediation, remediation_code_json = row
+
+        # Use first finding's data for control metadata
+        if control_title is None:
+            control_title = title
+            control_description = description
+            severity = sev
+            remediation_guidance = remediation
+            # Extract CLI from remediation_code JSONB if available
+            if remediation_code_json and isinstance(remediation_code_json, dict):
+                # Try to get CLI command from the JSONB structure
+                cli_cmd = remediation_code_json.get("cli") or remediation_code_json.get("command")
+                if cli_cmd:
+                    remediation_cli = cli_cmd if isinstance(cli_cmd, str) else str(cli_cmd)
+            elif remediation_code_json and isinstance(remediation_code_json, str):
+                remediation_cli = remediation_code_json
+
+        # Count pass/fail
+        if status in ('open', 'fail'):
+            failed_count += 1
+            # Add to affected resources (only failed ones)
+            affected_resources.append(
+                ComplianceAffectedResource(
+                    resource_id=resource_id or "unknown",
+                    resource_type=resource_type,
+                    resource_name=resource_name,
+                    region=region,
+                    account_id=account_id,
+                    status=status,
+                    reason=description,
+                )
+            )
+        else:
+            passed_count += 1
+
+    total_checked = failed_count + passed_count
+    overall_status = "fail" if failed_count > 0 else "pass"
+
+    return ComplianceControlDetail(
+        control_id=control_id,
+        control_title=control_title,
+        control_description=control_description,
+        requirement=None,  # Could be populated from a control definitions table
+        framework=framework,
+        severity=severity,
+        status=overall_status,
+        affected_resources=affected_resources,
+        total_resources_checked=total_checked,
+        resources_passed=passed_count,
+        resources_failed=failed_count,
+        remediation_guidance=remediation_guidance,
+        remediation_cli=remediation_cli,
+        reference_url=None,  # Could link to framework documentation
     )
 
 
