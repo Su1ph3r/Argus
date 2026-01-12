@@ -29,6 +29,7 @@ ignore = [
     "E402",  # module level import not at top (test files with sys.path)
     "F401",  # imported but unused (conditional imports)
     "F841",  # local variable assigned but never used
+    "I001",  # import sorting (handled by formatter)
     "B007",  # loop variable not used
     "B008",  # do not perform function calls in argument defaults
     "B904",  # raise without from inside except
