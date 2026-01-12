@@ -62,6 +62,17 @@ class ScanCreate(BaseModel):
     profile: ScanProfile = Field(
         default=ScanProfile.comprehensive, description="Scan profile to use"
     )
+    provider: str | None = Field(
+        default=None,
+        max_length=32,
+        pattern=r"^(aws|azure|gcp|kubernetes|iac)$",
+        description="Single provider to scan (aws, azure, gcp, kubernetes, iac)",
+    )
+    tools: list[str] | None = Field(
+        default=None,
+        max_length=20,
+        description="Specific tools to run (overrides profile tools)",
+    )
     target: str | None = Field(default=None, max_length=256, description="Specific target to scan")
     severity_filter: str | None = Field(
         default=None,
@@ -82,6 +93,17 @@ class ScanCreate(BaseModel):
         for char in dangerous_chars:
             if char in v:
                 raise ValueError(f"Invalid character in target: {char}")
+        return v
+
+    @field_validator("tools")
+    @classmethod
+    def validate_tools(cls, v):
+        """Validate tool names contain only safe characters."""
+        if v is None:
+            return v
+        for tool in v:
+            if not re.match(r"^[a-z0-9\-]+$", tool):
+                raise ValueError(f"Invalid tool name format: {tool}")
         return v
 
 
@@ -1259,3 +1281,57 @@ class CredentialStatusListResponse(BaseModel):
 
     statuses: list[CredentialStatusResponse]
     summary: dict[str, str] = Field(description="Provider -> status mapping")
+
+
+# ============================================================================
+# Compliance Schemas
+# ============================================================================
+
+
+class ComplianceControl(BaseModel):
+    """Individual compliance control with pass/fail status."""
+
+    control_id: str
+    control_title: str | None = None
+    control_description: str | None = None
+    requirement: str | None = None
+    severity: str | None = None
+    status: str  # "pass" or "fail"
+    finding_count: int = 0
+
+
+class ComplianceFrameworkSummary(BaseModel):
+    """Summary statistics for a compliance framework."""
+
+    framework: str
+    controls_checked: int
+    controls_passed: int
+    controls_failed: int
+    pass_percentage: float
+    open_findings: int
+
+
+class ComplianceFrameworksResponse(BaseModel):
+    """Response schema for listing all compliance frameworks."""
+
+    frameworks: list[ComplianceFrameworkSummary]
+    total: int
+
+
+class ComplianceFrameworkDetail(BaseModel):
+    """Detailed view of a compliance framework with all controls."""
+
+    framework: str
+    controls: list[ComplianceControl]
+    summary: ComplianceFrameworkSummary
+
+
+class ComplianceSummaryResponse(BaseModel):
+    """High-level compliance summary across all frameworks."""
+
+    frameworks_count: int
+    total_controls: int
+    total_passed: int
+    total_failed: int
+    overall_pass_percentage: float
+    by_framework: list[ComplianceFrameworkSummary]

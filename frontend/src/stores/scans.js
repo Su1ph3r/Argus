@@ -9,6 +9,7 @@ export const useScansStore = defineStore('scans', () => {
   const currentScan = ref(null)
   const profiles = ref([])
   const credentialStatus = ref(null)
+  const availableTools = ref({}) // Tools by provider
   const loading = ref(false)
   const error = ref(null)
   const pollingIntervals = ref({})
@@ -108,6 +109,34 @@ export const useScansStore = defineStore('scans', () => {
     }
   }
 
+  async function fetchToolsForProvider(provider) {
+    try {
+      const response = await fetch(`${API_BASE}/scans/tools/${provider}`)
+      if (!response.ok) throw new Error('Failed to fetch tools')
+
+      const data = await response.json()
+      availableTools.value[provider] = data.tools
+      return data.tools
+    } catch (e) {
+      console.error('Error fetching tools for provider:', e)
+      return []
+    }
+  }
+
+  async function fetchAllTools() {
+    try {
+      const response = await fetch(`${API_BASE}/scans/tools`)
+      if (!response.ok) throw new Error('Failed to fetch tools')
+
+      const data = await response.json()
+      availableTools.value = data.tools_by_provider
+      return data.tools_by_provider
+    } catch (e) {
+      console.error('Error fetching all tools:', e)
+      return {}
+    }
+  }
+
   async function createScan(config = {}) {
     loading.value = true
     error.value = null
@@ -118,6 +147,8 @@ export const useScansStore = defineStore('scans', () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           profile: config.profile || 'quick',
+          provider: config.provider || null,
+          tools: config.tools && config.tools.length > 0 ? config.tools : null,
           target: config.target || null,
           severity_filter: config.severityFilter || null,
           dry_run: config.dryRun || false,
@@ -286,6 +317,7 @@ export const useScansStore = defineStore('scans', () => {
     currentScan,
     profiles,
     credentialStatus,
+    availableTools,
     loading,
     error,
     pagination,
@@ -306,6 +338,8 @@ export const useScansStore = defineStore('scans', () => {
     cancelScan,
     fetchProfiles,
     fetchCredentialStatus,
+    fetchToolsForProvider,
+    fetchAllTools,
     startPolling,
     stopPolling,
     stopAllPolling,

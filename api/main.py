@@ -31,6 +31,7 @@ from routers import (
     assumed_roles_router,
     attack_paths_router,
     cloudfox_router,
+    compliance_router,
     credentials_router,
     enumerate_iam_router,
     executions_router,
@@ -424,6 +425,7 @@ app.include_router(credentials_router, prefix="/api")
 app.include_router(settings_router, prefix="/api")
 app.include_router(database_router, prefix="/api")
 app.include_router(aws_profiles_router, prefix="/api")
+app.include_router(compliance_router, prefix="/api")
 
 
 # Root endpoint

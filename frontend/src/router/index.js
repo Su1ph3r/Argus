@@ -7,6 +7,11 @@ const routes = [
     component: () => import('../views/DashboardView.vue'),
   },
   {
+    path: '/compliance',
+    name: 'compliance',
+    component: () => import('../views/ComplianceView.vue'),
+  },
+  {
     path: '/findings',
     name: 'findings',
     component: () => import('../views/FindingsView.vue'),

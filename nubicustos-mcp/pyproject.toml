@@ -1,0 +1,46 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "nubicustos-mcp"
+version = "1.0.0"
+description = "MCP server for Nubicustos cloud security auditing platform"
+readme = "README.md"
+license = "MIT"
+requires-python = ">=3.11"
+authors = [
+    { name = "Nubicustos Team" }
+]
+keywords = ["mcp", "security", "cloud", "auditing", "llm"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+]
+dependencies = [
+    "mcp>=1.0.0",
+    "httpx>=0.27.0",
+    "pydantic-settings>=2.0.0",
+    "pydantic>=2.0.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0.0",
+    "pytest-asyncio>=0.23.0",
+    "respx>=0.21.0",
+]
+
+[project.scripts]
+nubicustos-mcp = "nubicustos_mcp.server:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/nubicustos_mcp"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]

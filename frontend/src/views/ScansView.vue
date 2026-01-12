@@ -261,13 +261,30 @@
         </div>
 
         <div class="form-field">
-          <label>Cloud Providers</label>
-          <MultiSelect
-            v-model="newScanConfig.providers"
+          <label>Cloud Provider</label>
+          <Dropdown
+            v-model="newScanConfig.provider"
             :options="providerOptions"
             option-label="label"
             option-value="value"
-            placeholder="Select providers to scan"
+            placeholder="Select a provider"
+            class="w-full"
+            show-clear
+            @change="onProviderChange"
+          />
+        </div>
+
+        <div
+          v-if="newScanConfig.provider"
+          class="form-field"
+        >
+          <label>Tools (optional - leave empty for profile defaults)</label>
+          <MultiSelect
+            v-model="newScanConfig.tools"
+            :options="toolOptions"
+            option-label="label"
+            option-value="value"
+            placeholder="Select specific tools or use profile defaults"
             class="w-full"
             display="chip"
           />
@@ -350,15 +367,19 @@ const newScanConfig = ref({
   profile: 'comprehensive',
   target: '',
   severities: [],
-  providers: ['aws'],
+  provider: null,
+  tools: [],
   dryRun: false,
 })
+
+const toolOptions = ref([])
 
 const providerOptions = [
   { label: 'AWS', value: 'aws' },
   { label: 'Azure', value: 'azure' },
   { label: 'GCP', value: 'gcp' },
   { label: 'Kubernetes', value: 'kubernetes' },
+  { label: 'IaC', value: 'iac' },
 ]
 
 const severityOptions = [
@@ -367,6 +388,29 @@ const severityOptions = [
   { label: 'Medium', value: 'medium' },
   { label: 'Low', value: 'low' },
 ]
+
+function formatToolName(tool) {
+  // Convert tool name to display format (e.g., "kube-bench" -> "Kube Bench")
+  return tool
+    .split('-')
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(' ')
+}
+
+async function onProviderChange() {
+  // Clear previously selected tools when provider changes
+  newScanConfig.value.tools = []
+
+  if (newScanConfig.value.provider) {
+    const tools = await store.fetchToolsForProvider(newScanConfig.value.provider)
+    toolOptions.value = tools.map(tool => ({
+      label: formatToolName(tool),
+      value: tool,
+    }))
+  } else {
+    toolOptions.value = []
+  }
+}
 
 function getStatusClass(status) {
   return {
@@ -425,12 +469,11 @@ async function startScan() {
   try {
     await store.createScan({
       profile: newScanConfig.value.profile,
+      provider: newScanConfig.value.provider || null,
+      tools: newScanConfig.value.tools.length > 0 ? newScanConfig.value.tools : null,
       target: newScanConfig.value.target || null,
       severityFilter: newScanConfig.value.severities.length > 0
         ? newScanConfig.value.severities.join(',')
-        : null,
-      providers: newScanConfig.value.providers.length > 0
-        ? newScanConfig.value.providers.join(',')
         : null,
       dryRun: newScanConfig.value.dryRun,
     })
@@ -440,9 +483,11 @@ async function startScan() {
       profile: 'comprehensive',
       target: '',
       severities: [],
-      providers: ['aws'],
+      provider: null,
+      tools: [],
       dryRun: false,
     }
+    toolOptions.value = []
   } catch (e) {
     console.error('Failed to start scan:', e)
   }

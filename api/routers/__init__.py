@@ -3,6 +3,7 @@
 from .assumed_roles import router as assumed_roles_router
 from .attack_paths import router as attack_paths_router
 from .cloudfox import router as cloudfox_router
+from .compliance import router as compliance_router
 from .credentials import router as credentials_router
 from .enumerate_iam import router as enumerate_iam_router
 from .executions import router as executions_router
@@ -40,4 +41,5 @@ __all__ = [
     "executions_router",
     "credentials_router",
     "settings_router",
+    "compliance_router",
 ]

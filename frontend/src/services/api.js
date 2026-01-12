@@ -114,6 +114,24 @@ export const api = {
   async getDetailedHealth() {
     return request('/health/detailed')
   },
+
+  // Compliance
+  async getComplianceFrameworks() {
+    return request('/compliance/frameworks')
+  },
+
+  async getComplianceSummary() {
+    return request('/compliance/summary')
+  },
+
+  async getComplianceFrameworkDetails(framework) {
+    return request(`/compliance/frameworks/${encodeURIComponent(framework)}`)
+  },
+
+  getComplianceExportUrl(framework = null) {
+    const params = framework ? `?framework=${encodeURIComponent(framework)}` : ''
+    return `${API_BASE}/compliance/export/csv${params}`
+  },
 }
 
 export { ApiError }

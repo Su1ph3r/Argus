@@ -111,6 +111,17 @@
         <span v-if="!sidebarStore.collapsed">Findings</span>
       </router-link>
 
+      <!-- Compliance -->
+      <router-link
+        to="/compliance"
+        class="nav-item"
+        :class="{ active: $route.path === '/compliance' }"
+        :title="sidebarStore.collapsed ? 'Compliance' : ''"
+      >
+        <i class="pi pi-verified" />
+        <span v-if="!sidebarStore.collapsed">Compliance</span>
+      </router-link>
+
       <!-- Attack Paths -->
       <router-link
         to="/attack-paths"

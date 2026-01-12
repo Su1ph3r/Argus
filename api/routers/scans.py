@@ -44,6 +44,35 @@ from services.docker_executor import (
 router: APIRouter = APIRouter(prefix="/scans", tags=["Scans"])
 logger: logging.Logger = logging.getLogger(__name__)
 
+# Provider to tools mapping
+PROVIDER_TOOLS: dict[str, list[str]] = {
+    "aws": [
+        "prowler",
+        "scoutsuite",
+        "cloudsploit",
+        "custodian",
+        "cloudmapper",
+        "cartography",
+        "pacu",
+        "cloudfox",
+        "enumerate-iam",
+    ],
+    "azure": ["prowler", "scoutsuite", "cloudfox"],
+    "gcp": ["prowler", "scoutsuite", "cloudfox", "cartography"],
+    "kubernetes": [
+        "kube-bench",
+        "kubescape",
+        "kube-hunter",
+        "trivy",
+        "grype",
+        "popeye",
+        "kube-linter",
+        "polaris",
+        "falco",
+    ],
+    "iac": ["checkov", "terrascan", "tfsec"],
+}
+
 
 async def _process_scan_reports(
     scan_id: str,
@@ -384,6 +413,8 @@ async def create_scan(scan_request: ScanCreate, db: Session = Depends(get_db)):
     Args:
         scan_request: Scan configuration including:
             - profile: Scan profile (quick, comprehensive, compliance-only)
+            - provider: Single provider to scan (aws, azure, gcp, kubernetes, iac)
+            - tools: Specific tools to run (overrides profile tools)
             - target: Optional specific target to scan
             - severity_filter: Comma-separated severity levels
             - dry_run: If true, preview commands without executing
@@ -394,7 +425,8 @@ async def create_scan(scan_request: ScanCreate, db: Session = Depends(get_db)):
     Example Request:
         ```json
         {
-            "profile": "quick",
+            "provider": "aws",
+            "tools": ["prowler", "scoutsuite"],
             "severity_filter": "critical,high",
             "dry_run": false
         }
@@ -404,8 +436,8 @@ async def create_scan(scan_request: ScanCreate, db: Session = Depends(get_db)):
         ```json
         {
             "scan_id": "550e8400-e29b-41d4-a716-446655440000",
-            "scan_type": "quick",
-            "target": "all",
+            "scan_type": "custom",
+            "target": "aws",
             "tool": "multi-tool",
             "status": "running",
             "started_at": "2024-01-15T10:30:00Z",
@@ -421,19 +453,39 @@ async def create_scan(scan_request: ScanCreate, db: Session = Depends(get_db)):
             detail=f"Unknown scan profile: {profile_name}. Available: {list(SCAN_PROFILES.keys())}",
         )
 
+    # Validate tools against provider if both specified
+    if scan_request.tools and scan_request.provider:
+        available_tools = PROVIDER_TOOLS.get(scan_request.provider, [])
+        invalid_tools = [t for t in scan_request.tools if t not in available_tools]
+        if invalid_tools:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Invalid tools for {scan_request.provider}: {invalid_tools}. "
+                f"Available: {available_tools}",
+            )
+
+    # Determine which tools to run
+    if scan_request.tools:
+        tools_to_run = scan_request.tools
+        scan_type = "custom"
+    else:
+        tools_to_run = [t.value for t in SCAN_PROFILES[profile_name]["tools"]]
+        scan_type = profile_name
+
     # Create scan record
     scan = Scan(
         scan_id=uuid4(),
-        scan_type=profile_name,
-        target=scan_request.target or "all",
+        scan_type=scan_type,
+        target=scan_request.target or scan_request.provider or "all",
         tool="multi-tool",
         status="pending" if scan_request.dry_run else "running",
         started_at=datetime.utcnow(),
         scan_metadata={
             "profile": profile_name,
+            "provider": scan_request.provider,
+            "tools": tools_to_run,
             "dry_run": scan_request.dry_run,
             "severity_filter": scan_request.severity_filter,
-            "tools": [t.value for t in SCAN_PROFILES[profile_name]["tools"]],
         },
     )
 
@@ -590,3 +642,60 @@ async def list_profiles():
             }
         )
     return {"profiles": profiles}
+
+
+@router.get("/tools")
+async def list_all_tools():
+    """
+    List all available tools grouped by provider.
+
+    Returns a mapping of cloud providers to their available security scanning tools.
+    Use this endpoint to discover what tools can be selected for each provider.
+
+    Returns:
+        dict: Tools grouped by provider (aws, azure, gcp, kubernetes, iac)
+
+    Example Response:
+        ```json
+        {
+            "tools_by_provider": {
+                "aws": ["prowler", "scoutsuite", "cloudsploit", ...],
+                "azure": ["prowler", "scoutsuite", "cloudfox"],
+                "gcp": ["prowler", "scoutsuite", "cloudfox", "cartography"],
+                "kubernetes": ["kube-bench", "kubescape", ...],
+                "iac": ["checkov", "terrascan", "tfsec"]
+            }
+        }
+        ```
+    """
+    return {"tools_by_provider": PROVIDER_TOOLS}
+
+
+@router.get("/tools/{provider}")
+async def get_tools_for_provider(provider: str):
+    """
+    Get available tools for a specific cloud provider.
+
+    Args:
+        provider: Cloud provider name (aws, azure, gcp, kubernetes, iac)
+
+    Returns:
+        dict: Provider name and list of available tools
+
+    Raises:
+        HTTPException 400: If provider is not recognized
+
+    Example Response:
+        ```json
+        {
+            "provider": "aws",
+            "tools": ["prowler", "scoutsuite", "cloudsploit", ...]
+        }
+        ```
+    """
+    if provider not in PROVIDER_TOOLS:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Unknown provider: {provider}. Available providers: {list(PROVIDER_TOOLS.keys())}",
+        )
+    return {"provider": provider, "tools": PROVIDER_TOOLS[provider]}

@@ -18,12 +18,21 @@ DRY_RUN=false
 SEVERITY_FILTER=""
 OUTPUT_FORMAT="default"
 PROFILE=""
+SELECTED_PROVIDER=""
+SELECTED_TOOLS=""
 EXECUTED_TOOLS=()
 TOTAL_FINDINGS=0
 CRITICAL_COUNT=0
 HIGH_COUNT=0
 MEDIUM_COUNT=0
 LOW_COUNT=0
+
+# Provider to tools mapping
+AWS_TOOLS="prowler,scoutsuite,cloudsploit,custodian,cloudmapper,cartography,pacu,cloudfox,enumerate-iam"
+AZURE_TOOLS="prowler,scoutsuite,cloudfox"
+GCP_TOOLS="prowler,scoutsuite,cloudfox,cartography"
+KUBERNETES_TOOLS="kube-bench,kubescape,kube-hunter,trivy,grype,popeye,kube-linter,polaris,falco"
+IAC_TOOLS="checkov,terrascan,tfsec"
 
 # Colors
 RED='\033[0;31m'
@@ -67,13 +76,26 @@ Options:
     --severity LEVELS   Filter by severity (comma-separated: critical,high,medium,low)
     --output FORMAT     Output format: default, json
     --profile NAME      Use scan profile (quick, comprehensive, compliance-only)
+    --provider NAME     Single provider to scan (aws, azure, gcp, kubernetes, iac)
+    --tools TOOLS       Comma-separated tools to run (overrides profile)
     -h, --help          Show this help message
 
 Examples:
     $(basename "$0") --dry-run
     $(basename "$0") --severity critical,high
     $(basename "$0") --output json --profile quick
-    $(basename "$0") --dry-run --severity critical --profile comprehensive
+    $(basename "$0") --provider aws --tools prowler,scoutsuite
+    $(basename "$0") --provider azure --tools prowler,scoutsuite --dry-run
+    $(basename "$0") --provider kubernetes --tools kubescape,trivy
+
+Available Tools by Provider:
+    aws:        prowler, scoutsuite, cloudsploit, custodian, cloudmapper,
+                cartography, pacu, cloudfox, enumerate-iam
+    azure:      prowler, scoutsuite, cloudfox
+    gcp:        prowler, scoutsuite, cloudfox, cartography
+    kubernetes: kube-bench, kubescape, kube-hunter, trivy, grype,
+                popeye, kube-linter, polaris, falco
+    iac:        checkov, terrascan, tfsec
 
 Environment Variables:
     ENABLE_PROWLER, ENABLE_SCOUTSUITE, ENABLE_CLOUDSPLOIT, etc.
@@ -102,6 +124,14 @@ parse_args() {
                 PROFILE="$2"
                 shift 2
                 ;;
+            --provider)
+                SELECTED_PROVIDER="$2"
+                shift 2
+                ;;
+            --tools)
+                SELECTED_TOOLS="$2"
+                shift 2
+                ;;
             -h|--help)
                 show_help
                 exit 0
@@ -111,6 +141,75 @@ parse_args() {
                 shift
                 ;;
         esac
+    done
+}
+
+# Validate selected tools against available tools for provider
+validate_tools() {
+    local provider=$1
+    local tools=$2
+    local available_tools
+
+    case $provider in
+        aws) available_tools=$AWS_TOOLS ;;
+        azure) available_tools=$AZURE_TOOLS ;;
+        gcp) available_tools=$GCP_TOOLS ;;
+        kubernetes) available_tools=$KUBERNETES_TOOLS ;;
+        iac) available_tools=$IAC_TOOLS ;;
+        *)
+            log ERROR "Unknown provider: $provider"
+            log INFO "Available providers: aws, azure, gcp, kubernetes, iac"
+            return 1
+            ;;
+    esac
+
+    # Validate each tool
+    IFS=',' read -ra tool_array <<< "$tools"
+    for tool in "${tool_array[@]}"; do
+        if ! echo ",$available_tools," | grep -q ",$tool,"; then
+            log ERROR "Tool '$tool' not available for provider '$provider'"
+            log INFO "Available tools: $available_tools"
+            return 1
+        fi
+    done
+    return 0
+}
+
+# Apply tool selection - disable all tools then enable only selected ones
+apply_tool_selection() {
+    local tools=$1
+
+    # Disable all tools first
+    export ENABLE_PROWLER=false
+    export ENABLE_SCOUTSUITE=false
+    export ENABLE_CLOUDSPLOIT=false
+    export ENABLE_CUSTODIAN=false
+    export ENABLE_CLOUDMAPPER=false
+    export ENABLE_CARTOGRAPHY=false
+    export ENABLE_PACU=false
+    export ENABLE_CLOUDFOX=false
+    export ENABLE_ENUMERATE_IAM=false
+    export ENABLE_KUBE_BENCH=false
+    export ENABLE_KUBESCAPE=false
+    export ENABLE_KUBE_HUNTER=false
+    export ENABLE_TRIVY=false
+    export ENABLE_GRYPE=false
+    export ENABLE_POPEYE=false
+    export ENABLE_KUBE_LINTER=false
+    export ENABLE_POLARIS=false
+    export ENABLE_FALCO=false
+    export ENABLE_CHECKOV=false
+    export ENABLE_TERRASCAN=false
+    export ENABLE_TFSEC=false
+
+    # Enable only selected tools
+    IFS=',' read -ra tool_array <<< "$tools"
+    for tool in "${tool_array[@]}"; do
+        local var_name
+        # Convert tool name to env variable format (e.g., kube-bench -> ENABLE_KUBE_BENCH)
+        var_name="ENABLE_$(echo "$tool" | tr '[:lower:]-' '[:upper:]_')"
+        export "$var_name"=true
+        log INFO "Enabled tool: $tool"
     done
 }
 
@@ -153,21 +252,21 @@ check_docker() {
 
 # Run AWS audits
 run_aws_audits() {
-    log INFO "========================================" 
+    log INFO "========================================"
     log INFO "Running AWS Security Audits"
     log INFO "========================================"
-    
+
     # Check if AWS credentials exist
     if [ ! -f "$PROJECT_DIR/credentials/aws/credentials" ]; then
         log WARN "AWS credentials not found. Skipping AWS audits."
         return
     fi
-    
+
     # Prowler
     if [ "${ENABLE_PROWLER:-true}" = "true" ]; then
-        log INFO "Running Prowler..."
+        log INFO "Running Prowler for AWS..."
         run_tool "prowler" prowler aws \
-            --output-modes json,html,csv \
+            --output-formats json-ocsf csv html \
             --output-directory /reports \
             $(get_severity_flag) \
             --log-file /logs/prowler.log
@@ -201,13 +300,99 @@ run_aws_audits() {
         run_tool "cloudmapper" cloudmapper
     fi
 
-    # Cartography
+    # Cartography (AWS)
     if [ "${ENABLE_CARTOGRAPHY:-true}" = "true" ]; then
-        log INFO "Running Cartography..."
+        log INFO "Running Cartography for AWS..."
         run_tool "cartography" cartography
     fi
-    
+
+    # CloudFox (AWS)
+    if [ "${ENABLE_CLOUDFOX:-false}" = "true" ]; then
+        log INFO "Running CloudFox for AWS..."
+        run_tool "cloudfox" cloudfox aws
+    fi
+
     log INFO "AWS audits complete"
+}
+
+# Run Azure audits
+run_azure_audits() {
+    log INFO "========================================"
+    log INFO "Running Azure Security Audits"
+    log INFO "========================================"
+
+    # Check if Azure credentials exist
+    if [ ! -d "$PROJECT_DIR/credentials/azure" ]; then
+        log WARN "Azure credentials not found. Skipping Azure audits."
+        return
+    fi
+
+    # Prowler (Azure)
+    if [ "${ENABLE_PROWLER:-true}" = "true" ]; then
+        log INFO "Running Prowler for Azure..."
+        run_tool "prowler" prowler azure \
+            --output-formats json-ocsf csv html \
+            --output-directory /reports \
+            $(get_severity_flag) \
+            --log-file /logs/prowler-azure.log
+    fi
+
+    # ScoutSuite (Azure)
+    if [ "${ENABLE_SCOUTSUITE:-true}" = "true" ]; then
+        log INFO "Running ScoutSuite for Azure..."
+        run_tool "scoutsuite" scoutsuite azure --report-dir /reports/scoutsuite
+    fi
+
+    # CloudFox (Azure)
+    if [ "${ENABLE_CLOUDFOX:-false}" = "true" ]; then
+        log INFO "Running CloudFox for Azure..."
+        run_tool "cloudfox" cloudfox azure
+    fi
+
+    log INFO "Azure audits complete"
+}
+
+# Run GCP audits
+run_gcp_audits() {
+    log INFO "========================================"
+    log INFO "Running GCP Security Audits"
+    log INFO "========================================"
+
+    # Check if GCP credentials exist
+    if [ ! -d "$PROJECT_DIR/credentials/gcp" ]; then
+        log WARN "GCP credentials not found. Skipping GCP audits."
+        return
+    fi
+
+    # Prowler (GCP)
+    if [ "${ENABLE_PROWLER:-true}" = "true" ]; then
+        log INFO "Running Prowler for GCP..."
+        run_tool "prowler" prowler gcp \
+            --output-formats json-ocsf csv html \
+            --output-directory /reports \
+            $(get_severity_flag) \
+            --log-file /logs/prowler-gcp.log
+    fi
+
+    # ScoutSuite (GCP)
+    if [ "${ENABLE_SCOUTSUITE:-true}" = "true" ]; then
+        log INFO "Running ScoutSuite for GCP..."
+        run_tool "scoutsuite" scoutsuite gcp --report-dir /reports/scoutsuite
+    fi
+
+    # CloudFox (GCP)
+    if [ "${ENABLE_CLOUDFOX:-false}" = "true" ]; then
+        log INFO "Running CloudFox for GCP..."
+        run_tool "cloudfox" cloudfox gcp
+    fi
+
+    # Cartography (GCP)
+    if [ "${ENABLE_CARTOGRAPHY:-true}" = "true" ]; then
+        log INFO "Running Cartography for GCP..."
+        run_tool "cartography" cartography --gcp-project-id "$GCP_PROJECT_ID"
+    fi
+
+    log INFO "GCP audits complete"
 }
 
 # Run Kubernetes audits
@@ -448,7 +633,7 @@ main() {
 
     log INFO "========================================"
     log INFO "Nubicustos - Cloud Security Platform"
-    log INFO "Starting Full Security Audit"
+    log INFO "Starting Security Audit"
     log INFO "========================================"
     log INFO "Start time: $(date)"
 
@@ -461,6 +646,12 @@ main() {
     fi
     if [ -n "$PROFILE" ]; then
         log INFO "Using scan profile: $PROFILE"
+    fi
+    if [ -n "$SELECTED_PROVIDER" ]; then
+        log INFO "Selected provider: $SELECTED_PROVIDER"
+    fi
+    if [ -n "$SELECTED_TOOLS" ]; then
+        log INFO "Selected tools: $SELECTED_TOOLS"
     fi
     echo ""
 
@@ -478,25 +669,63 @@ main() {
         eval "$(load_profile "$PROFILE")"
     fi
 
+    # Validate and apply tool selection if specified
+    if [ -n "$SELECTED_TOOLS" ]; then
+        if [ -z "$SELECTED_PROVIDER" ]; then
+            log ERROR "--tools requires --provider to be specified"
+            exit 1
+        fi
+        if ! validate_tools "$SELECTED_PROVIDER" "$SELECTED_TOOLS"; then
+            exit 1
+        fi
+        apply_tool_selection "$SELECTED_TOOLS"
+    fi
+
     # Check prerequisites
     check_docker
-    
+
     # Create reports directory
     mkdir -p "$REPORTS_DIR"
-    
-    # Run audits
-    run_aws_audits
+
+    # Run audits based on provider selection
+    if [ -n "$SELECTED_PROVIDER" ]; then
+        # Run only the selected provider
+        case $SELECTED_PROVIDER in
+            aws)
+                run_aws_audits
+                ;;
+            azure)
+                run_azure_audits
+                ;;
+            gcp)
+                run_gcp_audits
+                ;;
+            kubernetes)
+                run_kubernetes_audits
+                ;;
+            iac)
+                run_iac_scans
+                ;;
+            *)
+                log ERROR "Unknown provider: $SELECTED_PROVIDER"
+                exit 1
+                ;;
+        esac
+    else
+        # Run all audits (default behavior)
+        run_aws_audits
+        echo ""
+
+        run_kubernetes_audits
+        echo ""
+
+        run_iac_scans
+        echo ""
+
+        run_container_scans
+    fi
     echo ""
-    
-    run_kubernetes_audits
-    echo ""
-    
-    run_iac_scans
-    echo ""
-    
-    run_container_scans
-    echo ""
-    
+
     # Generate summary
     generate_summary
 
