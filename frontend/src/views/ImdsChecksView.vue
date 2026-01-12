@@ -197,9 +197,10 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useImdsChecksStore } from '../stores/imdsChecks'
 import { useExecutionsStore } from '../stores/executions'
+import { useToast } from 'primevue/usetoast'
 import DataTable from 'primevue/datatable'
 import Column from 'primevue/column'
 import Tag from 'primevue/tag'
@@ -208,6 +209,7 @@ import Paginator from 'primevue/paginator'
 
 const store = useImdsChecksStore()
 const executionsStore = useExecutionsStore()
+const toast = useToast()
 const showVulnerableOnly = ref(false)
 const executionLogs = ref(null)
 
@@ -263,12 +265,55 @@ function toggleVulnerable() {
 
 async function runScan() {
   executionLogs.value = null
-  await store.runScan({})
+  try {
+    await store.runScan({})
+    toast.add({
+      severity: 'info',
+      summary: 'Scan Started',
+      detail: 'IMDS vulnerability scan is now running',
+      life: 3000,
+    })
+  } catch (e) {
+    toast.add({
+      severity: 'error',
+      summary: 'Scan Failed',
+      detail: e.message || 'Failed to start IMDS scan',
+      life: 5000,
+    })
+  }
 }
 
 async function stopExecution() {
   await store.stopCurrentExecution()
+  toast.add({
+    severity: 'warn',
+    summary: 'Scan Stopped',
+    detail: 'IMDS scan was cancelled',
+    life: 3000,
+  })
 }
+
+// Watch for execution status changes to show completion notifications
+watch(
+  () => store.currentExecution?.status,
+  (newStatus, oldStatus) => {
+    if (oldStatus === 'running' && newStatus === 'completed') {
+      toast.add({
+        severity: 'success',
+        summary: 'Scan Completed',
+        detail: 'IMDS vulnerability scan finished successfully',
+        life: 4000,
+      })
+    } else if (oldStatus === 'running' && newStatus === 'failed') {
+      toast.add({
+        severity: 'error',
+        summary: 'Scan Failed',
+        detail: store.currentExecution?.error || 'IMDS scan encountered an error',
+        life: 5000,
+      })
+    }
+  },
+)
 
 function dismissExecution() {
   store.currentExecution = null

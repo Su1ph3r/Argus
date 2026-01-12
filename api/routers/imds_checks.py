@@ -28,6 +28,9 @@ class ImdsCheckScanRequest(BaseModel):
 
     profile: str | None = None
     regions: list[str] | None = None
+    access_key: str | None = None
+    secret_key: str | None = None
+    session_token: str | None = None
 
 
 async def _run_imds_scan(
