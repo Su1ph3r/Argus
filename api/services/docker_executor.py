@@ -1,21 +1,21 @@
 """Docker container execution service for security tools."""
-import asyncio
+
 import logging
 import os
 import uuid
 from datetime import datetime
 from enum import Enum
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 import docker
-from docker.errors import ContainerError, ImageNotFound, APIError
-from sqlalchemy.orm import Session
+from docker.errors import APIError, ImageNotFound
 
 logger = logging.getLogger(__name__)
 
 
 class ExecutionStatus(str, Enum):
     """Tool execution status."""
+
     PENDING = "pending"
     RUNNING = "running"
     COMPLETED = "completed"
@@ -25,6 +25,7 @@ class ExecutionStatus(str, Enum):
 
 class ToolType(str, Enum):
     """Supported tool types for Docker-based execution."""
+
     # AWS Security Tools
     PROWLER = "prowler"
     SCOUTSUITE = "scoutsuite"
@@ -57,7 +58,15 @@ TOOL_CONFIGS = {
             "AWS_CONFIG_FILE": "/home/prowler/.aws/config",
             "HOME": "/home/prowler",
         },
-        "default_command": ["aws", "--output-formats", "json-ocsf", "html", "csv", "--output-directory", "/reports"],
+        "default_command": [
+            "aws",
+            "--output-formats",
+            "json-ocsf",
+            "html",
+            "csv",
+            "--output-directory",
+            "/reports",
+        ],
         "expected_exit_codes": [0, 1, 3],  # 0=no findings, 1/3=findings found (not errors)
     },
     ToolType.SCOUTSUITE: {
@@ -69,7 +78,14 @@ TOOL_CONFIGS = {
         },
         "network": "cloud-stack_security-net",
         "environment": {},
-        "default_command": ["--provider", "aws", "--report-dir", "/reports/aws", "--no-browser", "--force"],
+        "default_command": [
+            "--provider",
+            "aws",
+            "--report-dir",
+            "/reports/aws",
+            "--no-browser",
+            "--force",
+        ],
         "expected_exit_codes": [0, 1],
     },
     ToolType.CLOUDFOX: {
@@ -103,7 +119,17 @@ TOOL_CONFIGS = {
             "AWS_DEFAULT_REGION": "us-east-1",
         },
         "entrypoint": "node",
-        "default_command": ["/var/scan/cloudsploit/index.js", "--cloud", "aws", "--compliance", "pci", "--console", "table", "--json", "/reports/output.json"],
+        "default_command": [
+            "/var/scan/cloudsploit/index.js",
+            "--cloud",
+            "aws",
+            "--compliance",
+            "pci",
+            "--console",
+            "table",
+            "--json",
+            "/reports/output.json",
+        ],
         "expected_exit_codes": [0, 1],
     },
     ToolType.CLOUD_CUSTODIAN: {
@@ -149,7 +175,14 @@ TOOL_CONFIGS = {
             "NEO4J_PASSWORD": "${NEO4J_PASSWORD:-cloudsecurity}",
             "AWS_SHARED_CREDENTIALS_FILE": "/root/.aws/credentials",
         },
-        "default_command": ["--neo4j-uri", "bolt://neo4j:7687", "--neo4j-user", "neo4j", "--neo4j-password-env-var", "NEO4J_PASSWORD"],
+        "default_command": [
+            "--neo4j-uri",
+            "bolt://neo4j:7687",
+            "--neo4j-user",
+            "neo4j",
+            "--neo4j-password-env-var",
+            "NEO4J_PASSWORD",
+        ],
         "expected_exit_codes": [0],
     },
     ToolType.PACU: {
@@ -195,7 +228,14 @@ TOOL_CONFIGS = {
         },
         "network": "cloud-stack_security-net",
         "environment": {},
-        "default_command": ["scan", "--format", "json", "--output", "/reports/kubescape-results.json", "--submit=false"],
+        "default_command": [
+            "scan",
+            "--format",
+            "json",
+            "--output",
+            "/reports/kubescape-results.json",
+            "--submit=false",
+        ],
         "expected_exit_codes": [0, 1],
     },
 }
@@ -238,7 +278,7 @@ class DockerExecutor:
 
     def __init__(self):
         """Initialize the Docker client."""
-        self._client: Optional[docker.DockerClient] = None
+        self._client: docker.DockerClient | None = None
         self._base_path = os.environ.get("HOST_PATH", "/app")
 
     @property
@@ -301,7 +341,7 @@ class DockerExecutor:
             logger.info(f"Creating volume: {volume_name}")
             self.client.volumes.create(volume_name)
 
-    def _get_volumes(self, tool_type: ToolType) -> Dict[str, Dict[str, str]]:
+    def _get_volumes(self, tool_type: ToolType) -> dict[str, dict[str, str]]:
         """Get volume mappings for a tool."""
         config = TOOL_CONFIGS.get(tool_type, {})
         volumes = {}
@@ -323,11 +363,11 @@ class DockerExecutor:
     async def start_execution(
         self,
         tool_type: ToolType,
-        command: Optional[List[str]] = None,
-        environment: Optional[Dict[str, str]] = None,
-        extra_volumes: Optional[Dict[str, Dict[str, str]]] = None,
-        entrypoint: Optional[str] = None,
-    ) -> Dict[str, Any]:
+        command: list[str] | None = None,
+        environment: dict[str, str] | None = None,
+        extra_volumes: dict[str, dict[str, str]] | None = None,
+        entrypoint: str | None = None,
+    ) -> dict[str, Any]:
         """
         Start a tool execution in a container.
 
@@ -418,7 +458,7 @@ class DockerExecutor:
     async def get_execution_status(
         self,
         container_id: str,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Get the status of a running execution.
 
@@ -441,8 +481,7 @@ class DockerExecutor:
                 exit_code = container.attrs["State"]["ExitCode"]
                 result["exit_code"] = exit_code
                 result["execution_status"] = (
-                    ExecutionStatus.COMPLETED if exit_code == 0
-                    else ExecutionStatus.FAILED
+                    ExecutionStatus.COMPLETED if exit_code == 0 else ExecutionStatus.FAILED
                 )
                 # Get logs
                 logs = container.logs(tail=100).decode("utf-8", errors="replace")
@@ -495,7 +534,7 @@ class DockerExecutor:
     async def stop_execution(
         self,
         container_id: str,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Stop a running execution.
 
@@ -551,7 +590,7 @@ class DockerExecutor:
 
 
 # Singleton instance
-_executor: Optional[DockerExecutor] = None
+_executor: DockerExecutor | None = None
 
 
 def get_docker_executor() -> DockerExecutor:

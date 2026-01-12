@@ -1,7 +1,8 @@
 """AWS Profiles API - Read profiles from mounted credentials file."""
-import os
+
 import configparser
-from typing import Optional, List
+import os
+
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
@@ -14,24 +15,27 @@ AWS_CONFIG_PATH = "/app/credentials/aws/config"
 
 class AWSProfile(BaseModel):
     """AWS profile information."""
+
     name: str
     has_access_key: bool
     has_secret_key: bool
     has_session_token: bool
-    region: Optional[str] = None
+    region: str | None = None
 
 
 class AWSProfileCredentials(BaseModel):
     """AWS profile credentials (for internal use)."""
+
     access_key_id: str
     secret_access_key: str
-    session_token: Optional[str] = None
-    region: Optional[str] = None
+    session_token: str | None = None
+    region: str | None = None
 
 
 class ProfileListResponse(BaseModel):
     """Response for listing profiles."""
-    profiles: List[AWSProfile]
+
+    profiles: list[AWSProfile]
     credentials_file_exists: bool
     credentials_path: str
 
@@ -52,7 +56,7 @@ def _read_config_file() -> configparser.ConfigParser:
     return config
 
 
-def _get_region_for_profile(profile_name: str) -> Optional[str]:
+def _get_region_for_profile(profile_name: str) -> str | None:
     """Get region from config file for a profile."""
     config = _read_config_file()
 
@@ -87,14 +91,14 @@ async def list_profiles():
             has_access_key=credentials.has_option(section, "aws_access_key_id"),
             has_secret_key=credentials.has_option(section, "aws_secret_access_key"),
             has_session_token=credentials.has_option(section, "aws_session_token"),
-            region=_get_region_for_profile(section)
+            region=_get_region_for_profile(section),
         )
         profiles.append(profile)
 
     return ProfileListResponse(
         profiles=profiles,
         credentials_file_exists=os.path.exists(AWS_CREDENTIALS_PATH),
-        credentials_path=AWS_CREDENTIALS_PATH
+        credentials_path=AWS_CREDENTIALS_PATH,
     )
 
 
@@ -113,7 +117,7 @@ async def get_profile_info(profile_name: str):
         has_access_key=credentials.has_option(profile_name, "aws_access_key_id"),
         has_secret_key=credentials.has_option(profile_name, "aws_secret_access_key"),
         has_session_token=credentials.has_option(profile_name, "aws_session_token"),
-        region=_get_region_for_profile(profile_name)
+        region=_get_region_for_profile(profile_name),
     )
 
 
@@ -144,7 +148,7 @@ async def get_profile_credentials(profile_name: str) -> AWSProfileCredentials:
         access_key_id=access_key,
         secret_access_key=secret_key,
         session_token=session_token,
-        region=region
+        region=region,
     )
 
 
@@ -175,7 +179,7 @@ async def verify_profile(profile_name: str):
             aws_access_key_id=access_key,
             aws_secret_access_key=secret_key,
             aws_session_token=session_token,
-            region_name=region
+            region_name=region,
         )
 
         sts = session.client("sts")
@@ -187,7 +191,7 @@ async def verify_profile(profile_name: str):
             "account": identity.get("Account"),
             "arn": identity.get("Arn"),
             "user_id": identity.get("UserId"),
-            "region": region
+            "region": region,
         }
 
     except ClientError as e:
@@ -197,19 +201,14 @@ async def verify_profile(profile_name: str):
             "valid": False,
             "profile": profile_name,
             "error": error_code,
-            "message": error_message
+            "message": error_message,
         }
     except NoCredentialsError:
         return {
             "valid": False,
             "profile": profile_name,
             "error": "NoCredentials",
-            "message": "Could not find credentials for profile"
+            "message": "Could not find credentials for profile",
         }
     except Exception as e:
-        return {
-            "valid": False,
-            "profile": profile_name,
-            "error": "Unknown",
-            "message": str(e)
-        }
+        return {"valid": False, "profile": profile_name, "error": "Unknown", "message": str(e)}

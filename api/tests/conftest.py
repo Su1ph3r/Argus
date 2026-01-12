@@ -1,8 +1,9 @@
 """Pytest fixtures for API tests."""
+
 import sys
+from collections.abc import Generator
 from datetime import datetime
 from pathlib import Path
-from typing import Generator
 from uuid import uuid4
 
 import pytest
@@ -18,7 +19,6 @@ if str(api_dir) not in sys.path:
 
 from main import app
 from models.database import AttackPath, Base, Finding, Scan, get_db
-
 
 # Create in-memory SQLite database for testing
 SQLALCHEMY_DATABASE_URL = "sqlite:///:memory:"
@@ -170,7 +170,13 @@ def sample_attack_path(db_session: Session, sample_scan: Scan) -> AttackPath:
         ],
         edges=[
             {"id": "e1", "source": "n1", "target": "n2", "type": "access", "name": "S3 trigger"},
-            {"id": "e2", "source": "n2", "target": "n3", "type": "privilege", "name": "IAM escalation"},
+            {
+                "id": "e2",
+                "source": "n2",
+                "target": "n3",
+                "type": "privilege",
+                "name": "IAM escalation",
+            },
         ],
         finding_ids=[],
         risk_score=85,
@@ -181,7 +187,12 @@ def sample_attack_path(db_session: Session, sample_scan: Scan) -> AttackPath:
         requires_privileges=False,
         poc_available=True,
         poc_steps=[
-            {"step": 1, "name": "Access S3", "description": "Access public bucket", "command": "aws s3 ls s3://test-bucket"}
+            {
+                "step": 1,
+                "name": "Access S3",
+                "description": "Access public bucket",
+                "command": "aws s3 ls s3://test-bucket",
+            }
         ],
         mitre_tactics=["Initial Access", "Privilege Escalation"],
         aws_services=["S3", "Lambda", "IAM"],

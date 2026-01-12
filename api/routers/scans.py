@@ -19,24 +19,24 @@ Endpoints:
     DELETE /scans/{scan_id} - Cancel a running scan
     GET /scans/profiles/list - List available scan profiles
 """
+
 import asyncio
 import logging
 from datetime import datetime
-from typing import Any, List, Optional
 from uuid import UUID, uuid4
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import desc
 from sqlalchemy.orm import Session
 
-from models.database import Scan, get_db
-from models.schemas import ScanCreate, ScanListResponse, ScanProfile, ScanResponse
 from config import get_settings
+from models.database import Scan, get_db
+from models.schemas import ScanCreate, ScanListResponse, ScanResponse
 from services.docker_executor import (
-    DockerExecutor,
-    ExecutionStatus,
     SCAN_PROFILES,
     TOOL_CONFIGS,
+    DockerExecutor,
+    ExecutionStatus,
     ToolType,
     get_docker_executor,
 )
@@ -47,7 +47,7 @@ logger: logging.Logger = logging.getLogger(__name__)
 
 async def _process_scan_reports(
     scan_id: str,
-    tools: List[str],
+    tools: list[str],
     executor: DockerExecutor,
 ) -> None:
     """
@@ -61,12 +61,8 @@ async def _process_scan_reports(
     import os
 
     # Build the command to run report processor with scan_id
-    tools_arg = ','.join(tools)
-    command = [
-        "python", "/app/process_reports.py",
-        "--scan-id", scan_id,
-        "--tools", tools_arg
-    ]
+    tools_arg = ",".join(tools)
+    command = ["python", "/app/process_reports.py", "--scan-id", scan_id, "--tools", tools_arg]
 
     logger.info(f"Running report processor for scan {scan_id} with tools: {tools}")
 
@@ -87,13 +83,15 @@ async def _process_scan_reports(
                 "DB_HOST": os.environ.get("DB_HOST", "postgresql"),
                 "DB_NAME": os.environ.get("DB_NAME", "security_audits"),
                 "DB_USER": os.environ.get("DB_USER", "auditor"),
-                "DB_PASSWORD": os.environ.get("DB_PASSWORD", os.environ.get("POSTGRES_PASSWORD", "")),
+                "DB_PASSWORD": os.environ.get(
+                    "DB_PASSWORD", os.environ.get("POSTGRES_PASSWORD", "")
+                ),
                 "ORCHESTRATION_SCAN_ID": scan_id,
                 "TOOLS_TO_PROCESS": tools_arg,
             },
             network="cloud-stack_security-net",
             detach=False,  # Wait for completion
-            remove=True,   # Auto-cleanup container
+            remove=True,  # Auto-cleanup container
         )
 
         logger.info(f"Report processor completed for scan {scan_id}")
@@ -104,17 +102,19 @@ async def _process_scan_reports(
         await _process_reports_directly(scan_id, tools)
 
 
-async def _process_reports_directly(scan_id: str, tools: List[str]) -> None:
+async def _process_reports_directly(scan_id: str, tools: list[str]) -> None:
     """
     Fall back to direct report processing within the API container.
 
     This is used when the report-processor container can't be launched.
     """
     import sys
-    sys.path.insert(0, '/app/report-processor')
+
+    sys.path.insert(0, "/app/report-processor")
 
     try:
         from process_reports import ReportProcessor
+
         processor = ReportProcessor()
         processor.process_for_scan(scan_id, tools)
         logger.info(f"Direct report processing completed for scan {scan_id}")
@@ -127,7 +127,7 @@ async def _process_reports_directly(scan_id: str, tools: List[str]) -> None:
 async def run_scan_orchestration(
     scan_id: str,
     profile: str,
-    severity_filter: Optional[str],
+    severity_filter: str | None,
     db_url: str,
 ) -> None:
     """
@@ -152,11 +152,13 @@ async def run_scan_orchestration(
         _update_scan_status(db, scan_id, "failed", error="Unknown profile")
         return
 
-    tools: List[ToolType] = profile_config["tools"]
+    tools: list[ToolType] = profile_config["tools"]
     execution_ids = []
     container_ids = []
 
-    logger.info(f"Starting scan {scan_id} with profile '{profile}', tools: {[t.value for t in tools]}")
+    logger.info(
+        f"Starting scan {scan_id} with profile '{profile}', tools: {[t.value for t in tools]}"
+    )
 
     try:
         for tool in tools:
@@ -215,7 +217,9 @@ async def run_scan_orchestration(
             execution_ids.append(execution_id)
             container_ids.append(container_id)
 
-            logger.info(f"Scan {scan_id}: Tool {tool.value} started, container: {container_id[:12]}")
+            logger.info(
+                f"Scan {scan_id}: Tool {tool.value} started, container: {container_id[:12]}"
+            )
 
             # Wait for completion (poll every 10 seconds)
             while True:
@@ -232,14 +236,18 @@ async def run_scan_orchestration(
                     # Check the tool's expected exit codes from config
                     expected_exit_codes = tool_config.get("expected_exit_codes", [0])
                     if exit_code in expected_exit_codes:
-                        logger.info(f"Scan {scan_id}: Tool {tool.value} completed with findings (exit {exit_code})")
+                        logger.info(
+                            f"Scan {scan_id}: Tool {tool.value} completed with findings (exit {exit_code})"
+                        )
                         break
                     logs = status.get("logs", "")[-500:]  # Last 500 chars
                     logger.error(f"Scan {scan_id}: Tool {tool.value} failed (exit {exit_code})")
                     _update_scan_status(
-                        db, scan_id, "failed",
+                        db,
+                        scan_id,
+                        "failed",
                         error=f"{tool.value} failed (exit {exit_code})",
-                        execution_ids=execution_ids
+                        execution_ids=execution_ids,
                     )
                     return
                 # Still running, continue polling
@@ -269,8 +277,8 @@ def _update_scan_status(
     db: Session,
     scan_id: str,
     status: str,
-    error: Optional[str] = None,
-    execution_ids: Optional[List[str]] = None,
+    error: str | None = None,
+    execution_ids: list[str] | None = None,
 ) -> None:
     """Update scan status in the database."""
     try:
@@ -296,10 +304,10 @@ def _update_scan_status(
 @router.get("/", response_model=ScanListResponse)
 async def list_scans(
     db: Session = Depends(get_db),
-    status: Optional[str] = Query(None, description="Filter by status"),
-    tool: Optional[str] = Query(None, description="Filter by tool"),
+    status: str | None = Query(None, description="Filter by status"),
+    tool: str | None = Query(None, description="Filter by tool"),
     page: int = Query(1, ge=1, description="Page number"),
-    page_size: int = Query(20, ge=1, le=100, description="Items per page")
+    page_size: int = Query(20, ge=1, le=100, description="Items per page"),
 ):
     """
     List all scans with optional filters and pagination.
@@ -352,24 +360,21 @@ async def list_scans(
 
     total = query.count()
 
-    scans = query.order_by(desc(Scan.started_at)).offset(
-        (page - 1) * page_size
-    ).limit(page_size).all()
+    scans = (
+        query.order_by(desc(Scan.started_at)).offset((page - 1) * page_size).limit(page_size).all()
+    )
 
     return ScanListResponse(
         scans=[ScanResponse.model_validate(s) for s in scans],
         total=total,
         page=page,
-        page_size=page_size
+        page_size=page_size,
     )
 
 
 @router.post("", response_model=ScanResponse)
 @router.post("/", response_model=ScanResponse)
-async def create_scan(
-    scan_request: ScanCreate,
-    db: Session = Depends(get_db)
-):
+async def create_scan(scan_request: ScanCreate, db: Session = Depends(get_db)):
     """
     Trigger a new security scan.
 
@@ -413,7 +418,7 @@ async def create_scan(
     if profile_name not in SCAN_PROFILES:
         raise HTTPException(
             status_code=400,
-            detail=f"Unknown scan profile: {profile_name}. Available: {list(SCAN_PROFILES.keys())}"
+            detail=f"Unknown scan profile: {profile_name}. Available: {list(SCAN_PROFILES.keys())}",
         )
 
     # Create scan record
@@ -429,7 +434,7 @@ async def create_scan(
             "dry_run": scan_request.dry_run,
             "severity_filter": scan_request.severity_filter,
             "tools": [t.value for t in SCAN_PROFILES[profile_name]["tools"]],
-        }
+        },
     )
 
     db.add(scan)
@@ -463,10 +468,7 @@ async def create_scan(
 
 
 @router.get("/{scan_id}", response_model=ScanResponse)
-async def get_scan(
-    scan_id: UUID,
-    db: Session = Depends(get_db)
-):
+async def get_scan(scan_id: UUID, db: Session = Depends(get_db)):
     """
     Get details of a specific scan.
 
@@ -491,10 +493,7 @@ async def get_scan(
 
 
 @router.get("/{scan_id}/status")
-async def get_scan_status(
-    scan_id: UUID,
-    db: Session = Depends(get_db)
-):
+async def get_scan_status(scan_id: UUID, db: Session = Depends(get_db)):
     """
     Get the current status of a scan.
 
@@ -524,16 +523,13 @@ async def get_scan_status(
             "critical": scan.critical_findings,
             "high": scan.high_findings,
             "medium": scan.medium_findings,
-            "low": scan.low_findings
-        }
+            "low": scan.low_findings,
+        },
     }
 
 
 @router.delete("/{scan_id}")
-async def cancel_scan(
-    scan_id: UUID,
-    db: Session = Depends(get_db)
-):
+async def cancel_scan(scan_id: UUID, db: Session = Depends(get_db)):
     """
     Cancel a running or pending scan.
 
@@ -557,8 +553,7 @@ async def cancel_scan(
 
     if scan.status not in ["pending", "running"]:
         raise HTTPException(
-            status_code=400,
-            detail=f"Cannot cancel scan with status: {scan.status}"
+            status_code=400, detail=f"Cannot cancel scan with status: {scan.status}"
         )
 
     scan.status = "cancelled"
@@ -586,10 +581,12 @@ async def list_profiles():
     """
     profiles = []
     for name, config in SCAN_PROFILES.items():
-        profiles.append({
-            "name": name,
-            "description": config.get("description", ""),
-            "duration_estimate": config.get("duration_estimate", "Unknown"),
-            "tools": [t.value for t in config.get("tools", [])],
-        })
+        profiles.append(
+            {
+                "name": name,
+                "description": config.get("description", ""),
+                "duration_estimate": config.get("duration_estimate", "Unknown"),
+                "tools": [t.value for t in config.get("tools", [])],
+            }
+        )
     return {"profiles": profiles}

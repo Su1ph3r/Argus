@@ -18,7 +18,8 @@ Endpoints:
     PATCH /findings/{finding_id} - Update finding status/tags
     GET /findings/by-resource/{resource_id} - Get findings for a resource
 """
-from typing import Any, List, Optional
+
+from typing import Any
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -30,10 +31,8 @@ from models.schemas import (
     AffectedResource,
     FindingListResponse,
     FindingResponse,
-    FindingStatus,
     FindingSummary,
     FindingUpdate,
-    SeverityLevel,
 )
 
 router: APIRouter = APIRouter(prefix="/findings", tags=["Findings"])
@@ -43,21 +42,26 @@ def _aggregate_finding_data(finding: Finding, db: Session) -> dict[str, Any]:
     """Aggregate tool_sources and affected_resources for a finding based on canonical_id."""
     if not finding.canonical_id:
         return {
-            'tool_sources': [finding.tool] if finding.tool else [],
-            'affected_resources': [{
-                'id': finding.resource_id,
-                'name': finding.resource_name,
-                'region': finding.region,
-                'type': finding.resource_type
-            }] if finding.resource_id else [],
-            'affected_count': 1
+            "tool_sources": [finding.tool] if finding.tool else [],
+            "affected_resources": [
+                {
+                    "id": finding.resource_id,
+                    "name": finding.resource_name,
+                    "region": finding.region,
+                    "type": finding.resource_type,
+                }
+            ]
+            if finding.resource_id
+            else [],
+            "affected_count": 1,
         }
 
     # Get all findings with the same canonical_id
-    related_findings = db.query(Finding).filter(
-        Finding.canonical_id == finding.canonical_id,
-        Finding.status.in_(['open', 'fail'])
-    ).all()
+    related_findings = (
+        db.query(Finding)
+        .filter(Finding.canonical_id == finding.canonical_id, Finding.status.in_(["open", "fail"]))
+        .all()
+    )
 
     # Aggregate tool sources (unique)
     tool_sources = list(set(f.tool for f in related_findings if f.tool))
@@ -68,27 +72,29 @@ def _aggregate_finding_data(finding: Finding, db: Session) -> dict[str, Any]:
     for f in related_findings:
         if f.resource_id and f.resource_id not in seen_resources:
             seen_resources.add(f.resource_id)
-            affected_resources.append({
-                'id': f.resource_id,
-                'name': f.resource_name,
-                'region': f.region,
-                'type': f.resource_type
-            })
+            affected_resources.append(
+                {
+                    "id": f.resource_id,
+                    "name": f.resource_name,
+                    "region": f.region,
+                    "type": f.resource_type,
+                }
+            )
 
     return {
-        'tool_sources': tool_sources,
-        'affected_resources': affected_resources,
-        'affected_count': len(affected_resources)
+        "tool_sources": tool_sources,
+        "affected_resources": affected_resources,
+        "affected_count": len(affected_resources),
     }
 
 
 # Severity ordering: critical is highest priority (0), info is lowest (4)
 SEVERITY_ORDER = {
-    'critical': 0,
-    'high': 1,
-    'medium': 2,
-    'low': 3,
-    'info': 4,
+    "critical": 0,
+    "high": 1,
+    "medium": 2,
+    "low": 3,
+    "info": 4,
 }
 
 
@@ -96,17 +102,21 @@ SEVERITY_ORDER = {
 @router.get("/", response_model=FindingListResponse)
 async def list_findings(
     db: Session = Depends(get_db),
-    search: Optional[str] = Query(None, description="Search in title, description, resource_id"),
-    severity: Optional[str] = Query(None, description="Filter by severity (comma-separated)"),
-    status: Optional[str] = Query(None, description="Filter by status (comma-separated, default: open,fail)"),
-    cloud_provider: Optional[str] = Query(None, description="Filter by cloud provider"),
-    tool: Optional[str] = Query(None, description="Filter by scanning tool"),
-    resource_type: Optional[str] = Query(None, description="Filter by resource type"),
-    scan_id: Optional[UUID] = Query(None, description="Filter by scan ID"),
-    sort_by: Optional[str] = Query("risk_score", description="Sort field (risk_score, severity, scan_date, title)"),
-    sort_order: Optional[str] = Query("desc", description="Sort order (asc, desc)"),
+    search: str | None = Query(None, description="Search in title, description, resource_id"),
+    severity: str | None = Query(None, description="Filter by severity (comma-separated)"),
+    status: str | None = Query(
+        None, description="Filter by status (comma-separated, default: open,fail)"
+    ),
+    cloud_provider: str | None = Query(None, description="Filter by cloud provider"),
+    tool: str | None = Query(None, description="Filter by scanning tool"),
+    resource_type: str | None = Query(None, description="Filter by resource type"),
+    scan_id: UUID | None = Query(None, description="Filter by scan ID"),
+    sort_by: str | None = Query(
+        "risk_score", description="Sort field (risk_score, severity, scan_date, title)"
+    ),
+    sort_order: str | None = Query("desc", description="Sort order (asc, desc)"),
     page: int = Query(1, ge=1, description="Page number"),
-    page_size: int = Query(50, ge=1, le=500, description="Items per page")
+    page_size: int = Query(50, ge=1, le=500, description="Items per page"),
 ):
     """
     List findings with optional filters and pagination.
@@ -139,9 +149,9 @@ async def list_findings(
     # Apply search filter - search ONLY by title
     # Security: Escape SQL LIKE wildcards to prevent wildcard injection
     if search:
-        escaped_search = search.replace('\\', '\\\\').replace('%', '\\%').replace('_', '\\_')
+        escaped_search = search.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
         search_term = f"%{escaped_search}%"
-        query = query.filter(Finding.title.ilike(search_term, escape='\\'))
+        query = query.filter(Finding.title.ilike(search_term, escape="\\"))
 
     # Apply filters
     if severity:
@@ -173,44 +183,44 @@ async def list_findings(
     # Build order_by clause based on sort parameters
     # Create severity case expression for proper ordering (critical=0 to info=4)
     severity_case = case(
-        (Finding.severity == 'critical', 0),
-        (Finding.severity == 'high', 1),
-        (Finding.severity == 'medium', 2),
-        (Finding.severity == 'low', 3),
-        (Finding.severity == 'info', 4),
-        else_=5
+        (Finding.severity == "critical", 0),
+        (Finding.severity == "high", 1),
+        (Finding.severity == "medium", 2),
+        (Finding.severity == "low", 3),
+        (Finding.severity == "info", 4),
+        else_=5,
     )
 
     # Determine sort direction
-    is_desc = sort_order.lower() == 'desc' if sort_order else True
+    is_desc = sort_order.lower() == "desc" if sort_order else True
 
     # Build sort column based on sort_by parameter
-    if sort_by == 'risk_score':
+    if sort_by == "risk_score":
         # Sort by risk_score, with NULL values last, then by severity
         if is_desc:
             order_clauses = [
                 desc(Finding.risk_score).nulls_last(),
                 severity_case.asc(),  # Secondary sort: critical first
-                desc(Finding.scan_date)
+                desc(Finding.scan_date),
             ]
         else:
             order_clauses = [
                 asc(Finding.risk_score).nulls_last(),
                 severity_case.desc(),  # Secondary sort: info first
-                asc(Finding.scan_date)
+                asc(Finding.scan_date),
             ]
-    elif sort_by == 'severity':
+    elif sort_by == "severity":
         # Sort by severity using proper criticality order
         if is_desc:
             order_clauses = [severity_case.asc(), desc(Finding.risk_score).nulls_last()]
         else:
             order_clauses = [severity_case.desc(), asc(Finding.risk_score).nulls_last()]
-    elif sort_by == 'scan_date':
+    elif sort_by == "scan_date":
         if is_desc:
             order_clauses = [desc(Finding.scan_date), severity_case.asc()]
         else:
             order_clauses = [asc(Finding.scan_date), severity_case.asc()]
-    elif sort_by == 'title':
+    elif sort_by == "title":
         if is_desc:
             order_clauses = [desc(Finding.title), severity_case.asc()]
         else:
@@ -220,7 +230,7 @@ async def list_findings(
         order_clauses = [
             desc(Finding.risk_score).nulls_last(),
             severity_case.asc(),
-            desc(Finding.scan_date)
+            desc(Finding.scan_date),
         ]
 
     # Apply pagination and ordering
@@ -230,14 +240,16 @@ async def list_findings(
         findings=[FindingResponse.model_validate(f) for f in findings],
         total=total,
         page=page,
-        page_size=page_size
+        page_size=page_size,
     )
 
 
 @router.get("/summary", response_model=FindingSummary)
 async def get_findings_summary(
     db: Session = Depends(get_db),
-    status: Optional[str] = Query(None, description="Filter by status (comma-separated, default: open,fail)")
+    status: str | None = Query(
+        None, description="Filter by status (comma-separated, default: open,fail)"
+    ),
 ):
     """
     Get summary statistics of findings.
@@ -298,15 +310,12 @@ async def get_findings_summary(
         low=severity_counts.get("low", 0),
         info=severity_counts.get("info", 0),
         by_provider={k: v for k, v in provider_counts.items() if k},
-        by_tool={k: v for k, v in tool_counts.items() if k}
+        by_tool={k: v for k, v in tool_counts.items() if k},
     )
 
 
 @router.get("/{finding_id}", response_model=FindingResponse)
-async def get_finding(
-    finding_id: int,
-    db: Session = Depends(get_db)
-):
+async def get_finding(finding_id: int, db: Session = Depends(get_db)):
     """
     Get a specific finding by ID with aggregated data.
 
@@ -334,19 +343,15 @@ async def get_finding(
 
     # Aggregate related findings data
     aggregated = _aggregate_finding_data(finding, db)
-    response.tool_sources = aggregated['tool_sources']
-    response.affected_resources = [AffectedResource(**r) for r in aggregated['affected_resources']]
-    response.affected_count = aggregated['affected_count']
+    response.tool_sources = aggregated["tool_sources"]
+    response.affected_resources = [AffectedResource(**r) for r in aggregated["affected_resources"]]
+    response.affected_count = aggregated["affected_count"]
 
     return response
 
 
 @router.patch("/{finding_id}", response_model=FindingResponse)
-async def update_finding(
-    finding_id: int,
-    update: FindingUpdate,
-    db: Session = Depends(get_db)
-):
+async def update_finding(finding_id: int, update: FindingUpdate, db: Session = Depends(get_db)):
     """
     Update a finding's status or tags.
 
@@ -385,11 +390,8 @@ async def update_finding(
     return FindingResponse.model_validate(finding)
 
 
-@router.get("/by-resource/{resource_id}", response_model=List[FindingResponse])
-async def get_findings_by_resource(
-    resource_id: str,
-    db: Session = Depends(get_db)
-):
+@router.get("/by-resource/{resource_id}", response_model=list[FindingResponse])
+async def get_findings_by_resource(resource_id: str, db: Session = Depends(get_db)):
     """
     Get all findings for a specific resource.
 

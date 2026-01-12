@@ -11,33 +11,26 @@ Discovers attack paths by:
 6. Saving discovered paths to database
 """
 
-import os
-import sys
-import json
 import hashlib
 import logging
-from datetime import datetime
-from typing import Dict, List, Optional, Set, Tuple, Any
+import os
 from collections import defaultdict, deque
 from dataclasses import dataclass, field
+
 import psycopg2
-from psycopg2.extras import Json
-import uuid
 
 # Import edge definitions
 from attack_path_edges import (
-    EDGE_DEFINITIONS,
     ENTRY_POINT_TYPES,
     TARGET_TYPES,
     find_matching_edges,
-    get_entry_point_edges,
     generate_poc_command,
 )
+from psycopg2.extras import Json
 
 # Configure logging
 logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
 logger = logging.getLogger(__name__)
 
@@ -45,48 +38,51 @@ logger = logging.getLogger(__name__)
 @dataclass
 class GraphNode:
     """Represents a node in the attack graph."""
+
     node_id: str
     node_type: str  # 'entry_point', 'resource', 'target'
     name: str
-    resource_id: Optional[str] = None
-    region: Optional[str] = None
-    account_id: Optional[str] = None
-    metadata: Dict = field(default_factory=dict)
+    resource_id: str | None = None
+    region: str | None = None
+    account_id: str | None = None
+    metadata: dict = field(default_factory=dict)
 
 
 @dataclass
 class GraphEdge:
     """Represents an edge in the attack graph."""
+
     edge_id: str
     source_node: str
     target_node: str
     edge_type: str
-    finding_id: Optional[int] = None
+    finding_id: int | None = None
     name: str = ""
     description: str = ""
     exploitability: str = "theoretical"
     impact: str = "medium"
-    mitre_tactics: List[str] = field(default_factory=list)
-    mitre_techniques: List[str] = field(default_factory=list)
+    mitre_tactics: list[str] = field(default_factory=list)
+    mitre_techniques: list[str] = field(default_factory=list)
     requires_auth: bool = False
-    poc_command: Optional[str] = None
-    metadata: Dict = field(default_factory=dict)
+    poc_command: str | None = None
+    metadata: dict = field(default_factory=dict)
 
 
 @dataclass
 class AttackPath:
     """Represents a discovered attack path."""
+
     path_id: str
     name: str
     description: str
     entry_point_type: str
-    entry_point_id: Optional[str]
+    entry_point_id: str | None
     entry_point_name: str
     target_type: str
     target_description: str
-    nodes: List[Dict]
-    edges: List[Dict]
-    finding_ids: List[int]
+    nodes: list[dict]
+    edges: list[dict]
+    finding_ids: list[int]
     risk_score: int
     exploitability: str
     impact: str
@@ -94,34 +90,34 @@ class AttackPath:
     requires_authentication: bool
     requires_privileges: bool
     poc_available: bool
-    poc_steps: List[Dict]
-    mitre_tactics: List[str]
-    aws_services: List[str]
+    poc_steps: list[dict]
+    mitre_tactics: list[str]
+    aws_services: list[str]
 
 
 class AttackPathAnalyzer:
     """Main attack path analysis engine."""
 
     def __init__(self):
-        db_password = os.environ.get('DB_PASSWORD')
+        db_password = os.environ.get("DB_PASSWORD")
         if not db_password:
-            db_password = os.environ.get('POSTGRES_PASSWORD', '')
+            db_password = os.environ.get("POSTGRES_PASSWORD", "")
 
         self.db_config = {
-            'host': os.environ.get('DB_HOST', 'postgresql'),
-            'database': os.environ.get('DB_NAME', 'security_audits'),
-            'user': os.environ.get('DB_USER', 'auditor'),
-            'password': db_password
+            "host": os.environ.get("DB_HOST", "postgresql"),
+            "database": os.environ.get("DB_NAME", "security_audits"),
+            "user": os.environ.get("DB_USER", "auditor"),
+            "password": db_password,
         }
 
         # Graph structures
-        self.nodes: Dict[str, GraphNode] = {}
-        self.edges: List[GraphEdge] = []
-        self.adjacency: Dict[str, List[GraphEdge]] = defaultdict(list)
+        self.nodes: dict[str, GraphNode] = {}
+        self.edges: list[GraphEdge] = []
+        self.adjacency: dict[str, list[GraphEdge]] = defaultdict(list)
 
         # Tracking
-        self.findings: List[Dict] = []
-        self.discovered_paths: List[AttackPath] = []
+        self.findings: list[dict] = []
+        self.discovered_paths: list[AttackPath] = []
 
     def connect_db(self):
         """Connect to PostgreSQL database."""
@@ -131,7 +127,7 @@ class AttackPathAnalyzer:
             logger.error(f"Failed to connect to database: {e}")
             return None
 
-    def load_findings(self, scan_id: Optional[str] = None) -> List[Dict]:
+    def load_findings(self, scan_id: str | None = None) -> list[dict]:
         """Load findings from database."""
         conn = self.connect_db()
         if not conn:
@@ -159,7 +155,7 @@ class AttackPathAnalyzer:
 
             cur.execute(query, params)
             columns = [desc[0] for desc in cur.description]
-            findings = [dict(zip(columns, row)) for row in cur.fetchall()]
+            findings = [dict(zip(columns, row, strict=False)) for row in cur.fetchall()]
 
             logger.info(f"Loaded {len(findings)} AWS findings from database")
             self.findings = findings
@@ -185,9 +181,9 @@ class AttackPathAnalyzer:
             node_id = f"target_{target_type}"
             self.nodes[node_id] = GraphNode(
                 node_id=node_id,
-                node_type='target',
+                node_type="target",
                 name=description,
-                metadata={'target_type': target_type}
+                metadata={"target_type": target_type},
             )
 
         # Process each finding and map to edges
@@ -195,41 +191,41 @@ class AttackPathAnalyzer:
             matched_edges = find_matching_edges(finding)
 
             for match in matched_edges:
-                edge_def = match['edge_def']
-                edge_id = match['edge_id']
+                edge_def = match["edge_def"]
+                edge_id = match["edge_id"]
 
                 # Create resource node if it doesn't exist
-                resource_id = finding.get('resource_id') or finding.get('finding_id')
+                resource_id = finding.get("resource_id") or finding.get("finding_id")
                 resource_node_id = f"resource_{resource_id}"
 
                 if resource_node_id not in self.nodes:
                     self.nodes[resource_node_id] = GraphNode(
                         node_id=resource_node_id,
-                        node_type='resource',
-                        name=finding.get('resource_name') or finding.get('title'),
+                        node_type="resource",
+                        name=finding.get("resource_name") or finding.get("title"),
                         resource_id=resource_id,
-                        region=finding.get('region'),
-                        account_id=finding.get('account_id'),
+                        region=finding.get("region"),
+                        account_id=finding.get("account_id"),
                         metadata={
-                            'resource_type': finding.get('resource_type'),
-                            'severity': finding.get('severity'),
-                            'tool': finding.get('tool'),
-                        }
+                            "resource_type": finding.get("resource_type"),
+                            "severity": finding.get("severity"),
+                            "tool": finding.get("tool"),
+                        },
                     )
 
                 # If this is an entry point, create entry node
-                entry_point_type = edge_def.get('entry_point_type')
+                entry_point_type = edge_def.get("entry_point_type")
                 if entry_point_type:
                     entry_node_id = f"entry_{entry_point_type}_{resource_id}"
                     if entry_node_id not in self.nodes:
                         self.nodes[entry_node_id] = GraphNode(
                             node_id=entry_node_id,
-                            node_type='entry_point',
+                            node_type="entry_point",
                             name=ENTRY_POINT_TYPES.get(entry_point_type, entry_point_type),
                             resource_id=resource_id,
-                            region=finding.get('region'),
-                            account_id=finding.get('account_id'),
-                            metadata={'entry_point_type': entry_point_type}
+                            region=finding.get("region"),
+                            account_id=finding.get("account_id"),
+                            metadata={"entry_point_type": entry_point_type},
                         )
 
                     # Edge from entry point to resource
@@ -238,21 +234,21 @@ class AttackPathAnalyzer:
                         source_node=entry_node_id,
                         target_node=resource_node_id,
                         edge_type=edge_id,
-                        finding_id=finding.get('id'),
-                        name=edge_def['name'],
-                        description=edge_def['description'],
-                        exploitability=edge_def['exploitability'],
-                        impact=edge_def['impact'],
-                        mitre_tactics=edge_def.get('mitre_tactics', []),
-                        mitre_techniques=edge_def.get('mitre_techniques', []),
-                        requires_auth=edge_def.get('requires_auth', False),
+                        finding_id=finding.get("id"),
+                        name=edge_def["name"],
+                        description=edge_def["description"],
+                        exploitability=edge_def["exploitability"],
+                        impact=edge_def["impact"],
+                        mitre_tactics=edge_def.get("mitre_tactics", []),
+                        mitre_techniques=edge_def.get("mitre_techniques", []),
+                        requires_auth=edge_def.get("requires_auth", False),
                         poc_command=generate_poc_command(match),
                     )
                     self.edges.append(edge)
                     self.adjacency[entry_node_id].append(edge)
 
                 # Create edges to target nodes
-                for target_type in edge_def.get('target_types', []):
+                for target_type in edge_def.get("target_types", []):
                     target_node_id = f"target_{target_type}"
 
                     edge = GraphEdge(
@@ -260,14 +256,14 @@ class AttackPathAnalyzer:
                         source_node=resource_node_id,
                         target_node=target_node_id,
                         edge_type=edge_id,
-                        finding_id=finding.get('id'),
-                        name=edge_def['name'],
-                        description=edge_def['description'],
-                        exploitability=edge_def['exploitability'],
-                        impact=edge_def['impact'],
-                        mitre_tactics=edge_def.get('mitre_tactics', []),
-                        mitre_techniques=edge_def.get('mitre_techniques', []),
-                        requires_auth=edge_def.get('requires_auth', False),
+                        finding_id=finding.get("id"),
+                        name=edge_def["name"],
+                        description=edge_def["description"],
+                        exploitability=edge_def["exploitability"],
+                        impact=edge_def["impact"],
+                        mitre_tactics=edge_def.get("mitre_tactics", []),
+                        mitre_techniques=edge_def.get("mitre_techniques", []),
+                        requires_auth=edge_def.get("requires_auth", False),
                         poc_command=generate_poc_command(match),
                     )
                     self.edges.append(edge)
@@ -275,7 +271,7 @@ class AttackPathAnalyzer:
 
         logger.info(f"Built graph with {len(self.nodes)} nodes and {len(self.edges)} edges")
 
-    def find_paths(self, max_depth: int = 5) -> List[AttackPath]:
+    def find_paths(self, max_depth: int = 5) -> list[AttackPath]:
         """Find attack paths using BFS from entry points to targets."""
         logger.info("Finding attack paths...")
 
@@ -283,14 +279,12 @@ class AttackPathAnalyzer:
 
         # Get all entry point nodes
         entry_nodes = [
-            node_id for node_id, node in self.nodes.items()
-            if node.node_type == 'entry_point'
+            node_id for node_id, node in self.nodes.items() if node.node_type == "entry_point"
         ]
 
         # Get all target nodes
         target_nodes = [
-            node_id for node_id, node in self.nodes.items()
-            if node.node_type == 'target'
+            node_id for node_id, node in self.nodes.items() if node.node_type == "target"
         ]
 
         logger.info(f"Found {len(entry_nodes)} entry points and {len(target_nodes)} targets")
@@ -301,7 +295,7 @@ class AttackPathAnalyzer:
 
             # BFS queue: (current_node, path_nodes, path_edges, depth)
             queue = deque([(entry_node_id, [entry_node_id], [], 0)])
-            visited_paths: Set[str] = set()
+            visited_paths: set[str] = set()
 
             while queue:
                 current_node, path_nodes, path_edges, depth = queue.popleft()
@@ -310,17 +304,14 @@ class AttackPathAnalyzer:
                     continue
 
                 # Check if we reached a target
-                if current_node.startswith('target_'):
+                if current_node.startswith("target_"):
                     path_key = "->".join(path_nodes)
                     if path_key not in visited_paths:
                         visited_paths.add(path_key)
 
                         # Create attack path
                         attack_path = self._create_attack_path(
-                            entry_node,
-                            self.nodes[current_node],
-                            path_nodes,
-                            path_edges
+                            entry_node, self.nodes[current_node], path_nodes, path_edges
                         )
                         if attack_path:
                             self.discovered_paths.append(attack_path)
@@ -342,44 +333,41 @@ class AttackPathAnalyzer:
         self,
         entry_node: GraphNode,
         target_node: GraphNode,
-        path_nodes: List[str],
-        path_edges: List[GraphEdge]
-    ) -> Optional[AttackPath]:
+        path_nodes: list[str],
+        path_edges: list[GraphEdge],
+    ) -> AttackPath | None:
         """Create an AttackPath object from a discovered path."""
         if not path_edges:
             return None
 
         # Calculate path properties
-        finding_ids = list(set(
-            edge.finding_id for edge in path_edges
-            if edge.finding_id is not None
-        ))
+        finding_ids = list(
+            set(edge.finding_id for edge in path_edges if edge.finding_id is not None)
+        )
 
         # Determine exploitability (worst case in chain)
-        exploitability_order = ['confirmed', 'likely', 'theoretical']
+        exploitability_order = ["confirmed", "likely", "theoretical"]
         exploitabilities = [edge.exploitability for edge in path_edges]
         best_exploitability = min(
             exploitabilities,
-            key=lambda x: exploitability_order.index(x) if x in exploitability_order else 99
+            key=lambda x: exploitability_order.index(x) if x in exploitability_order else 99,
         )
 
         # Determine impact (worst case)
-        impact_order = ['critical', 'high', 'medium', 'low']
+        impact_order = ["critical", "high", "medium", "low"]
         impacts = [edge.impact for edge in path_edges]
         worst_impact = min(
-            impacts,
-            key=lambda x: impact_order.index(x) if x in impact_order else 99
+            impacts, key=lambda x: impact_order.index(x) if x in impact_order else 99
         )
 
         # Get entry and target types for risk calculation
-        entry_type = entry_node.metadata.get('entry_point_type', 'unknown')
-        target_type = target_node.metadata.get('target_type', 'unknown')
+        entry_type = entry_node.metadata.get("entry_point_type", "unknown")
+        target_type = target_node.metadata.get("target_type", "unknown")
 
         # Authentication requirements
         requires_auth = any(edge.requires_auth for edge in path_edges)
         requires_privileges = any(
-            'privilege' in edge.name.lower() or 'admin' in edge.name.lower()
-            for edge in path_edges
+            "privilege" in edge.name.lower() or "admin" in edge.name.lower() for edge in path_edges
         )
 
         # Calculate risk score using CVSS-style methodology (0-100)
@@ -390,20 +378,19 @@ class AttackPathAnalyzer:
             entry_type,
             target_type,
             requires_auth,
-            requires_privileges
+            requires_privileges,
         )
 
         # Collect MITRE tactics and AWS services
-        mitre_tactics = list(set(
-            tactic for edge in path_edges
-            for tactic in edge.mitre_tactics
-        ))
+        mitre_tactics = list(set(tactic for edge in path_edges for tactic in edge.mitre_tactics))
 
-        aws_services = list(set(
-            self.nodes[node_id].metadata.get('resource_type', '').split('.')[0]
-            for node_id in path_nodes
-            if node_id in self.nodes and self.nodes[node_id].node_type == 'resource'
-        ))
+        aws_services = list(
+            set(
+                self.nodes[node_id].metadata.get("resource_type", "").split(".")[0]
+                for node_id in path_nodes
+                if node_id in self.nodes and self.nodes[node_id].node_type == "resource"
+            )
+        )
 
         # Generate PoC steps
         poc_steps = self._generate_poc_steps(path_edges)
@@ -420,25 +407,25 @@ class AttackPathAnalyzer:
         # Serialize nodes and edges for storage
         nodes_json = [
             {
-                'id': node_id,
-                'type': self.nodes[node_id].node_type if node_id in self.nodes else 'unknown',
-                'name': self.nodes[node_id].name if node_id in self.nodes else node_id,
-                'resource_id': self.nodes[node_id].resource_id if node_id in self.nodes else None,
-                'region': self.nodes[node_id].region if node_id in self.nodes else None,
+                "id": node_id,
+                "type": self.nodes[node_id].node_type if node_id in self.nodes else "unknown",
+                "name": self.nodes[node_id].name if node_id in self.nodes else node_id,
+                "resource_id": self.nodes[node_id].resource_id if node_id in self.nodes else None,
+                "region": self.nodes[node_id].region if node_id in self.nodes else None,
             }
             for node_id in path_nodes
         ]
 
         edges_json = [
             {
-                'id': edge.edge_id,
-                'source': edge.source_node,
-                'target': edge.target_node,
-                'type': edge.edge_type,
-                'name': edge.name,
-                'finding_id': edge.finding_id,
-                'exploitability': edge.exploitability,
-                'impact': edge.impact,
+                "id": edge.edge_id,
+                "source": edge.source_node,
+                "target": edge.target_node,
+                "type": edge.edge_type,
+                "name": edge.name,
+                "finding_id": edge.finding_id,
+                "exploitability": edge.exploitability,
+                "impact": edge.impact,
             }
             for edge in path_edges
         ]
@@ -469,13 +456,13 @@ class AttackPathAnalyzer:
 
     def _calculate_risk_score(
         self,
-        path_edges: List[GraphEdge],
+        path_edges: list[GraphEdge],
         exploitability: str,
         impact: str,
         entry_point_type: str,
         target_type: str,
         requires_auth: bool,
-        requires_privileges: bool
+        requires_privileges: bool,
     ) -> int:
         """
         Calculate risk score using CVSS-inspired methodology (0-100).
@@ -491,13 +478,13 @@ class AttackPathAnalyzer:
         # IMPACT SCORE (0-10 scale, based on CIA triad impact of target)
         # =================================================================
         target_impact_scores = {
-            'account_takeover': 10.0,      # Full C/I/A compromise
-            'data_exfiltration': 8.5,      # High confidentiality impact
-            'privilege_escalation': 8.0,   # Enables further attacks
-            'persistence': 7.0,            # Integrity/availability impact
-            'lateral_movement': 6.0,       # Enabler, indirect impact
-            'cryptomining': 5.0,           # Resource abuse
-            'ransomware': 9.5,             # Full I/A compromise
+            "account_takeover": 10.0,  # Full C/I/A compromise
+            "data_exfiltration": 8.5,  # High confidentiality impact
+            "privilege_escalation": 8.0,  # Enables further attacks
+            "persistence": 7.0,  # Integrity/availability impact
+            "lateral_movement": 6.0,  # Enabler, indirect impact
+            "cryptomining": 5.0,  # Resource abuse
+            "ransomware": 9.5,  # Full I/A compromise
         }
         impact_score = target_impact_scores.get(target_type, 5.0)
 
@@ -511,12 +498,14 @@ class AttackPathAnalyzer:
         # Local (requires existing access): 0.55
         # Physical: 0.20 (not really applicable for cloud)
         internet_accessible_entries = {
-            'public_s3', 'public_lambda', 'public_ec2',
-            'public_rds', 'public_security_group', 'public_api_gateway'
+            "public_s3",
+            "public_lambda",
+            "public_ec2",
+            "public_rds",
+            "public_security_group",
+            "public_api_gateway",
         }
-        internal_entries = {
-            'exposed_credentials', 'weak_iam_policy'
-        }
+        internal_entries = {"exposed_credentials", "weak_iam_policy"}
 
         if entry_point_type in internet_accessible_entries:
             attack_vector = 0.85  # Network - remotely exploitable
@@ -555,14 +544,16 @@ class AttackPathAnalyzer:
         # Exploitability confirmation multiplier
         # Adjusts based on whether the vulnerability is confirmed exploitable
         exploit_confidence = {
-            'confirmed': 1.0,    # Known exploitable, tools exist
-            'likely': 0.85,      # Documented technique, feasible
-            'theoretical': 0.65  # Possible but unproven
+            "confirmed": 1.0,  # Known exploitable, tools exist
+            "likely": 0.85,  # Documented technique, feasible
+            "theoretical": 0.65,  # Possible but unproven
         }
         confidence_mult = exploit_confidence.get(exploitability, 0.75)
 
         # Calculate exploitability sub-score (CVSS formula: 8.22 × AV × AC × PR × UI)
-        exploitability_score = 8.22 * attack_vector * attack_complexity * privileges_required * user_interaction
+        exploitability_score = (
+            8.22 * attack_vector * attack_complexity * privileges_required * user_interaction
+        )
 
         # Apply confidence multiplier
         exploitability_score *= confidence_mult
@@ -582,10 +573,10 @@ class AttackPathAnalyzer:
         # Apply minimum floor based on target criticality
         # Even a hard-to-exploit path to account takeover should score reasonably
         min_scores = {
-            'account_takeover': 35,
-            'data_exfiltration': 25,
-            'privilege_escalation': 20,
-            'ransomware': 30,
+            "account_takeover": 35,
+            "data_exfiltration": 25,
+            "privilege_escalation": 20,
+            "ransomware": 30,
         }
         min_score = min_scores.get(target_type, 10)
 
@@ -594,25 +585,25 @@ class AttackPathAnalyzer:
         # Clamp to 0-100
         return max(0, min(100, final_score))
 
-    def _generate_poc_steps(self, path_edges: List[GraphEdge]) -> List[Dict]:
+    def _generate_poc_steps(self, path_edges: list[GraphEdge]) -> list[dict]:
         """Generate PoC steps for an attack path."""
         poc_steps = []
 
         for i, edge in enumerate(path_edges):
             if edge.poc_command:
                 step = {
-                    'step': i + 1,
-                    'name': edge.name,
-                    'description': edge.description,
-                    'command': edge.poc_command,
-                    'mitre_technique': edge.mitre_techniques[0] if edge.mitre_techniques else None,
-                    'requires_auth': edge.requires_auth,
+                    "step": i + 1,
+                    "name": edge.name,
+                    "description": edge.description,
+                    "command": edge.poc_command,
+                    "mitre_technique": edge.mitre_techniques[0] if edge.mitre_techniques else None,
+                    "requires_auth": edge.requires_auth,
                 }
                 poc_steps.append(step)
 
         return poc_steps
 
-    def save_paths(self, scan_id: Optional[str] = None) -> int:
+    def save_paths(self, scan_id: str | None = None) -> int:
         """Save discovered attack paths to database."""
         conn = self.connect_db()
         if not conn:
@@ -624,7 +615,8 @@ class AttackPathAnalyzer:
 
             for path in self.discovered_paths:
                 try:
-                    cur.execute("""
+                    cur.execute(
+                        """
                         INSERT INTO attack_paths (
                             path_id, scan_id, name, description,
                             entry_point_type, entry_point_id, entry_point_name,
@@ -644,30 +636,32 @@ class AttackPathAnalyzer:
                             exploitability = EXCLUDED.exploitability,
                             poc_steps = EXCLUDED.poc_steps,
                             updated_at = NOW()
-                    """, (
-                        path.path_id,
-                        scan_id,
-                        path.name,
-                        path.description,
-                        path.entry_point_type,
-                        path.entry_point_id,
-                        path.entry_point_name,
-                        path.target_type,
-                        path.target_description,
-                        Json(path.nodes),
-                        Json(path.edges),
-                        Json(path.finding_ids),  # Convert to JSON
-                        path.risk_score,
-                        path.exploitability,
-                        path.impact,
-                        path.hop_count,
-                        path.requires_authentication,
-                        path.requires_privileges,
-                        path.poc_available,
-                        Json(path.poc_steps),
-                        Json(path.mitre_tactics),  # Convert to JSON
-                        Json(path.aws_services),   # Convert to JSON
-                    ))
+                    """,
+                        (
+                            path.path_id,
+                            scan_id,
+                            path.name,
+                            path.description,
+                            path.entry_point_type,
+                            path.entry_point_id,
+                            path.entry_point_name,
+                            path.target_type,
+                            path.target_description,
+                            Json(path.nodes),
+                            Json(path.edges),
+                            Json(path.finding_ids),  # Convert to JSON
+                            path.risk_score,
+                            path.exploitability,
+                            path.impact,
+                            path.hop_count,
+                            path.requires_authentication,
+                            path.requires_privileges,
+                            path.poc_available,
+                            Json(path.poc_steps),
+                            Json(path.mitre_tactics),  # Convert to JSON
+                            Json(path.aws_services),  # Convert to JSON
+                        ),
+                    )
                     saved_count += 1
                 except Exception as e:
                     logger.error(f"Error saving path {path.path_id}: {e}")
@@ -684,7 +678,7 @@ class AttackPathAnalyzer:
 
         return saved_count
 
-    def analyze(self, scan_id: Optional[str] = None) -> List[AttackPath]:
+    def analyze(self, scan_id: str | None = None) -> list[AttackPath]:
         """Run full attack path analysis."""
         logger.info("Starting attack path analysis...")
 
@@ -709,15 +703,15 @@ class AttackPathAnalyzer:
         logger.info(f"Attack path analysis complete. Found {len(self.discovered_paths)} paths")
         return self.discovered_paths
 
-    def get_summary(self) -> Dict:
+    def get_summary(self) -> dict:
         """Get summary statistics of discovered paths."""
         if not self.discovered_paths:
             return {
-                'total_paths': 0,
-                'critical_paths': 0,
-                'high_risk_paths': 0,
-                'entry_points': [],
-                'targets': [],
+                "total_paths": 0,
+                "critical_paths": 0,
+                "high_risk_paths": 0,
+                "entry_points": [],
+                "targets": [],
             }
 
         critical_paths = [p for p in self.discovered_paths if p.risk_score >= 80]
@@ -727,21 +721,21 @@ class AttackPathAnalyzer:
         targets = list(set(p.target_type for p in self.discovered_paths))
 
         return {
-            'total_paths': len(self.discovered_paths),
-            'critical_paths': len(critical_paths),
-            'high_risk_paths': len(high_risk_paths),
-            'entry_points': entry_points,
-            'targets': targets,
-            'top_paths': [
+            "total_paths": len(self.discovered_paths),
+            "critical_paths": len(critical_paths),
+            "high_risk_paths": len(high_risk_paths),
+            "entry_points": entry_points,
+            "targets": targets,
+            "top_paths": [
                 {
-                    'path_id': p.path_id,
-                    'name': p.name,
-                    'risk_score': p.risk_score,
-                    'exploitability': p.exploitability,
-                    'hop_count': p.hop_count,
+                    "path_id": p.path_id,
+                    "name": p.name,
+                    "risk_score": p.risk_score,
+                    "exploitability": p.exploitability,
+                    "hop_count": p.hop_count,
                 }
                 for p in self.discovered_paths[:5]
-            ]
+            ],
         }
 
 
@@ -763,10 +757,12 @@ def main():
     print(f"Entry point types: {', '.join(summary['entry_points']) or 'None'}")
     print(f"Target types: {', '.join(summary['targets']) or 'None'}")
 
-    if summary.get('top_paths'):
-        print(f"\nTop 5 Attack Paths:")
-        for i, p in enumerate(summary['top_paths'], 1):
-            print(f"  {i}. {p['name']} (Risk: {p['risk_score']}, {p['exploitability']}, {p['hop_count']} hops)")
+    if summary.get("top_paths"):
+        print("\nTop 5 Attack Paths:")
+        for i, p in enumerate(summary["top_paths"], 1):
+            print(
+                f"  {i}. {p['name']} (Risk: {p['risk_score']}, {p['exploitability']}, {p['hop_count']} hops)"
+            )
 
     print(f"{'='*60}\n")
 

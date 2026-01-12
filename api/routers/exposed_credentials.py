@@ -1,16 +1,15 @@
 """Exposed Credentials API endpoints."""
-from fastapi import APIRouter, Depends, Query, HTTPException
-from sqlalchemy.orm import Session
-from sqlalchemy import func, desc
-from typing import Optional
-from uuid import UUID
 
-from models.database import get_db, ExposedCredential
+from fastapi import APIRouter, Depends, HTTPException, Query
+from sqlalchemy import desc, func
+from sqlalchemy.orm import Session
+
+from models.database import ExposedCredential, get_db
 from models.schemas import (
-    ExposedCredentialResponse,
-    ExposedCredentialListResponse,
-    ExposedCredentialSummary,
     CredentialRemediationUpdate,
+    ExposedCredentialListResponse,
+    ExposedCredentialResponse,
+    ExposedCredentialSummary,
 )
 
 router = APIRouter(prefix="/exposed-credentials", tags=["Exposed Credentials"])
@@ -20,13 +19,13 @@ router = APIRouter(prefix="/exposed-credentials", tags=["Exposed Credentials"])
 @router.get("/", response_model=ExposedCredentialListResponse)
 async def list_exposed_credentials(
     db: Session = Depends(get_db),
-    credential_type: Optional[str] = Query(None, description="Filter by credential type"),
-    source_type: Optional[str] = Query(None, description="Filter by source type"),
-    cloud_provider: Optional[str] = Query(None, description="Filter by cloud provider"),
-    is_active: Optional[bool] = Query(None, description="Filter by active status"),
-    remediation_status: Optional[str] = Query(None, description="Filter by remediation status"),
+    credential_type: str | None = Query(None, description="Filter by credential type"),
+    source_type: str | None = Query(None, description="Filter by source type"),
+    cloud_provider: str | None = Query(None, description="Filter by cloud provider"),
+    is_active: bool | None = Query(None, description="Filter by active status"),
+    remediation_status: str | None = Query(None, description="Filter by remediation status"),
     page: int = Query(1, ge=1, description="Page number"),
-    page_size: int = Query(50, ge=1, le=500, description="Items per page")
+    page_size: int = Query(50, ge=1, le=500, description="Items per page"),
 ):
     """List exposed credentials with optional filters."""
     query = db.query(ExposedCredential)
@@ -50,16 +49,18 @@ async def list_exposed_credentials(
 
     total = query.count()
 
-    credentials = query.order_by(
-        desc(ExposedCredential.last_seen),
-        ExposedCredential.risk_level
-    ).offset((page - 1) * page_size).limit(page_size).all()
+    credentials = (
+        query.order_by(desc(ExposedCredential.last_seen), ExposedCredential.risk_level)
+        .offset((page - 1) * page_size)
+        .limit(page_size)
+        .all()
+    )
 
     return ExposedCredentialListResponse(
         credentials=[ExposedCredentialResponse.model_validate(c) for c in credentials],
         total=total,
         page=page,
-        page_size=page_size
+        page_size=page_size,
     )
 
 
@@ -99,19 +100,14 @@ async def get_exposed_credential_summary(db: Session = Depends(get_db)):
         active=active,
         by_type={k: v for k, v in type_counts.items() if k},
         by_source={k: v for k, v in source_counts.items() if k},
-        by_provider={k: v for k, v in provider_counts.items() if k}
+        by_provider={k: v for k, v in provider_counts.items() if k},
     )
 
 
 @router.get("/{credential_id}", response_model=ExposedCredentialResponse)
-async def get_exposed_credential(
-    credential_id: int,
-    db: Session = Depends(get_db)
-):
+async def get_exposed_credential(credential_id: int, db: Session = Depends(get_db)):
     """Get a specific exposed credential by ID."""
-    credential = db.query(ExposedCredential).filter(
-        ExposedCredential.id == credential_id
-    ).first()
+    credential = db.query(ExposedCredential).filter(ExposedCredential.id == credential_id).first()
 
     if not credential:
         raise HTTPException(status_code=404, detail="Exposed credential not found")
@@ -121,14 +117,10 @@ async def get_exposed_credential(
 
 @router.patch("/{credential_id}/remediation", response_model=ExposedCredentialResponse)
 async def update_credential_remediation(
-    credential_id: int,
-    update: CredentialRemediationUpdate,
-    db: Session = Depends(get_db)
+    credential_id: int, update: CredentialRemediationUpdate, db: Session = Depends(get_db)
 ):
     """Update the remediation status of an exposed credential."""
-    credential = db.query(ExposedCredential).filter(
-        ExposedCredential.id == credential_id
-    ).first()
+    credential = db.query(ExposedCredential).filter(ExposedCredential.id == credential_id).first()
 
     if not credential:
         raise HTTPException(status_code=404, detail="Exposed credential not found")
@@ -136,8 +128,7 @@ async def update_credential_remediation(
     valid_statuses = ["pending", "in_progress", "resolved", "accepted"]
     if update.remediation_status.lower() not in valid_statuses:
         raise HTTPException(
-            status_code=400,
-            detail=f"Invalid status. Must be one of: {valid_statuses}"
+            status_code=400, detail=f"Invalid status. Must be one of: {valid_statuses}"
         )
 
     credential.remediation_status = update.remediation_status.lower()

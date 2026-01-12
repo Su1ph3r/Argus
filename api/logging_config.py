@@ -7,24 +7,25 @@ Provides:
 - Configurable log levels via environment variables
 - Context-aware logging with request metadata
 """
-import logging
+
 import json
+import logging
 import sys
 import uuid
-from datetime import datetime, timezone
-from typing import Optional, Any, Dict
 from contextvars import ContextVar
+from datetime import UTC, datetime
+from typing import Any
 
 # Context variable for request correlation ID
-request_id_ctx: ContextVar[Optional[str]] = ContextVar("request_id", default=None)
+request_id_ctx: ContextVar[str | None] = ContextVar("request_id", default=None)
 
 
-def get_request_id() -> Optional[str]:
+def get_request_id() -> str | None:
     """Get the current request ID from context."""
     return request_id_ctx.get()
 
 
-def set_request_id(request_id: Optional[str] = None) -> str:
+def set_request_id(request_id: str | None = None) -> str:
     """Set a request ID in the current context. Generates one if not provided."""
     if request_id is None:
         request_id = str(uuid.uuid4())
@@ -41,8 +42,8 @@ class JSONFormatter(logging.Formatter):
 
     def format(self, record: logging.LogRecord) -> str:
         """Format log record as JSON."""
-        log_data: Dict[str, Any] = {
-            "timestamp": datetime.now(timezone.utc).isoformat(),
+        log_data: dict[str, Any] = {
+            "timestamp": datetime.now(UTC).isoformat(),
             "level": record.levelname,
             "logger": record.name,
             "message": record.getMessage(),
@@ -73,11 +74,28 @@ class JSONFormatter(logging.Formatter):
         extra_fields = {}
         for key, value in record.__dict__.items():
             if key not in (
-                "name", "msg", "args", "created", "filename", "funcName",
-                "levelname", "levelno", "lineno", "module", "msecs",
-                "pathname", "process", "processName", "relativeCreated",
-                "stack_info", "exc_info", "exc_text", "thread", "threadName",
-                "message", "taskName"
+                "name",
+                "msg",
+                "args",
+                "created",
+                "filename",
+                "funcName",
+                "levelname",
+                "levelno",
+                "lineno",
+                "module",
+                "msecs",
+                "pathname",
+                "process",
+                "processName",
+                "relativeCreated",
+                "stack_info",
+                "exc_info",
+                "exc_text",
+                "thread",
+                "threadName",
+                "message",
+                "taskName",
             ):
                 extra_fields[key] = value
 
@@ -95,14 +113,12 @@ class TextFormatter(logging.Formatter):
         request_id = get_request_id()
         request_id_str = f"[{request_id[:8]}] " if request_id else ""
 
-        timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
+        timestamp = datetime.now(UTC).strftime("%Y-%m-%d %H:%M:%S")
         return f"{timestamp} - {request_id_str}{record.levelname} - {record.name} - {record.getMessage()}"
 
 
 def setup_logging(
-    log_level: str = "INFO",
-    log_format: str = "json",
-    service_name: str = "nubicustos-api"
+    log_level: str = "INFO", log_format: str = "json", service_name: str = "nubicustos-api"
 ) -> logging.Logger:
     """
     Configure structured logging for the application.

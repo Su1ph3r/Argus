@@ -1,7 +1,6 @@
 """Tests for health check endpoints."""
-import pytest
+
 from fastapi.testclient import TestClient
-from sqlalchemy.orm import Session
 
 
 class TestHealthEndpoints:
@@ -37,9 +36,7 @@ class TestHealthEndpoints:
         assert "timestamp" in data
         assert isinstance(data["services"], list)
 
-    def test_detailed_health_includes_postgresql_status(
-        self, client: TestClient
-    ) -> None:
+    def test_detailed_health_includes_postgresql_status(self, client: TestClient) -> None:
         """Test detailed health includes PostgreSQL service status."""
         response = client.get("/api/health/detailed")
 
@@ -49,9 +46,7 @@ class TestHealthEndpoints:
         assert "postgresql" in services
         assert services["postgresql"]["status"] == "healthy"
 
-    def test_detailed_health_includes_table_statuses(
-        self, client: TestClient, sample_scan
-    ) -> None:
+    def test_detailed_health_includes_table_statuses(self, client: TestClient, sample_scan) -> None:
         """Test detailed health includes scans and findings table statuses."""
         response = client.get("/api/health/detailed")
 

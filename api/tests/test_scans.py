@@ -1,8 +1,9 @@
 """Tests for scans endpoints."""
-import pytest
+
+from uuid import uuid4
+
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
-from uuid import uuid4
 
 
 class TestListScans:
@@ -44,9 +45,7 @@ class TestListScans:
         assert data["page"] == 1
         assert data["page_size"] == 10
 
-    def test_list_scans_filter_by_status(
-        self, client: TestClient, sample_scan
-    ) -> None:
+    def test_list_scans_filter_by_status(self, client: TestClient, sample_scan) -> None:
         """Test filtering scans by status."""
         response = client.get("/api/scans?status=completed")
 
@@ -58,9 +57,7 @@ class TestListScans:
         data = response.json()
         assert data["total"] == 0
 
-    def test_list_scans_filter_by_tool(
-        self, client: TestClient, sample_scan
-    ) -> None:
+    def test_list_scans_filter_by_tool(self, client: TestClient, sample_scan) -> None:
         """Test filtering scans by tool."""
         response = client.get("/api/scans?tool=multi-tool")
 
@@ -74,10 +71,7 @@ class TestCreateScan:
 
     def test_create_scan_default_profile(self, client: TestClient) -> None:
         """Test creating a scan with default profile."""
-        response = client.post(
-            "/api/scans",
-            json={"dry_run": True}
-        )
+        response = client.post("/api/scans", json={"dry_run": True})
 
         assert response.status_code == 200
         data = response.json()
@@ -86,10 +80,7 @@ class TestCreateScan:
 
     def test_create_scan_with_profile(self, client: TestClient) -> None:
         """Test creating a scan with specific profile."""
-        response = client.post(
-            "/api/scans",
-            json={"profile": "quick", "dry_run": True}
-        )
+        response = client.post("/api/scans", json={"profile": "quick", "dry_run": True})
 
         assert response.status_code == 200
         data = response.json()
@@ -99,17 +90,14 @@ class TestCreateScan:
         """Test creating a scan with severity filter."""
         response = client.post(
             "/api/scans",
-            json={"profile": "quick", "severity_filter": "critical,high", "dry_run": True}
+            json={"profile": "quick", "severity_filter": "critical,high", "dry_run": True},
         )
 
         assert response.status_code == 200
 
     def test_create_scan_with_target(self, client: TestClient) -> None:
         """Test creating a scan with specific target."""
-        response = client.post(
-            "/api/scans",
-            json={"target": "aws-account-123", "dry_run": True}
-        )
+        response = client.post("/api/scans", json={"target": "aws-account-123", "dry_run": True})
 
         assert response.status_code == 200
         data = response.json()
@@ -157,12 +145,11 @@ class TestGetScan:
 class TestCancelScan:
     """Test cases for cancelling scans."""
 
-    def test_cancel_running_scan(
-        self, client: TestClient, db_session: Session
-    ) -> None:
+    def test_cancel_running_scan(self, client: TestClient, db_session: Session) -> None:
         """Test cancelling a running scan."""
-        from models.database import Scan
         from datetime import datetime
+
+        from models.database import Scan
 
         scan = Scan(
             scan_id=uuid4(),
@@ -178,9 +165,7 @@ class TestCancelScan:
         data = response.json()
         assert data["message"] == "Scan cancelled"
 
-    def test_cancel_completed_scan_fails(
-        self, client: TestClient, sample_scan
-    ) -> None:
+    def test_cancel_completed_scan_fails(self, client: TestClient, sample_scan) -> None:
         """Test cancelling a completed scan returns error."""
         response = client.delete(f"/api/scans/{sample_scan.scan_id}")
 

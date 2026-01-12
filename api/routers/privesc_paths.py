@@ -1,17 +1,16 @@
 """Privilege Escalation Paths API endpoints."""
-from fastapi import APIRouter, Depends, Query, HTTPException
-from sqlalchemy.orm import Session
-from sqlalchemy import func, desc
-from typing import Optional
-from uuid import UUID
 
-from models.database import get_db, PrivescPath
+from fastapi import APIRouter, Depends, HTTPException, Query
+from sqlalchemy import desc, func
+from sqlalchemy.orm import Session
+
+from models.database import PrivescPath, get_db
 from models.schemas import (
-    PrivescPathResponse,
-    PrivescPathListResponse,
-    PrivescPathSummary,
-    PrivescPathNode,
     PrivescPathEdge,
+    PrivescPathListResponse,
+    PrivescPathNode,
+    PrivescPathResponse,
+    PrivescPathSummary,
 )
 
 router = APIRouter(prefix="/privesc-paths", tags=["Privilege Escalation"])
@@ -59,13 +58,13 @@ def _convert_path_to_response(path: PrivescPath) -> PrivescPathResponse:
 @router.get("/", response_model=PrivescPathListResponse)
 async def list_privesc_paths(
     db: Session = Depends(get_db),
-    min_risk_score: Optional[int] = Query(None, ge=0, le=100, description="Minimum risk score"),
-    escalation_method: Optional[str] = Query(None, description="Filter by escalation method"),
-    cloud_provider: Optional[str] = Query(None, description="Filter by cloud provider"),
-    exploitability: Optional[str] = Query(None, description="Filter by exploitability"),
-    status: Optional[str] = Query(None, description="Filter by status"),
+    min_risk_score: int | None = Query(None, ge=0, le=100, description="Minimum risk score"),
+    escalation_method: str | None = Query(None, description="Filter by escalation method"),
+    cloud_provider: str | None = Query(None, description="Filter by cloud provider"),
+    exploitability: str | None = Query(None, description="Filter by exploitability"),
+    status: str | None = Query(None, description="Filter by status"),
     page: int = Query(1, ge=1, description="Page number"),
-    page_size: int = Query(50, ge=1, le=100, description="Items per page")
+    page_size: int = Query(50, ge=1, le=100, description="Items per page"),
 ):
     """List privilege escalation paths with optional filters."""
     query = db.query(PrivescPath)
@@ -89,16 +88,18 @@ async def list_privesc_paths(
 
     total = query.count()
 
-    paths = query.order_by(
-        desc(PrivescPath.risk_score),
-        desc(PrivescPath.created_at)
-    ).offset((page - 1) * page_size).limit(page_size).all()
+    paths = (
+        query.order_by(desc(PrivescPath.risk_score), desc(PrivescPath.created_at))
+        .offset((page - 1) * page_size)
+        .limit(page_size)
+        .all()
+    )
 
     return PrivescPathListResponse(
         paths=[_convert_path_to_response(p) for p in paths],
         total=total,
         page=page,
-        page_size=page_size
+        page_size=page_size,
     )
 
 
@@ -106,15 +107,18 @@ async def list_privesc_paths(
 async def get_privesc_summary(db: Session = Depends(get_db)):
     """Get summary statistics of privilege escalation paths."""
     total = db.query(PrivescPath).filter(PrivescPath.status == "open").count()
-    critical = db.query(PrivescPath).filter(
-        PrivescPath.status == "open",
-        PrivescPath.risk_score >= 80
-    ).count()
-    high = db.query(PrivescPath).filter(
-        PrivescPath.status == "open",
-        PrivescPath.risk_score >= 60,
-        PrivescPath.risk_score < 80
-    ).count()
+    critical = (
+        db.query(PrivescPath)
+        .filter(PrivescPath.status == "open", PrivescPath.risk_score >= 80)
+        .count()
+    )
+    high = (
+        db.query(PrivescPath)
+        .filter(
+            PrivescPath.status == "open", PrivescPath.risk_score >= 60, PrivescPath.risk_score < 80
+        )
+        .count()
+    )
 
     method_counts = dict(
         db.query(PrivescPath.escalation_method, func.count(PrivescPath.id))
@@ -135,15 +139,12 @@ async def get_privesc_summary(db: Session = Depends(get_db)):
         critical_paths=critical,
         high_risk_paths=high,
         by_method={k: v for k, v in method_counts.items() if k},
-        by_target={k: v for k, v in target_counts.items() if k}
+        by_target={k: v for k, v in target_counts.items() if k},
     )
 
 
 @router.get("/{path_id}", response_model=PrivescPathResponse)
-async def get_privesc_path(
-    path_id: int,
-    db: Session = Depends(get_db)
-):
+async def get_privesc_path(path_id: int, db: Session = Depends(get_db)):
     """Get a specific privilege escalation path by ID."""
     path = db.query(PrivescPath).filter(PrivescPath.id == path_id).first()
 
@@ -157,7 +158,7 @@ async def get_privesc_path(
 async def export_privesc_path(
     path_id: int,
     format: str = Query("markdown", description="Export format: markdown, json"),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ):
     """Export a privilege escalation path for reporting."""
     path = db.query(PrivescPath).filter(PrivescPath.id == path_id).first()
@@ -196,11 +197,13 @@ async def export_privesc_path(
         for key, value in path.escalation_details.items():
             md_lines.append(f"- **{key}:** {value}")
 
-    md_lines.extend([
-        "",
-        "## Proof of Concept Commands",
-        "",
-    ])
+    md_lines.extend(
+        [
+            "",
+            "## Proof of Concept Commands",
+            "",
+        ]
+    )
 
     poc_commands = path.poc_commands or []
     if poc_commands:
@@ -208,7 +211,7 @@ async def export_privesc_path(
             md_lines.append(f"### {cmd.get('name', 'Command')}")
             md_lines.append("")
             md_lines.append("```bash")
-            md_lines.append(cmd.get('command', '# No command'))
+            md_lines.append(cmd.get("command", "# No command"))
             md_lines.append("```")
             md_lines.append("")
     else:
@@ -216,18 +219,16 @@ async def export_privesc_path(
 
     mitre = path.mitre_techniques or []
     if mitre:
-        md_lines.extend([
-            "",
-            "## MITRE ATT&CK Techniques",
-            "",
-        ])
+        md_lines.extend(
+            [
+                "",
+                "## MITRE ATT&CK Techniques",
+                "",
+            ]
+        )
         for tech in mitre:
             md_lines.append(f"- {tech}")
 
-    md_lines.extend([
-        "",
-        "---",
-        "*Generated by Nubicustos Privilege Escalation Path Finder*"
-    ])
+    md_lines.extend(["", "---", "*Generated by Nubicustos Privilege Escalation Path Finder*"])
 
     return {"format": "markdown", "content": "\n".join(md_lines)}

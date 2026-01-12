@@ -7,21 +7,17 @@ Provides REST API endpoints for:
 - Viewing sync health and discrepancies
 """
 
-from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
-from sqlalchemy.orm import Session
-from pydantic import BaseModel, Field
-from typing import Optional, List, Dict, Any
+import logging
 from datetime import datetime
 from enum import Enum
-import logging
+from typing import Any
+
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
+from pydantic import BaseModel, Field
+from sqlalchemy.orm import Session
 
 from models.database import get_db
-from services.neo4j_sync import (
-    get_neo4j_sync_service,
-    SyncDirection,
-    SyncResult,
-    SyncStatus
-)
+from services.neo4j_sync import get_neo4j_sync_service
 
 logger = logging.getLogger(__name__)
 
@@ -32,8 +28,10 @@ router = APIRouter(prefix="/sync", tags=["Sync"])
 # Pydantic Schemas for API
 # ============================================================================
 
+
 class SyncDirectionEnum(str, Enum):
     """Direction of sync operation for API."""
+
     neo4j_to_pg = "neo4j_to_pg"
     pg_to_neo4j = "pg_to_neo4j"
     bidirectional = "bidirectional"
@@ -41,6 +39,7 @@ class SyncDirectionEnum(str, Enum):
 
 class SyncStatusResponse(BaseModel):
     """Response model for sync status check."""
+
     neo4j_connected: bool = Field(description="Whether Neo4j is reachable")
     postgres_connected: bool = Field(description="Whether PostgreSQL is reachable")
     neo4j_asset_count: int = Field(description="Number of assets in Neo4j")
@@ -49,12 +48,13 @@ class SyncStatusResponse(BaseModel):
     missing_in_postgres: int = Field(description="Assets in Neo4j but not in PostgreSQL")
     missing_in_neo4j: int = Field(description="Assets in PostgreSQL but not in Neo4j")
     in_sync: bool = Field(description="Whether databases are in sync")
-    last_sync: Optional[datetime] = Field(default=None, description="Last sync timestamp")
-    details: Dict[str, Any] = Field(default_factory=dict, description="Additional details")
+    last_sync: datetime | None = Field(default=None, description="Last sync timestamp")
+    details: dict[str, Any] = Field(default_factory=dict, description="Additional details")
 
 
 class SyncResultResponse(BaseModel):
     """Response model for sync operation result."""
+
     success: bool
     direction: str
     assets_synced: int = 0
@@ -62,45 +62,45 @@ class SyncResultResponse(BaseModel):
     assets_updated: int = 0
     assets_deleted: int = 0
     findings_propagated: int = 0
-    errors: List[str] = Field(default_factory=list)
-    warnings: List[str] = Field(default_factory=list)
+    errors: list[str] = Field(default_factory=list)
+    warnings: list[str] = Field(default_factory=list)
     duration_ms: int = 0
     timestamp: datetime
 
 
 class SyncRequest(BaseModel):
     """Request model for triggering sync."""
+
     direction: SyncDirectionEnum = Field(
-        default=SyncDirectionEnum.bidirectional,
-        description="Direction of sync operation"
+        default=SyncDirectionEnum.bidirectional, description="Direction of sync operation"
     )
-    mark_stale: bool = Field(
-        default=False,
-        description="Mark assets not in Neo4j as inactive"
-    )
+    mark_stale: bool = Field(default=False, description="Mark assets not in Neo4j as inactive")
 
 
 class SyncHealthResponse(BaseModel):
     """Response model for sync health check."""
+
     status: str = Field(description="Overall sync health: healthy, degraded, unhealthy")
     neo4j_status: str
     postgres_status: str
     sync_lag: int = Field(description="Estimated sync lag in minutes")
-    issues: List[str] = Field(default_factory=list, description="List of detected issues")
-    recommendations: List[str] = Field(default_factory=list, description="Recommended actions")
+    issues: list[str] = Field(default_factory=list, description="List of detected issues")
+    recommendations: list[str] = Field(default_factory=list, description="Recommended actions")
 
 
 class DiscrepancyResponse(BaseModel):
     """Response model for discrepancy details."""
+
     total_discrepancies: int
-    missing_in_postgres: List[str] = Field(description="Asset IDs missing in PostgreSQL")
-    missing_in_neo4j: List[str] = Field(description="Asset IDs missing in Neo4j")
-    by_type: Dict[str, int] = Field(default_factory=dict, description="Discrepancies by asset type")
+    missing_in_postgres: list[str] = Field(description="Asset IDs missing in PostgreSQL")
+    missing_in_neo4j: list[str] = Field(description="Asset IDs missing in Neo4j")
+    by_type: dict[str, int] = Field(default_factory=dict, description="Discrepancies by asset type")
 
 
 # ============================================================================
 # Endpoints
 # ============================================================================
+
 
 @router.get("/status", response_model=SyncStatusResponse)
 async def get_sync_status(db: Session = Depends(get_db)):
@@ -119,9 +119,9 @@ async def get_sync_status(db: Session = Depends(get_db)):
 
         # Databases are in sync if count mismatch is within tolerance
         in_sync = (
-            status.neo4j_connected and
-            status.postgres_connected and
-            status.count_mismatch < 10  # Small tolerance for timing
+            status.neo4j_connected
+            and status.postgres_connected
+            and status.count_mismatch < 10  # Small tolerance for timing
         )
 
         return SyncStatusResponse(
@@ -134,7 +134,7 @@ async def get_sync_status(db: Session = Depends(get_db)):
             missing_in_neo4j=status.missing_in_neo4j,
             in_sync=in_sync,
             last_sync=status.last_sync,
-            details=status.details
+            details=status.details,
         )
     except Exception as e:
         logger.error(f"Error getting sync status: {e}")
@@ -169,13 +169,17 @@ async def get_sync_health(db: Session = Depends(get_db)):
         # Check PostgreSQL connection
         if not status.postgres_connected:
             issues.append("PostgreSQL is not reachable")
-            recommendations.append("Check PostgreSQL container status: docker-compose ps postgresql")
+            recommendations.append(
+                "Check PostgreSQL container status: docker-compose ps postgresql"
+            )
             overall_status = "unhealthy"
 
         # Check count mismatch
         if status.count_mismatch > 100:
             issues.append(f"Significant count mismatch: {status.count_mismatch} assets differ")
-            recommendations.append("Run full sync: POST /api/sync/trigger with bidirectional direction")
+            recommendations.append(
+                "Run full sync: POST /api/sync/trigger with bidirectional direction"
+            )
             if overall_status == "healthy":
                 overall_status = "degraded"
         elif status.count_mismatch > 10:
@@ -186,12 +190,18 @@ async def get_sync_health(db: Session = Depends(get_db)):
         # Check for assets missing in PostgreSQL
         if status.missing_in_postgres > 0:
             issues.append(f"{status.missing_in_postgres} assets in Neo4j not synced to PostgreSQL")
-            recommendations.append("Run sync from Neo4j: POST /api/sync/trigger with neo4j_to_pg direction")
+            recommendations.append(
+                "Run sync from Neo4j: POST /api/sync/trigger with neo4j_to_pg direction"
+            )
 
         # Check for orphaned assets in PostgreSQL
         if status.missing_in_neo4j > 50:
-            issues.append(f"{status.missing_in_neo4j} assets in PostgreSQL not in Neo4j (may be stale)")
-            recommendations.append("Consider running sync with mark_stale=true to deactivate stale assets")
+            issues.append(
+                f"{status.missing_in_neo4j} assets in PostgreSQL not in Neo4j (may be stale)"
+            )
+            recommendations.append(
+                "Consider running sync with mark_stale=true to deactivate stale assets"
+            )
 
         # Estimate sync lag (rough estimate based on mismatch)
         sync_lag = min(status.count_mismatch * 5, 1440)  # Cap at 24 hours
@@ -205,7 +215,7 @@ async def get_sync_health(db: Session = Depends(get_db)):
             postgres_status=postgres_status,
             sync_lag=sync_lag,
             issues=issues,
-            recommendations=recommendations
+            recommendations=recommendations,
         )
 
     except Exception as e:
@@ -214,10 +224,7 @@ async def get_sync_health(db: Session = Depends(get_db)):
 
 
 @router.post("/trigger", response_model=SyncResultResponse)
-async def trigger_sync(
-    request: SyncRequest,
-    db: Session = Depends(get_db)
-):
+async def trigger_sync(request: SyncRequest, db: Session = Depends(get_db)):
     """
     Trigger a synchronization operation.
 
@@ -254,7 +261,7 @@ async def trigger_sync(
             errors=result.errors,
             warnings=result.warnings,
             duration_ms=result.duration_ms,
-            timestamp=result.timestamp
+            timestamp=result.timestamp,
         )
 
     except Exception as e:
@@ -264,9 +271,7 @@ async def trigger_sync(
 
 @router.post("/trigger/background")
 async def trigger_sync_background(
-    request: SyncRequest,
-    background_tasks: BackgroundTasks,
-    db: Session = Depends(get_db)
+    request: SyncRequest, background_tasks: BackgroundTasks, db: Session = Depends(get_db)
 ):
     """
     Trigger a synchronization operation in the background.
@@ -274,6 +279,7 @@ async def trigger_sync_background(
     Returns immediately with a 202 Accepted status.
     Use GET /api/sync/status to check progress.
     """
+
     def run_sync():
         try:
             sync_service = get_neo4j_sync_service()
@@ -297,7 +303,7 @@ async def trigger_sync_background(
         "status": "accepted",
         "message": "Sync operation started in background",
         "direction": request.direction.value,
-        "check_status": "/api/sync/status"
+        "check_status": "/api/sync/status",
     }
 
 
@@ -320,7 +326,7 @@ async def get_discrepancies(db: Session = Depends(get_db)):
         missing_in_neo4j = discrepancies.get("missing_in_neo4j", [])
 
         # Count by type (based on ID pattern for AWS resources)
-        by_type: Dict[str, int] = {}
+        by_type: dict[str, int] = {}
         for asset_id in missing_in_pg + missing_in_neo4j:
             if ":ec2:" in asset_id:
                 by_type["ec2"] = by_type.get("ec2", 0) + 1
@@ -339,7 +345,7 @@ async def get_discrepancies(db: Session = Depends(get_db)):
             total_discrepancies=len(missing_in_pg) + len(missing_in_neo4j),
             missing_in_postgres=missing_in_pg[:50],  # Limit response size
             missing_in_neo4j=missing_in_neo4j[:50],
-            by_type=by_type
+            by_type=by_type,
         )
 
     except Exception as e:
@@ -377,7 +383,7 @@ async def propagate_findings(db: Session = Depends(get_db)):
             errors=result.errors,
             warnings=result.warnings,
             duration_ms=result.duration_ms,
-            timestamp=result.timestamp
+            timestamp=result.timestamp,
         )
 
     except Exception as e:

@@ -1,21 +1,21 @@
 """Tool Execution Management API endpoints."""
+
 import logging
+import re
 import uuid
 from datetime import datetime
-from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query, BackgroundTasks
-from sqlalchemy.orm import Session
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
 from sqlalchemy import desc
+from sqlalchemy.orm import Session
 
-from models.database import get_db, ToolExecution, PacuResult, EnumerateIamResult
+from models.database import EnumerateIamResult, PacuResult, ToolExecution, get_db
 from models.schemas import (
-    ToolExecutionResponse,
     ToolExecutionListResponse,
-    ToolExecutionStartResponse,
     ToolExecutionLogsResponse,
+    ToolExecutionResponse,
+    ToolExecutionStartResponse,
 )
-import re
 from services.docker_executor import (
     DockerExecutor,
     ExecutionStatus,
@@ -30,10 +30,25 @@ router = APIRouter(prefix="/executions", tags=["Tool Executions"])
 
 def _get_module_category(module_name: str) -> str:
     """Get the category for a Pacu module based on naming convention."""
-    if module_name.startswith(("iam__enum", "ec2__enum", "lambda__enum", "rds__enum",
-                               "ecs__enum", "eks__enum", "sns__enum", "secrets__enum",
-                               "dynamodb__enum", "ebs__enum", "aws__enum", "acm__enum",
-                               "apigateway__enum", "cognito__enum", "ecr__enum")):
+    if module_name.startswith(
+        (
+            "iam__enum",
+            "ec2__enum",
+            "lambda__enum",
+            "rds__enum",
+            "ecs__enum",
+            "eks__enum",
+            "sns__enum",
+            "secrets__enum",
+            "dynamodb__enum",
+            "ebs__enum",
+            "aws__enum",
+            "acm__enum",
+            "apigateway__enum",
+            "cognito__enum",
+            "ecr__enum",
+        )
+    ):
         return "ENUM"
     elif "privesc" in module_name or "escalat" in module_name:
         return "ESCALATE"
@@ -56,12 +71,12 @@ def _parse_pacu_output(logs: str) -> dict:
     }
 
     # Extract account ID from logs
-    account_match = re.search(r'account:\s*(\d{12})', logs, re.IGNORECASE)
+    account_match = re.search(r"account:\s*(\d{12})", logs, re.IGNORECASE)
     if account_match:
         result["account_id"] = account_match.group(1)
 
     # Extract permission count
-    perm_match = re.search(r'(\d+)\s+Confirmed permissions', logs, re.IGNORECASE)
+    perm_match = re.search(r"(\d+)\s+Confirmed permissions", logs, re.IGNORECASE)
     if perm_match:
         result["permissions_count"] = int(perm_match.group(1))
         result["resources_affected"] = 1
@@ -109,38 +124,87 @@ def _create_pacu_result(db: Session, execution: ToolExecution, logs: str = "") -
 # High-risk permission patterns for enumerate-iam
 HIGH_RISK_PERMISSIONS = {
     # Admin-level permissions
-    "iam:CreateUser", "iam:CreateRole", "iam:CreatePolicy", "iam:AttachUserPolicy",
-    "iam:AttachRolePolicy", "iam:PutUserPolicy", "iam:PutRolePolicy", "iam:AddUserToGroup",
-    "iam:UpdateAssumeRolePolicy", "iam:PassRole", "iam:CreateAccessKey",
-    "sts:AssumeRole", "sts:AssumeRoleWithSAML", "sts:AssumeRoleWithWebIdentity",
+    "iam:CreateUser",
+    "iam:CreateRole",
+    "iam:CreatePolicy",
+    "iam:AttachUserPolicy",
+    "iam:AttachRolePolicy",
+    "iam:PutUserPolicy",
+    "iam:PutRolePolicy",
+    "iam:AddUserToGroup",
+    "iam:UpdateAssumeRolePolicy",
+    "iam:PassRole",
+    "iam:CreateAccessKey",
+    "sts:AssumeRole",
+    "sts:AssumeRoleWithSAML",
+    "sts:AssumeRoleWithWebIdentity",
     # Data access permissions
-    "s3:GetObject", "s3:ListBucket", "s3:PutObject", "s3:DeleteObject",
-    "dynamodb:GetItem", "dynamodb:Scan", "dynamodb:Query", "dynamodb:PutItem",
-    "rds:DownloadDBLogFilePortion", "secretsmanager:GetSecretValue",
-    "ssm:GetParameter", "ssm:GetParameters", "kms:Decrypt",
+    "s3:GetObject",
+    "s3:ListBucket",
+    "s3:PutObject",
+    "s3:DeleteObject",
+    "dynamodb:GetItem",
+    "dynamodb:Scan",
+    "dynamodb:Query",
+    "dynamodb:PutItem",
+    "rds:DownloadDBLogFilePortion",
+    "secretsmanager:GetSecretValue",
+    "ssm:GetParameter",
+    "ssm:GetParameters",
+    "kms:Decrypt",
     # Privilege escalation permissions
-    "lambda:CreateFunction", "lambda:InvokeFunction", "lambda:UpdateFunctionCode",
-    "ec2:RunInstances", "cloudformation:CreateStack", "glue:CreateDevEndpoint",
+    "lambda:CreateFunction",
+    "lambda:InvokeFunction",
+    "lambda:UpdateFunctionCode",
+    "ec2:RunInstances",
+    "cloudformation:CreateStack",
+    "glue:CreateDevEndpoint",
 }
 
 ADMIN_PERMISSIONS = {
-    "iam:CreateUser", "iam:CreateRole", "iam:CreatePolicy", "iam:AttachUserPolicy",
-    "iam:AttachRolePolicy", "iam:PutUserPolicy", "iam:PutRolePolicy",
-    "iam:UpdateAssumeRolePolicy", "iam:DeleteUser", "iam:DeleteRole",
+    "iam:CreateUser",
+    "iam:CreateRole",
+    "iam:CreatePolicy",
+    "iam:AttachUserPolicy",
+    "iam:AttachRolePolicy",
+    "iam:PutUserPolicy",
+    "iam:PutRolePolicy",
+    "iam:UpdateAssumeRolePolicy",
+    "iam:DeleteUser",
+    "iam:DeleteRole",
 }
 
 PRIVESC_PERMISSIONS = {
-    "iam:PassRole", "iam:CreateAccessKey", "iam:AttachUserPolicy", "iam:AttachRolePolicy",
-    "iam:PutUserPolicy", "iam:PutRolePolicy", "iam:AddUserToGroup",
-    "lambda:CreateFunction", "lambda:UpdateFunctionCode", "lambda:InvokeFunction",
-    "sts:AssumeRole", "cloudformation:CreateStack", "glue:CreateDevEndpoint",
-    "ec2:RunInstances", "datapipeline:CreatePipeline",
+    "iam:PassRole",
+    "iam:CreateAccessKey",
+    "iam:AttachUserPolicy",
+    "iam:AttachRolePolicy",
+    "iam:PutUserPolicy",
+    "iam:PutRolePolicy",
+    "iam:AddUserToGroup",
+    "lambda:CreateFunction",
+    "lambda:UpdateFunctionCode",
+    "lambda:InvokeFunction",
+    "sts:AssumeRole",
+    "cloudformation:CreateStack",
+    "glue:CreateDevEndpoint",
+    "ec2:RunInstances",
+    "datapipeline:CreatePipeline",
 }
 
 DATA_ACCESS_PERMISSIONS = {
-    "s3:GetObject", "s3:ListBucket", "dynamodb:GetItem", "dynamodb:Scan", "dynamodb:Query",
-    "rds:DownloadDBLogFilePortion", "secretsmanager:GetSecretValue", "ssm:GetParameter",
-    "ssm:GetParameters", "kms:Decrypt", "sqs:ReceiveMessage", "sns:Subscribe",
+    "s3:GetObject",
+    "s3:ListBucket",
+    "dynamodb:GetItem",
+    "dynamodb:Scan",
+    "dynamodb:Query",
+    "rds:DownloadDBLogFilePortion",
+    "secretsmanager:GetSecretValue",
+    "ssm:GetParameter",
+    "ssm:GetParameters",
+    "kms:Decrypt",
+    "sqs:ReceiveMessage",
+    "sns:Subscribe",
 }
 
 
@@ -153,7 +217,7 @@ def _parse_enumerate_iam_output(logs: str) -> dict:
 
     for line in logs.split("\n"):
         # Parse successful permission checks: "-- service.api_call() worked!"
-        worked_match = re.search(r'--\s+(\w+)\.(\w+)\(\)\s+worked!', line)
+        worked_match = re.search(r"--\s+(\w+)\.(\w+)\(\)\s+worked!", line)
         if worked_match:
             service = worked_match.group(1)
             action = worked_match.group(2)
@@ -168,7 +232,9 @@ def _parse_enumerate_iam_output(logs: str) -> dict:
             continue
 
         # Parse denied permissions: typically "AccessDenied" in the message
-        denied_match = re.search(r'--\s+(\w+)\.(\w+)\(\).*(?:AccessDenied|Denied|Unauthorized)', line, re.IGNORECASE)
+        denied_match = re.search(
+            r"--\s+(\w+)\.(\w+)\(\).*(?:AccessDenied|Denied|Unauthorized)", line, re.IGNORECASE
+        )
         if denied_match:
             service = denied_match.group(1)
             action = denied_match.group(2)
@@ -176,7 +242,9 @@ def _parse_enumerate_iam_output(logs: str) -> dict:
             continue
 
         # Parse error permissions: other errors
-        error_match = re.search(r'--\s+(\w+)\.(\w+)\(\).*(?:error|exception|failed)', line, re.IGNORECASE)
+        error_match = re.search(
+            r"--\s+(\w+)\.(\w+)\(\).*(?:error|exception|failed)", line, re.IGNORECASE
+        )
         if error_match:
             service = error_match.group(1)
             action = error_match.group(2)
@@ -209,9 +277,11 @@ def _create_enumerate_iam_result(db: Session, execution: ToolExecution, logs: st
         parsed = _parse_enumerate_iam_output(logs)
 
         # Check if a result already exists for this execution
-        existing = db.query(EnumerateIamResult).filter(
-            EnumerateIamResult.result_id == execution.execution_id
-        ).first()
+        existing = (
+            db.query(EnumerateIamResult)
+            .filter(EnumerateIamResult.result_id == execution.execution_id)
+            .first()
+        )
 
         if existing:
             logger.info(f"EnumerateIamResult already exists for execution {execution.execution_id}")
@@ -235,7 +305,9 @@ def _create_enumerate_iam_result(db: Session, execution: ToolExecution, logs: st
 
         db.add(iam_result)
         db.commit()
-        logger.info(f"Created EnumerateIamResult for execution {execution.execution_id} with {parsed['permission_count']} permissions")
+        logger.info(
+            f"Created EnumerateIamResult for execution {execution.execution_id} with {parsed['permission_count']} permissions"
+        )
     except Exception as e:
         logger.error(f"Failed to create EnumerateIamResult: {e}")
         db.rollback()
@@ -248,9 +320,9 @@ async def _update_execution_status(
 ):
     """Background task to update execution status from Docker."""
     try:
-        execution = db.query(ToolExecution).filter(
-            ToolExecution.execution_id == execution_id
-        ).first()
+        execution = (
+            db.query(ToolExecution).filter(ToolExecution.execution_id == execution_id).first()
+        )
 
         if not execution or not execution.container_id:
             return
@@ -276,8 +348,8 @@ async def _update_execution_status(
 @router.get("/", response_model=ToolExecutionListResponse)
 async def list_executions(
     db: Session = Depends(get_db),
-    tool_name: Optional[str] = Query(None, description="Filter by tool name"),
-    status: Optional[str] = Query(None, description="Filter by status"),
+    tool_name: str | None = Query(None, description="Filter by tool name"),
+    status: str | None = Query(None, description="Filter by status"),
     page: int = Query(1, ge=1, description="Page number"),
     page_size: int = Query(50, ge=1, le=500, description="Items per page"),
 ):
@@ -292,9 +364,12 @@ async def list_executions(
 
     total = query.count()
 
-    executions = query.order_by(
-        desc(ToolExecution.created_at)
-    ).offset((page - 1) * page_size).limit(page_size).all()
+    executions = (
+        query.order_by(desc(ToolExecution.created_at))
+        .offset((page - 1) * page_size)
+        .limit(page_size)
+        .all()
+    )
 
     return ToolExecutionListResponse(
         executions=[ToolExecutionResponse.model_validate(e) for e in executions],
@@ -311,9 +386,7 @@ async def get_execution(
     background_tasks: BackgroundTasks = None,
 ):
     """Get execution details and update status from Docker if running."""
-    execution = db.query(ToolExecution).filter(
-        ToolExecution.execution_id == execution_id
-    ).first()
+    execution = db.query(ToolExecution).filter(ToolExecution.execution_id == execution_id).first()
 
     if not execution:
         raise HTTPException(status_code=404, detail="Execution not found")
@@ -363,9 +436,7 @@ async def get_execution_logs(
     db: Session = Depends(get_db),
 ):
     """Get logs from a tool execution."""
-    execution = db.query(ToolExecution).filter(
-        ToolExecution.execution_id == execution_id
-    ).first()
+    execution = db.query(ToolExecution).filter(ToolExecution.execution_id == execution_id).first()
 
     if not execution:
         raise HTTPException(status_code=404, detail="Execution not found")
@@ -399,9 +470,7 @@ async def stop_execution(
     db: Session = Depends(get_db),
 ):
     """Stop a running execution."""
-    execution = db.query(ToolExecution).filter(
-        ToolExecution.execution_id == execution_id
-    ).first()
+    execution = db.query(ToolExecution).filter(ToolExecution.execution_id == execution_id).first()
 
     if not execution:
         raise HTTPException(status_code=404, detail="Execution not found")
@@ -442,9 +511,7 @@ async def delete_execution(
     db: Session = Depends(get_db),
 ):
     """Delete an execution record and optionally cleanup the container."""
-    execution = db.query(ToolExecution).filter(
-        ToolExecution.execution_id == execution_id
-    ).first()
+    execution = db.query(ToolExecution).filter(ToolExecution.execution_id == execution_id).first()
 
     if not execution:
         raise HTTPException(status_code=404, detail="Execution not found")
@@ -471,7 +538,9 @@ async def get_docker_status():
         available = executor.is_available()
         return {
             "docker_available": available,
-            "message": "Docker is ready for tool execution" if available else "Docker is not available",
+            "message": "Docker is ready for tool execution"
+            if available
+            else "Docker is not available",
         }
     except Exception as e:
         return {

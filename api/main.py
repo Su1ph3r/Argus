@@ -10,21 +10,22 @@ Features:
 - API key authentication (optional)
 - Rate limiting to prevent abuse
 """
+
 import asyncio
 import secrets
 import signal
 import time
 from collections import defaultdict
+from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 from types import FrameType
-from typing import Any, AsyncGenerator, Optional
 
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from logging_config import get_logger, get_request_id, set_request_id, setup_logging
 
 from config import get_settings
-from logging_config import get_logger, get_request_id, set_request_id, setup_logging
 from models.database import engine
 from routers import (
     assumed_roles_router,
@@ -47,8 +48,8 @@ from routers import (
     severity_overrides_router,
     sync_router,
 )
-from routers.database import router as database_router
 from routers.aws_profiles import router as aws_profiles_router
+from routers.database import router as database_router
 from routers.health import set_startup_time
 
 
@@ -83,9 +84,7 @@ class RateLimiter:
     def _cleanup_old_requests(self, client_id: str, current_time: float) -> None:
         """Remove requests outside the current window."""
         cutoff = current_time - self.window_seconds
-        self.requests[client_id] = [
-            t for t in self.requests[client_id] if t > cutoff
-        ]
+        self.requests[client_id] = [t for t in self.requests[client_id] if t > cutoff]
 
     def is_allowed(self, request: Request) -> tuple[bool, dict[str, str]]:
         """Check if request is allowed and return rate limit info.
@@ -139,14 +138,12 @@ settings = get_settings()
 # Initialize rate limiter with settings
 rate_limiter = RateLimiter(
     requests_per_minute=settings.rate_limit_requests_per_minute,
-    burst_limit=settings.rate_limit_burst
+    burst_limit=settings.rate_limit_burst,
 )
 
 # Configure structured logging
 setup_logging(
-    log_level=settings.log_level,
-    log_format=settings.log_format,
-    service_name="nubicustos-api"
+    log_level=settings.log_level, log_format=settings.log_format, service_name="nubicustos-api"
 )
 logger = get_logger(__name__)
 
@@ -170,7 +167,7 @@ async def decrement_in_flight() -> None:
         _in_flight_requests -= 1
 
 
-def handle_sigterm(signum: int, frame: Optional[FrameType]) -> None:
+def handle_sigterm(signum: int, frame: FrameType | None) -> None:
     """Handle SIGTERM signal for graceful shutdown."""
     logger.info("Received SIGTERM signal, initiating graceful shutdown")
     _shutdown_event.set()
@@ -288,7 +285,7 @@ async def request_tracking_middleware(request: Request, call_next):
         return JSONResponse(
             status_code=503,
             content={"detail": "Service is shutting down"},
-            headers={"Retry-After": "30"}
+            headers={"Retry-After": "30"},
         )
 
     # Get or generate request ID
@@ -301,17 +298,17 @@ async def request_tracking_middleware(request: Request, call_next):
         allowed, rate_headers = rate_limiter.is_allowed(request)
         if not allowed:
             logger.warning(
-                f"Rate limit exceeded for client",
+                "Rate limit exceeded for client",
                 extra={
                     "request_id": request_id,
                     "path": request.url.path,
                     "method": request.method,
-                }
+                },
             )
             return JSONResponse(
                 status_code=429,
                 content={"detail": "Rate limit exceeded. Please retry later."},
-                headers=rate_headers
+                headers=rate_headers,
             )
 
     # Track in-flight request
@@ -327,7 +324,7 @@ async def request_tracking_middleware(request: Request, call_next):
                 "method": request.method,
                 "path": request.url.path,
                 "client_ip": request.client.host if request.client else None,
-            }
+            },
         )
 
     try:
@@ -352,7 +349,7 @@ async def request_tracking_middleware(request: Request, call_next):
                     "path": request.url.path,
                     "status_code": response.status_code,
                     "duration_ms": round(process_time * 1000, 2),
-                }
+                },
             )
 
         return response
@@ -364,7 +361,7 @@ async def request_tracking_middleware(request: Request, call_next):
                 "method": request.method,
                 "path": request.url.path,
                 "error": str(e),
-            }
+            },
         )
         raise
     finally:
@@ -377,9 +374,14 @@ async def validate_api_key(request: Request, call_next):
     """Validate API key if configured."""
     # Skip validation for docs and health endpoints
     skip_paths = [
-        "/api/docs", "/api/redoc", "/api/openapi.json",
-        "/api/health", "/api/health/", "/api/health/live",
-        "/api/health/ready", "/api/health/detailed"
+        "/api/docs",
+        "/api/redoc",
+        "/api/openapi.json",
+        "/api/health",
+        "/api/health/",
+        "/api/health/live",
+        "/api/health/ready",
+        "/api/health/detailed",
     ]
     if request.url.path in skip_paths:
         return await call_next(request)
@@ -392,12 +394,9 @@ async def validate_api_key(request: Request, call_next):
             request_id = get_request_id()
             logger.warning(
                 "Authentication failed: Invalid or missing API key",
-                extra={"request_id": request_id, "path": request.url.path}
+                extra={"request_id": request_id, "path": request.url.path},
             )
-            return JSONResponse(
-                status_code=401,
-                content={"detail": "Invalid or missing API key"}
-            )
+            return JSONResponse(status_code=401, content={"detail": "Invalid or missing API key"})
 
     return await call_next(request)
 
@@ -435,7 +434,7 @@ async def root():
         "name": "Nubicustos API",
         "version": "1.0.0",
         "docs": "/api/docs",
-        "health": "/api/health"
+        "health": "/api/health",
     }
 
 
@@ -467,8 +466,8 @@ async def api_root():
             "lambda_analysis": "/api/lambda-analysis",
             "executions": "/api/executions",
             "credentials": "/api/credentials",
-            "settings": "/api/settings"
-        }
+            "settings": "/api/settings",
+        },
     }
 
 
@@ -484,22 +483,18 @@ async def global_exception_handler(request: Request, exc: Exception):
             "request_id": request_id,
             "path": request.url.path,
             "method": request.method,
-        }
+        },
     )
     return JSONResponse(
         status_code=500,
         content={
             "detail": "Internal server error",
             "request_id": request_id,
-        }
+        },
     )
 
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(
-        "main:app",
-        host=settings.api_host,
-        port=settings.api_port,
-        reload=settings.debug
-    )
+
+    uvicorn.run("main:app", host=settings.api_host, port=settings.api_port, reload=settings.debug)

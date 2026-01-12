@@ -1,14 +1,13 @@
 """Lambda Code Analysis API endpoints."""
-from fastapi import APIRouter, Depends, Query, HTTPException
-from sqlalchemy.orm import Session
-from sqlalchemy import func, desc
-from typing import Optional, List
-from uuid import UUID
 
-from models.database import get_db, LambdaAnalysis
+from fastapi import APIRouter, Depends, HTTPException, Query
+from sqlalchemy import desc, func
+from sqlalchemy.orm import Session
+
+from models.database import LambdaAnalysis, get_db
 from models.schemas import (
-    LambdaAnalysisResponse,
     LambdaAnalysisListResponse,
+    LambdaAnalysisResponse,
     LambdaAnalysisSummary,
     LambdaAnalyzeRequest,
 )
@@ -20,13 +19,13 @@ router = APIRouter(prefix="/lambda-analysis", tags=["Lambda Analysis"])
 @router.get("/", response_model=LambdaAnalysisListResponse)
 async def list_lambda_analyses(
     db: Session = Depends(get_db),
-    region: Optional[str] = Query(None, description="Filter by region"),
-    runtime: Optional[str] = Query(None, description="Filter by runtime"),
-    risk_level: Optional[str] = Query(None, description="Filter by risk level"),
-    analysis_status: Optional[str] = Query(None, description="Filter by analysis status"),
-    has_secrets: Optional[bool] = Query(None, description="Filter functions with secrets"),
+    region: str | None = Query(None, description="Filter by region"),
+    runtime: str | None = Query(None, description="Filter by runtime"),
+    risk_level: str | None = Query(None, description="Filter by risk level"),
+    analysis_status: str | None = Query(None, description="Filter by analysis status"),
+    has_secrets: bool | None = Query(None, description="Filter functions with secrets"),
     page: int = Query(1, ge=1, description="Page number"),
-    page_size: int = Query(50, ge=1, le=500, description="Items per page")
+    page_size: int = Query(50, ge=1, le=500, description="Items per page"),
 ):
     """List Lambda analysis results with optional filters."""
     query = db.query(LambdaAnalysis)
@@ -45,27 +44,27 @@ async def list_lambda_analyses(
 
     if has_secrets is not None:
         if has_secrets:
-            query = query.filter(
-                func.jsonb_array_length(LambdaAnalysis.secrets_found) > 0
-            )
+            query = query.filter(func.jsonb_array_length(LambdaAnalysis.secrets_found) > 0)
         else:
             query = query.filter(
-                (LambdaAnalysis.secrets_found == None) |
-                (func.jsonb_array_length(LambdaAnalysis.secrets_found) == 0)
+                (LambdaAnalysis.secrets_found == None)
+                | (func.jsonb_array_length(LambdaAnalysis.secrets_found) == 0)
             )
 
     total = query.count()
 
-    analyses = query.order_by(
-        desc(LambdaAnalysis.risk_score),
-        desc(LambdaAnalysis.created_at)
-    ).offset((page - 1) * page_size).limit(page_size).all()
+    analyses = (
+        query.order_by(desc(LambdaAnalysis.risk_score), desc(LambdaAnalysis.created_at))
+        .offset((page - 1) * page_size)
+        .limit(page_size)
+        .all()
+    )
 
     return LambdaAnalysisListResponse(
         analyses=[LambdaAnalysisResponse.model_validate(a) for a in analyses],
         total=total,
         page=page,
-        page_size=page_size
+        page_size=page_size,
     )
 
 
@@ -75,19 +74,21 @@ async def get_lambda_summary(db: Session = Depends(get_db)):
     total = db.query(LambdaAnalysis).count()
 
     # Count functions with secrets
-    with_secrets = db.query(LambdaAnalysis).filter(
-        func.jsonb_array_length(LambdaAnalysis.secrets_found) > 0
-    ).count()
+    with_secrets = (
+        db.query(LambdaAnalysis)
+        .filter(func.jsonb_array_length(LambdaAnalysis.secrets_found) > 0)
+        .count()
+    )
 
     # Count functions with vulnerable dependencies
-    with_vulns = db.query(LambdaAnalysis).filter(
-        func.jsonb_array_length(LambdaAnalysis.vulnerable_dependencies) > 0
-    ).count()
+    with_vulns = (
+        db.query(LambdaAnalysis)
+        .filter(func.jsonb_array_length(LambdaAnalysis.vulnerable_dependencies) > 0)
+        .count()
+    )
 
     # High risk functions
-    high_risk = db.query(LambdaAnalysis).filter(
-        LambdaAnalysis.risk_score >= 70
-    ).count()
+    high_risk = db.query(LambdaAnalysis).filter(LambdaAnalysis.risk_score >= 70).count()
 
     # By runtime
     runtime_counts = dict(
@@ -109,7 +110,7 @@ async def get_lambda_summary(db: Session = Depends(get_db)):
         functions_with_vulns=with_vulns,
         high_risk=high_risk,
         by_runtime={k: v for k, v in runtime_counts.items() if k},
-        by_region={k: v for k, v in region_counts.items() if k}
+        by_region={k: v for k, v in region_counts.items() if k},
     )
 
 
@@ -118,24 +119,25 @@ async def list_risky_functions(
     db: Session = Depends(get_db),
     min_risk_score: int = Query(50, ge=0, le=100, description="Minimum risk score"),
     page: int = Query(1, ge=1, description="Page number"),
-    page_size: int = Query(50, ge=1, le=500, description="Items per page")
+    page_size: int = Query(50, ge=1, le=500, description="Items per page"),
 ):
     """List Lambda functions with security issues."""
-    query = db.query(LambdaAnalysis).filter(
-        LambdaAnalysis.risk_score >= min_risk_score
-    )
+    query = db.query(LambdaAnalysis).filter(LambdaAnalysis.risk_score >= min_risk_score)
 
     total = query.count()
 
-    analyses = query.order_by(
-        desc(LambdaAnalysis.risk_score)
-    ).offset((page - 1) * page_size).limit(page_size).all()
+    analyses = (
+        query.order_by(desc(LambdaAnalysis.risk_score))
+        .offset((page - 1) * page_size)
+        .limit(page_size)
+        .all()
+    )
 
     return LambdaAnalysisListResponse(
         analyses=[LambdaAnalysisResponse.model_validate(a) for a in analyses],
         total=total,
         page=page,
-        page_size=page_size
+        page_size=page_size,
     )
 
 
@@ -143,7 +145,7 @@ async def list_risky_functions(
 async def list_functions_with_secrets(
     db: Session = Depends(get_db),
     page: int = Query(1, ge=1, description="Page number"),
-    page_size: int = Query(50, ge=1, le=500, description="Items per page")
+    page_size: int = Query(50, ge=1, le=500, description="Items per page"),
 ):
     """List Lambda functions with exposed secrets."""
     query = db.query(LambdaAnalysis).filter(
@@ -152,27 +154,25 @@ async def list_functions_with_secrets(
 
     total = query.count()
 
-    analyses = query.order_by(
-        desc(LambdaAnalysis.risk_score)
-    ).offset((page - 1) * page_size).limit(page_size).all()
+    analyses = (
+        query.order_by(desc(LambdaAnalysis.risk_score))
+        .offset((page - 1) * page_size)
+        .limit(page_size)
+        .all()
+    )
 
     return LambdaAnalysisListResponse(
         analyses=[LambdaAnalysisResponse.model_validate(a) for a in analyses],
         total=total,
         page=page,
-        page_size=page_size
+        page_size=page_size,
     )
 
 
 @router.get("/{analysis_id}", response_model=LambdaAnalysisResponse)
-async def get_lambda_analysis(
-    analysis_id: int,
-    db: Session = Depends(get_db)
-):
+async def get_lambda_analysis(analysis_id: int, db: Session = Depends(get_db)):
     """Get a specific Lambda analysis by ID."""
-    analysis = db.query(LambdaAnalysis).filter(
-        LambdaAnalysis.id == analysis_id
-    ).first()
+    analysis = db.query(LambdaAnalysis).filter(LambdaAnalysis.id == analysis_id).first()
 
     if not analysis:
         raise HTTPException(status_code=404, detail="Lambda analysis not found")
@@ -181,14 +181,9 @@ async def get_lambda_analysis(
 
 
 @router.get("/function/{function_arn:path}", response_model=LambdaAnalysisResponse)
-async def get_analysis_by_function(
-    function_arn: str,
-    db: Session = Depends(get_db)
-):
+async def get_analysis_by_function(function_arn: str, db: Session = Depends(get_db)):
     """Get Lambda analysis for a specific function ARN."""
-    analysis = db.query(LambdaAnalysis).filter(
-        LambdaAnalysis.function_arn == function_arn
-    ).first()
+    analysis = db.query(LambdaAnalysis).filter(LambdaAnalysis.function_arn == function_arn).first()
 
     if not analysis:
         raise HTTPException(status_code=404, detail="No analysis found for this function")
@@ -197,14 +192,9 @@ async def get_analysis_by_function(
 
 
 @router.get("/{analysis_id}/findings")
-async def get_analysis_findings(
-    analysis_id: int,
-    db: Session = Depends(get_db)
-):
+async def get_analysis_findings(analysis_id: int, db: Session = Depends(get_db)):
     """Get detailed security findings for a Lambda analysis."""
-    analysis = db.query(LambdaAnalysis).filter(
-        LambdaAnalysis.id == analysis_id
-    ).first()
+    analysis = db.query(LambdaAnalysis).filter(LambdaAnalysis.id == analysis_id).first()
 
     if not analysis:
         raise HTTPException(status_code=404, detail="Lambda analysis not found")
@@ -221,13 +211,13 @@ async def get_analysis_findings(
             "insecure_patterns": analysis.insecure_patterns or [],
             "api_keys": analysis.api_keys_exposed or [],
             "database_connections": analysis.database_connections or [],
-            "external_urls": analysis.external_urls or []
+            "external_urls": analysis.external_urls or [],
         },
         "environment_analysis": {
             "has_vpc_config": analysis.has_vpc_config,
             "layers_count": len(analysis.layers or []),
-            "env_vars_count": len(analysis.environment_variables or {})
-        }
+            "env_vars_count": len(analysis.environment_variables or {}),
+        },
     }
 
     return findings
@@ -237,12 +227,10 @@ async def get_analysis_findings(
 async def export_lambda_analysis(
     analysis_id: int,
     format: str = Query("markdown", description="Export format: markdown, json"),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ):
     """Export Lambda analysis for reporting."""
-    analysis = db.query(LambdaAnalysis).filter(
-        LambdaAnalysis.id == analysis_id
-    ).first()
+    analysis = db.query(LambdaAnalysis).filter(LambdaAnalysis.id == analysis_id).first()
 
     if not analysis:
         raise HTTPException(status_code=404, detail="Lambda analysis not found")
@@ -273,28 +261,38 @@ async def export_lambda_analysis(
     ]
 
     if secrets:
-        md_lines.extend([
-            "## Exposed Secrets",
-            "",
-        ])
+        md_lines.extend(
+            [
+                "## Exposed Secrets",
+                "",
+            ]
+        )
         for s in secrets:
-            md_lines.append(f"- **{s.get('type', 'Unknown')}**: `{s.get('value_preview', '***')}` at {s.get('location', 'Unknown')}")
+            md_lines.append(
+                f"- **{s.get('type', 'Unknown')}**: `{s.get('value_preview', '***')}` at {s.get('location', 'Unknown')}"
+            )
         md_lines.append("")
 
     if vulns:
-        md_lines.extend([
-            "## Vulnerable Dependencies",
-            "",
-        ])
+        md_lines.extend(
+            [
+                "## Vulnerable Dependencies",
+                "",
+            ]
+        )
         for v in vulns:
-            md_lines.append(f"- **{v.get('package', 'Unknown')}** {v.get('version', '')}: {v.get('vulnerability', 'Unknown')} ({v.get('severity', 'Unknown')})")
+            md_lines.append(
+                f"- **{v.get('package', 'Unknown')}** {v.get('version', '')}: {v.get('vulnerability', 'Unknown')} ({v.get('severity', 'Unknown')})"
+            )
         md_lines.append("")
 
     if patterns:
-        md_lines.extend([
-            "## Insecure Code Patterns",
-            "",
-        ])
+        md_lines.extend(
+            [
+                "## Insecure Code Patterns",
+                "",
+            ]
+        )
         for p in patterns:
             md_lines.append(f"### {p.get('pattern_type', 'Unknown')}")
             md_lines.append(f"{p.get('description', '')}")
@@ -302,19 +300,13 @@ async def export_lambda_analysis(
             md_lines.append(f"- Recommendation: {p.get('recommendation', 'N/A')}")
             md_lines.append("")
 
-    md_lines.extend([
-        "---",
-        "*Generated by Nubicustos Lambda Code Analysis*"
-    ])
+    md_lines.extend(["---", "*Generated by Nubicustos Lambda Code Analysis*"])
 
     return {"format": "markdown", "content": "\n".join(md_lines)}
 
 
 @router.post("/analyze")
-async def analyze_lambda_functions(
-    request: LambdaAnalyzeRequest,
-    db: Session = Depends(get_db)
-):
+async def analyze_lambda_functions(request: LambdaAnalyzeRequest, db: Session = Depends(get_db)):
     """
     Trigger Lambda function code analysis.
 
@@ -347,5 +339,5 @@ async def analyze_lambda_functions(
         "regions": request.regions,
         "analyze_all": request.analyze_all,
         "credentials_provided": bool(request.access_key),
-        "note": "Check /api/lambda-analysis for results after analysis completes"
+        "note": "Check /api/lambda-analysis for results after analysis completes",
     }

@@ -340,7 +340,15 @@ KUBERNETES_TOOLS = {
         "required_verbs": ["get", "list"],
         "required_resources": [
             {"apiGroups": [""], "resources": ["pods", "namespaces"]},
-            {"apiGroups": ["apps"], "resources": ["deployments", "daemonsets", "statefulsets", "replicasets"]},
+            {
+                "apiGroups": ["apps"],
+                "resources": [
+                    "deployments",
+                    "daemonsets",
+                    "statefulsets",
+                    "replicasets",
+                ],
+            },
             {"apiGroups": ["batch"], "resources": ["jobs", "cronjobs"]},
         ],
         "cluster_wide": True,
@@ -359,7 +367,10 @@ KUBERNETES_TOOLS = {
         "description": "Kubernetes penetration testing",
         "required_verbs": ["get", "list"],
         "required_resources": [
-            {"apiGroups": [""], "resources": ["pods", "services", "secrets", "configmaps"]},
+            {
+                "apiGroups": [""],
+                "resources": ["pods", "services", "secrets", "configmaps"],
+            },
             {"apiGroups": ["apps"], "resources": ["deployments"]},
         ],
         "cluster_wide": True,
@@ -420,6 +431,7 @@ roleRef:
 # =============================================================================
 # Helper Functions
 # =============================================================================
+
 
 def get_all_aws_tools():
     """Return list of all AWS tool names."""

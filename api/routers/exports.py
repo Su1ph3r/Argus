@@ -13,11 +13,11 @@ Endpoints:
     POST /exports/generate - Generate an export with metadata
     GET /exports/summary - Get export-ready summary statistics
 """
+
 import csv
 import io
 import json
 from datetime import datetime
-from typing import Any, Optional
 from uuid import uuid4
 
 from fastapi import APIRouter, Depends, Query
@@ -26,7 +26,7 @@ from sqlalchemy import desc
 from sqlalchemy.orm import Session
 
 from models.database import Finding, get_db
-from models.schemas import ExportRequest, ExportResponse, FindingStatus, SeverityLevel
+from models.schemas import ExportRequest, ExportResponse
 
 router: APIRouter = APIRouter(prefix="/exports", tags=["Exports"])
 
@@ -34,10 +34,10 @@ router: APIRouter = APIRouter(prefix="/exports", tags=["Exports"])
 @router.get("/csv")
 async def export_findings_csv(
     db: Session = Depends(get_db),
-    severity: Optional[str] = Query(None, description="Filter by severity (comma-separated)"),
-    status: Optional[str] = Query("open", description="Filter by status"),
-    cloud_provider: Optional[str] = Query(None, description="Filter by cloud provider"),
-    include_remediation: bool = Query(True, description="Include remediation guidance")
+    severity: str | None = Query(None, description="Filter by severity (comma-separated)"),
+    status: str | None = Query("open", description="Filter by status"),
+    cloud_provider: str | None = Query(None, description="Filter by cloud provider"),
+    include_remediation: bool = Query(True, description="Include remediation guidance"),
 ):
     """
     Export findings as CSV file download.
@@ -73,10 +73,7 @@ async def export_findings_csv(
     if cloud_provider:
         query = query.filter(Finding.cloud_provider == cloud_provider.lower())
 
-    findings = query.order_by(
-        Finding.severity,
-        desc(Finding.scan_date)
-    ).all()
+    findings = query.order_by(Finding.severity, desc(Finding.scan_date)).all()
 
     # Create CSV in memory
     output = io.StringIO()
@@ -84,9 +81,17 @@ async def export_findings_csv(
 
     # Header row
     headers = [
-        "finding_id", "tool", "cloud_provider", "severity", "status",
-        "title", "resource_type", "resource_id", "resource_name",
-        "region", "scan_date"
+        "finding_id",
+        "tool",
+        "cloud_provider",
+        "severity",
+        "status",
+        "title",
+        "resource_type",
+        "resource_id",
+        "resource_name",
+        "region",
+        "scan_date",
     ]
     if include_remediation:
         headers.append("remediation")
@@ -96,9 +101,17 @@ async def export_findings_csv(
     # Data rows
     for f in findings:
         row = [
-            f.finding_id, f.tool, f.cloud_provider, f.severity, f.status,
-            f.title, f.resource_type, f.resource_id, f.resource_name,
-            f.region, f.scan_date.isoformat() if f.scan_date else ""
+            f.finding_id,
+            f.tool,
+            f.cloud_provider,
+            f.severity,
+            f.status,
+            f.title,
+            f.resource_type,
+            f.resource_id,
+            f.resource_name,
+            f.region,
+            f.scan_date.isoformat() if f.scan_date else "",
         ]
         if include_remediation:
             row.append(f.remediation or "")
@@ -111,16 +124,16 @@ async def export_findings_csv(
     return StreamingResponse(
         iter([output.getvalue()]),
         media_type="text/csv",
-        headers={"Content-Disposition": f"attachment; filename={filename}"}
+        headers={"Content-Disposition": f"attachment; filename={filename}"},
     )
 
 
 @router.get("/json")
 async def export_findings_json(
     db: Session = Depends(get_db),
-    severity: Optional[str] = Query(None, description="Filter by severity (comma-separated)"),
-    status: Optional[str] = Query("open", description="Filter by status"),
-    cloud_provider: Optional[str] = Query(None, description="Filter by cloud provider")
+    severity: str | None = Query(None, description="Filter by severity (comma-separated)"),
+    status: str | None = Query("open", description="Filter by status"),
+    cloud_provider: str | None = Query(None, description="Filter by cloud provider"),
 ):
     """
     Export findings as JSON file download.
@@ -158,19 +171,12 @@ async def export_findings_json(
     if cloud_provider:
         query = query.filter(Finding.cloud_provider == cloud_provider.lower())
 
-    findings = query.order_by(
-        Finding.severity,
-        desc(Finding.scan_date)
-    ).all()
+    findings = query.order_by(Finding.severity, desc(Finding.scan_date)).all()
 
     # Build JSON structure
     export_data = {
         "export_timestamp": datetime.utcnow().isoformat(),
-        "filters": {
-            "severity": severity,
-            "status": status,
-            "cloud_provider": cloud_provider
-        },
+        "filters": {"severity": severity, "status": status, "cloud_provider": cloud_provider},
         "total_findings": len(findings),
         "findings": [
             {
@@ -191,10 +197,10 @@ async def export_findings_json(
                 "cve_id": f.cve_id,
                 "first_seen": f.first_seen.isoformat() if f.first_seen else None,
                 "last_seen": f.last_seen.isoformat() if f.last_seen else None,
-                "scan_date": f.scan_date.isoformat() if f.scan_date else None
+                "scan_date": f.scan_date.isoformat() if f.scan_date else None,
             }
             for f in findings
-        ]
+        ],
     }
 
     filename = f"findings_export_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
@@ -202,15 +208,12 @@ async def export_findings_json(
     return StreamingResponse(
         iter([json.dumps(export_data, indent=2)]),
         media_type="application/json",
-        headers={"Content-Disposition": f"attachment; filename={filename}"}
+        headers={"Content-Disposition": f"attachment; filename={filename}"},
     )
 
 
 @router.post("/generate", response_model=ExportResponse)
-async def generate_export(
-    export_request: ExportRequest,
-    db: Session = Depends(get_db)
-):
+async def generate_export(export_request: ExportRequest, db: Session = Depends(get_db)):
     """
     Generate an export package with specified filters.
 
@@ -252,14 +255,12 @@ async def generate_export(
         format=export_request.format,
         record_count=count,
         download_url=f"/api/exports/{export_request.format}",
-        generated_at=datetime.utcnow()
+        generated_at=datetime.utcnow(),
     )
 
 
 @router.get("/summary")
-async def export_summary(
-    db: Session = Depends(get_db)
-):
+async def export_summary(db: Session = Depends(get_db)):
     """
     Get export-ready summary of current findings.
 
@@ -307,5 +308,5 @@ async def export_summary(
         "total_open_findings": total,
         "by_severity": severity_data,
         "by_provider": {k: v for k, v in provider_data.items() if k},
-        "by_tool": {k: v for k, v in tool_data.items() if k}
+        "by_tool": {k: v for k, v in tool_data.items() if k},
     }

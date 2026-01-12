@@ -1,26 +1,28 @@
 """Database management API endpoints."""
+
+import logging
+from datetime import datetime
+
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
-from datetime import datetime
-import logging
 
 from models.database import (
-    get_db,
-    Scan,
-    Finding,
+    AssumedRoleMapping,
     AttackPath,
-    PublicExposure,
+    CloudfoxResult,
+    CredentialStatusCache,
+    EnumerateIamResult,
     ExposedCredential,
-    SeverityOverride,
-    PrivescPath,
+    Finding,
     ImdsCheck,
     LambdaAnalysis,
-    CloudfoxResult,
     PacuResult,
-    EnumerateIamResult,
-    AssumedRoleMapping,
+    PrivescPath,
+    PublicExposure,
+    Scan,
+    SeverityOverride,
     ToolExecution,
-    CredentialStatusCache
+    get_db,
 )
 
 logger = logging.getLogger(__name__)
@@ -31,7 +33,7 @@ router = APIRouter(prefix="/database", tags=["Database"])
 @router.delete("/purge")
 async def purge_database(
     confirm: bool = Query(False, description="Confirm purge operation"),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ):
     """
     Purge all scan data from the database.
@@ -58,7 +60,7 @@ async def purge_database(
     if not confirm:
         raise HTTPException(
             status_code=400,
-            detail="Add ?confirm=true to confirm database purge. This action cannot be undone."
+            detail="Add ?confirm=true to confirm database purge. This action cannot be undone.",
         )
 
     tables_purged = []
@@ -139,17 +141,19 @@ async def purge_database(
         tables_purged.append("scans")
 
         # Reset credential status cache to 'unknown'
-        db.query(CredentialStatusCache).update({
-            "status": "unknown",
-            "identity": None,
-            "account_info": None,
-            "tools_ready": [],
-            "tools_partial": [],
-            "tools_failed": [],
-            "last_verified": None,
-            "verification_error": None,
-            "updated_at": datetime.utcnow()
-        })
+        db.query(CredentialStatusCache).update(
+            {
+                "status": "unknown",
+                "identity": None,
+                "account_info": None,
+                "tools_ready": [],
+                "tools_partial": [],
+                "tools_failed": [],
+                "last_verified": None,
+                "verification_error": None,
+                "updated_at": datetime.utcnow(),
+            }
+        )
         tables_purged.append("credential_status_cache (reset)")
 
         db.commit()
@@ -163,23 +167,20 @@ async def purge_database(
             "tables_purged": tables_purged,
             "rows_deleted": rows_deleted,
             "total_rows_deleted": total_rows,
-            "timestamp": datetime.utcnow().isoformat()
+            "timestamp": datetime.utcnow().isoformat(),
         }
 
     except Exception as e:
         db.rollback()
         logger.error(f"Failed to purge database: {str(e)}")
-        raise HTTPException(
-            status_code=500,
-            detail=f"Failed to purge database: {str(e)}"
-        )
+        raise HTTPException(status_code=500, detail=f"Failed to purge database: {str(e)}")
 
 
 @router.delete("/clear-old")
 async def clear_old_scans(
     days: int = Query(90, ge=1, le=365, description="Delete scans older than this many days"),
     confirm: bool = Query(False, description="Confirm clear operation"),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ):
     """
     Clear scans and related data older than specified days.
@@ -189,16 +190,19 @@ async def clear_old_scans(
     if not confirm:
         raise HTTPException(
             status_code=400,
-            detail="Add ?confirm=true to confirm clear operation. This action cannot be undone."
+            detail="Add ?confirm=true to confirm clear operation. This action cannot be undone.",
         )
 
     from datetime import timedelta
+
     cutoff_date = datetime.utcnow() - timedelta(days=days)
     rows_deleted = {}
 
     try:
         # Get old scan IDs
-        old_scan_ids = [s.scan_id for s in db.query(Scan).filter(Scan.started_at < cutoff_date).all()]
+        old_scan_ids = [
+            s.scan_id for s in db.query(Scan).filter(Scan.started_at < cutoff_date).all()
+        ]
 
         if not old_scan_ids:
             return {
@@ -206,38 +210,74 @@ async def clear_old_scans(
                 "message": f"No scans older than {days} days found",
                 "rows_deleted": {},
                 "total_rows_deleted": 0,
-                "timestamp": datetime.utcnow().isoformat()
+                "timestamp": datetime.utcnow().isoformat(),
             }
 
         # Delete related records first (FK constraints)
-        count = db.query(SeverityOverride).filter(SeverityOverride.finding_id.in_(
-            db.query(Finding.id).filter(Finding.scan_id.in_(old_scan_ids))
-        )).delete(synchronize_session=False)
+        count = (
+            db.query(SeverityOverride)
+            .filter(
+                SeverityOverride.finding_id.in_(
+                    db.query(Finding.id).filter(Finding.scan_id.in_(old_scan_ids))
+                )
+            )
+            .delete(synchronize_session=False)
+        )
         rows_deleted["severity_overrides"] = count
 
-        count = db.query(Finding).filter(Finding.scan_id.in_(old_scan_ids)).delete(synchronize_session=False)
+        count = (
+            db.query(Finding)
+            .filter(Finding.scan_id.in_(old_scan_ids))
+            .delete(synchronize_session=False)
+        )
         rows_deleted["findings"] = count
 
-        count = db.query(AttackPath).filter(AttackPath.scan_id.in_(old_scan_ids)).delete(synchronize_session=False)
+        count = (
+            db.query(AttackPath)
+            .filter(AttackPath.scan_id.in_(old_scan_ids))
+            .delete(synchronize_session=False)
+        )
         rows_deleted["attack_paths"] = count
 
-        count = db.query(PublicExposure).filter(PublicExposure.scan_id.in_(old_scan_ids)).delete(synchronize_session=False)
+        count = (
+            db.query(PublicExposure)
+            .filter(PublicExposure.scan_id.in_(old_scan_ids))
+            .delete(synchronize_session=False)
+        )
         rows_deleted["public_exposures"] = count
 
-        count = db.query(ExposedCredential).filter(ExposedCredential.scan_id.in_(old_scan_ids)).delete(synchronize_session=False)
+        count = (
+            db.query(ExposedCredential)
+            .filter(ExposedCredential.scan_id.in_(old_scan_ids))
+            .delete(synchronize_session=False)
+        )
         rows_deleted["exposed_credentials"] = count
 
-        count = db.query(PrivescPath).filter(PrivescPath.scan_id.in_(old_scan_ids)).delete(synchronize_session=False)
+        count = (
+            db.query(PrivescPath)
+            .filter(PrivescPath.scan_id.in_(old_scan_ids))
+            .delete(synchronize_session=False)
+        )
         rows_deleted["privesc_paths"] = count
 
-        count = db.query(ImdsCheck).filter(ImdsCheck.scan_id.in_(old_scan_ids)).delete(synchronize_session=False)
+        count = (
+            db.query(ImdsCheck)
+            .filter(ImdsCheck.scan_id.in_(old_scan_ids))
+            .delete(synchronize_session=False)
+        )
         rows_deleted["imds_checks"] = count
 
-        count = db.query(LambdaAnalysis).filter(LambdaAnalysis.scan_id.in_(old_scan_ids)).delete(synchronize_session=False)
+        count = (
+            db.query(LambdaAnalysis)
+            .filter(LambdaAnalysis.scan_id.in_(old_scan_ids))
+            .delete(synchronize_session=False)
+        )
         rows_deleted["lambda_analysis"] = count
 
         # Delete scans
-        count = db.query(Scan).filter(Scan.scan_id.in_(old_scan_ids)).delete(synchronize_session=False)
+        count = (
+            db.query(Scan).filter(Scan.scan_id.in_(old_scan_ids)).delete(synchronize_session=False)
+        )
         rows_deleted["scans"] = count
 
         db.commit()
@@ -251,16 +291,13 @@ async def clear_old_scans(
             "scans_deleted": len(old_scan_ids),
             "rows_deleted": rows_deleted,
             "total_rows_deleted": total_rows,
-            "timestamp": datetime.utcnow().isoformat()
+            "timestamp": datetime.utcnow().isoformat(),
         }
 
     except Exception as e:
         db.rollback()
         logger.error(f"Failed to clear old scans: {str(e)}")
-        raise HTTPException(
-            status_code=500,
-            detail=f"Failed to clear old scans: {str(e)}"
-        )
+        raise HTTPException(status_code=500, detail=f"Failed to clear old scans: {str(e)}")
 
 
 @router.get("/stats")
@@ -277,20 +314,13 @@ async def get_database_stats(db: Session = Depends(get_db)):
             "privesc_paths": db.query(PrivescPath).count(),
             "imds_checks": db.query(ImdsCheck).count(),
             "lambda_analysis": db.query(LambdaAnalysis).count(),
-            "tool_executions": db.query(ToolExecution).count()
+            "tool_executions": db.query(ToolExecution).count(),
         }
 
         stats["total_records"] = sum(stats.values())
 
-        return {
-            "success": True,
-            "stats": stats,
-            "timestamp": datetime.utcnow().isoformat()
-        }
+        return {"success": True, "stats": stats, "timestamp": datetime.utcnow().isoformat()}
 
     except Exception as e:
         logger.error(f"Failed to get database stats: {str(e)}")
-        raise HTTPException(
-            status_code=500,
-            detail=f"Failed to get database stats: {str(e)}"
-        )
+        raise HTTPException(status_code=500, detail=f"Failed to get database stats: {str(e)}")

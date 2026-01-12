@@ -1,8 +1,6 @@
 """Tests for attack paths endpoints."""
-import pytest
+
 from fastapi.testclient import TestClient
-from sqlalchemy.orm import Session
-from uuid import uuid4
 
 
 class TestListAttackPaths:
@@ -19,9 +17,7 @@ class TestListAttackPaths:
         assert data["page"] == 1
         assert data["page_size"] == 20
 
-    def test_list_attack_paths_with_data(
-        self, client: TestClient, sample_attack_path
-    ) -> None:
+    def test_list_attack_paths_with_data(self, client: TestClient, sample_attack_path) -> None:
         """Test listing attack paths returns existing paths."""
         response = client.get("/api/attack-paths")
 
@@ -31,17 +27,13 @@ class TestListAttackPaths:
         assert len(data["paths"]) == 1
         assert data["paths"][0]["path_id"] == sample_attack_path.path_id
 
-    def test_list_attack_paths_with_trailing_slash(
-        self, client: TestClient
-    ) -> None:
+    def test_list_attack_paths_with_trailing_slash(self, client: TestClient) -> None:
         """Test listing paths with trailing slash works."""
         response = client.get("/api/attack-paths/")
 
         assert response.status_code == 200
 
-    def test_list_attack_paths_pagination(
-        self, client: TestClient, sample_attack_path
-    ) -> None:
+    def test_list_attack_paths_pagination(self, client: TestClient, sample_attack_path) -> None:
         """Test attack paths pagination parameters."""
         response = client.get("/api/attack-paths?page=1&page_size=10")
 
@@ -54,9 +46,7 @@ class TestListAttackPaths:
 class TestAttackPathsFilters:
     """Test cases for attack paths filtering."""
 
-    def test_filter_by_min_risk_score(
-        self, client: TestClient, sample_attack_path
-    ) -> None:
+    def test_filter_by_min_risk_score(self, client: TestClient, sample_attack_path) -> None:
         """Test filtering by minimum risk score."""
         response = client.get("/api/attack-paths?min_risk_score=80")
 
@@ -64,9 +54,7 @@ class TestAttackPathsFilters:
         data = response.json()
         assert all(p["risk_score"] >= 80 for p in data["paths"])
 
-    def test_filter_by_max_risk_score(
-        self, client: TestClient, sample_attack_path
-    ) -> None:
+    def test_filter_by_max_risk_score(self, client: TestClient, sample_attack_path) -> None:
         """Test filtering by maximum risk score."""
         response = client.get("/api/attack-paths?max_risk_score=50")
 
@@ -74,49 +62,35 @@ class TestAttackPathsFilters:
         data = response.json()
         assert all(p["risk_score"] < 50 for p in data["paths"])
 
-    def test_filter_by_exploitability(
-        self, client: TestClient, sample_attack_path
-    ) -> None:
+    def test_filter_by_exploitability(self, client: TestClient, sample_attack_path) -> None:
         """Test filtering by exploitability."""
         response = client.get("/api/attack-paths?exploitability=confirmed")
 
         assert response.status_code == 200
         data = response.json()
-        assert all(
-            p["exploitability"] == "confirmed" for p in data["paths"]
-        )
+        assert all(p["exploitability"] == "confirmed" for p in data["paths"])
 
-    def test_filter_by_entry_point_type(
-        self, client: TestClient, sample_attack_path
-    ) -> None:
+    def test_filter_by_entry_point_type(self, client: TestClient, sample_attack_path) -> None:
         """Test filtering by entry point type."""
         response = client.get("/api/attack-paths?entry_point_type=public_s3")
 
         assert response.status_code == 200
         data = response.json()
-        assert all(
-            p["entry_point_type"] == "public_s3" for p in data["paths"]
-        )
+        assert all(p["entry_point_type"] == "public_s3" for p in data["paths"])
 
-    def test_filter_by_target_type(
-        self, client: TestClient, sample_attack_path
-    ) -> None:
+    def test_filter_by_target_type(self, client: TestClient, sample_attack_path) -> None:
         """Test filtering by target type."""
         response = client.get("/api/attack-paths?target_type=iam_admin")
 
         assert response.status_code == 200
         data = response.json()
-        assert all(
-            p["target_type"] == "iam_admin" for p in data["paths"]
-        )
+        assert all(p["target_type"] == "iam_admin" for p in data["paths"])
 
 
 class TestGetAttackPath:
     """Test cases for getting individual attack paths."""
 
-    def test_get_attack_path_by_id(
-        self, client: TestClient, sample_attack_path
-    ) -> None:
+    def test_get_attack_path_by_id(self, client: TestClient, sample_attack_path) -> None:
         """Test getting an attack path by its database ID."""
         response = client.get(f"/api/attack-paths/{sample_attack_path.id}")
 
@@ -132,21 +106,15 @@ class TestGetAttackPath:
         assert response.status_code == 404
         assert response.json()["detail"] == "Attack path not found"
 
-    def test_get_attack_path_by_path_id(
-        self, client: TestClient, sample_attack_path
-    ) -> None:
+    def test_get_attack_path_by_path_id(self, client: TestClient, sample_attack_path) -> None:
         """Test getting an attack path by its path_id hash."""
-        response = client.get(
-            f"/api/attack-paths/by-path-id/{sample_attack_path.path_id}"
-        )
+        response = client.get(f"/api/attack-paths/by-path-id/{sample_attack_path.path_id}")
 
         assert response.status_code == 200
         data = response.json()
         assert data["path_id"] == sample_attack_path.path_id
 
-    def test_get_attack_path_by_path_id_not_found(
-        self, client: TestClient
-    ) -> None:
+    def test_get_attack_path_by_path_id_not_found(self, client: TestClient) -> None:
         """Test getting by non-existent path_id returns 404."""
         response = client.get("/api/attack-paths/by-path-id/nonexistent")
 
@@ -156,9 +124,7 @@ class TestGetAttackPath:
 class TestAttackPathStructure:
     """Test cases for attack path response structure."""
 
-    def test_attack_path_has_nodes_and_edges(
-        self, client: TestClient, sample_attack_path
-    ) -> None:
+    def test_attack_path_has_nodes_and_edges(self, client: TestClient, sample_attack_path) -> None:
         """Test attack path includes nodes and edges."""
         response = client.get(f"/api/attack-paths/{sample_attack_path.id}")
 
@@ -169,9 +135,7 @@ class TestAttackPathStructure:
         assert len(data["nodes"]) > 0
         assert len(data["edges"]) > 0
 
-    def test_attack_path_node_structure(
-        self, client: TestClient, sample_attack_path
-    ) -> None:
+    def test_attack_path_node_structure(self, client: TestClient, sample_attack_path) -> None:
         """Test attack path nodes have correct structure."""
         response = client.get(f"/api/attack-paths/{sample_attack_path.id}")
 
@@ -181,9 +145,7 @@ class TestAttackPathStructure:
             assert "type" in node
             assert "name" in node
 
-    def test_attack_path_edge_structure(
-        self, client: TestClient, sample_attack_path
-    ) -> None:
+    def test_attack_path_edge_structure(self, client: TestClient, sample_attack_path) -> None:
         """Test attack path edges have correct structure."""
         response = client.get(f"/api/attack-paths/{sample_attack_path.id}")
 
@@ -195,9 +157,7 @@ class TestAttackPathStructure:
             assert "type" in edge
             assert "name" in edge
 
-    def test_attack_path_includes_poc_steps(
-        self, client: TestClient, sample_attack_path
-    ) -> None:
+    def test_attack_path_includes_poc_steps(self, client: TestClient, sample_attack_path) -> None:
         """Test attack path includes PoC steps when available."""
         response = client.get(f"/api/attack-paths/{sample_attack_path.id}")
 
@@ -230,9 +190,7 @@ class TestAttackPathSummary:
         assert data["critical_paths"] == 0
         assert data["avg_risk_score"] == 0.0
 
-    def test_get_summary_with_data(
-        self, client: TestClient, sample_attack_path
-    ) -> None:
+    def test_get_summary_with_data(self, client: TestClient, sample_attack_path) -> None:
         """Test summary returns correct statistics."""
         response = client.get("/api/attack-paths/summary")
 
@@ -248,9 +206,7 @@ class TestAttackPathSummary:
 class TestDeleteAttackPath:
     """Test cases for deleting attack paths."""
 
-    def test_delete_attack_path(
-        self, client: TestClient, sample_attack_path
-    ) -> None:
+    def test_delete_attack_path(self, client: TestClient, sample_attack_path) -> None:
         """Test deleting an attack path."""
         response = client.delete(f"/api/attack-paths/{sample_attack_path.id}")
 
@@ -272,13 +228,9 @@ class TestDeleteAttackPath:
 class TestPathFindings:
     """Test cases for getting path findings."""
 
-    def test_get_path_findings_empty(
-        self, client: TestClient, sample_attack_path
-    ) -> None:
+    def test_get_path_findings_empty(self, client: TestClient, sample_attack_path) -> None:
         """Test getting findings for path with no findings."""
-        response = client.get(
-            f"/api/attack-paths/{sample_attack_path.id}/findings"
-        )
+        response = client.get(f"/api/attack-paths/{sample_attack_path.id}/findings")
 
         assert response.status_code == 200
         data = response.json()
@@ -294,26 +246,18 @@ class TestPathFindings:
 class TestExportAttackPath:
     """Test cases for exporting attack paths."""
 
-    def test_export_as_json(
-        self, client: TestClient, sample_attack_path
-    ) -> None:
+    def test_export_as_json(self, client: TestClient, sample_attack_path) -> None:
         """Test exporting attack path as JSON."""
-        response = client.get(
-            f"/api/attack-paths/{sample_attack_path.id}/export?format=json"
-        )
+        response = client.get(f"/api/attack-paths/{sample_attack_path.id}/export?format=json")
 
         assert response.status_code == 200
         data = response.json()
         assert "id" in data
         assert "name" in data
 
-    def test_export_as_markdown(
-        self, client: TestClient, sample_attack_path
-    ) -> None:
+    def test_export_as_markdown(self, client: TestClient, sample_attack_path) -> None:
         """Test exporting attack path as markdown."""
-        response = client.get(
-            f"/api/attack-paths/{sample_attack_path.id}/export?format=markdown"
-        )
+        response = client.get(f"/api/attack-paths/{sample_attack_path.id}/export?format=markdown")
 
         assert response.status_code == 200
         data = response.json()
@@ -321,13 +265,9 @@ class TestExportAttackPath:
         assert "content" in data
         assert "# Attack Path:" in data["content"]
 
-    def test_export_default_format(
-        self, client: TestClient, sample_attack_path
-    ) -> None:
+    def test_export_default_format(self, client: TestClient, sample_attack_path) -> None:
         """Test default export format is markdown."""
-        response = client.get(
-            f"/api/attack-paths/{sample_attack_path.id}/export"
-        )
+        response = client.get(f"/api/attack-paths/{sample_attack_path.id}/export")
 
         assert response.status_code == 200
         data = response.json()

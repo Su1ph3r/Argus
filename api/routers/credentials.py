@@ -1,36 +1,49 @@
 """Credential verification router for cloud provider permissions."""
+
 import logging
 import os
 import sys
 from datetime import datetime
-from typing import Any, Dict, List, Optional
 from enum import Enum
+from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
-from models.database import get_db, CredentialStatusCache
+from models.database import CredentialStatusCache, get_db
 
 # Import permission requirements - try local first, then scripts directory
 try:
     from permission_requirements import (
-        AWS_TOOLS, AZURE_TOOLS, GCP_TOOLS, KUBERNETES_TOOLS,
-        AWS_MANAGED_POLICIES, PROWLER_ADDITIONS_POLICY,
+        AWS_MANAGED_POLICIES,
+        AWS_TOOLS,
+        AZURE_TOOLS,
+        GCP_TOOLS,
+        KUBERNETES_TOOLS,
+        PROWLER_ADDITIONS_POLICY,
         get_tool_requirements,
     )
+
     REQUIREMENTS_AVAILABLE = True
 except ImportError:
     # Try scripts directory as fallback
-    scripts_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'scripts')
+    scripts_path = os.path.join(
+        os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "scripts"
+    )
     if scripts_path not in sys.path:
         sys.path.insert(0, scripts_path)
     try:
         from permission_requirements import (
-            AWS_TOOLS, AZURE_TOOLS, GCP_TOOLS, KUBERNETES_TOOLS,
-            AWS_MANAGED_POLICIES, PROWLER_ADDITIONS_POLICY,
+            AWS_MANAGED_POLICIES,
+            AWS_TOOLS,
+            AZURE_TOOLS,
+            GCP_TOOLS,
+            KUBERNETES_TOOLS,
+            PROWLER_ADDITIONS_POLICY,
             get_tool_requirements,
         )
+
         REQUIREMENTS_AVAILABLE = True
     except ImportError:
         REQUIREMENTS_AVAILABLE = False
@@ -46,6 +59,7 @@ router = APIRouter(prefix="/credentials", tags=["credentials"])
 
 class Provider(str, Enum):
     """Supported cloud providers."""
+
     AWS = "aws"
     AZURE = "azure"
     GCP = "gcp"
@@ -54,51 +68,59 @@ class Provider(str, Enum):
 
 class AWSCredentials(BaseModel):
     """AWS credentials input."""
+
     access_key_id: str = Field(..., description="AWS Access Key ID")
     secret_access_key: str = Field(..., description="AWS Secret Access Key")
-    session_token: Optional[str] = Field(None, description="Optional session token for temporary credentials")
+    session_token: str | None = Field(
+        None, description="Optional session token for temporary credentials"
+    )
     region: str = Field("us-east-1", description="Default AWS region")
 
 
 class AzureCredentials(BaseModel):
     """Azure credentials input."""
+
     tenant_id: str = Field(..., description="Azure Tenant ID")
     client_id: str = Field(..., description="Azure Client/Application ID")
     client_secret: str = Field(..., description="Azure Client Secret")
-    subscription_id: Optional[str] = Field(None, description="Azure Subscription ID")
+    subscription_id: str | None = Field(None, description="Azure Subscription ID")
 
 
 class GCPCredentials(BaseModel):
     """GCP credentials input."""
+
     project_id: str = Field(..., description="GCP Project ID")
     credentials_json: str = Field(..., description="Service account JSON key (paste full JSON)")
 
 
 class KubernetesCredentials(BaseModel):
     """Kubernetes credentials input."""
+
     kubeconfig: str = Field(..., description="Kubeconfig file content (paste full YAML)")
-    context: Optional[str] = Field(None, description="Specific context to use")
+    context: str | None = Field(None, description="Specific context to use")
 
 
 class VerificationRequest(BaseModel):
     """Request to verify credentials."""
+
     provider: Provider
-    aws: Optional[AWSCredentials] = None
-    azure: Optional[AzureCredentials] = None
-    gcp: Optional[GCPCredentials] = None
-    kubernetes: Optional[KubernetesCredentials] = None
+    aws: AWSCredentials | None = None
+    azure: AzureCredentials | None = None
+    gcp: GCPCredentials | None = None
+    kubernetes: KubernetesCredentials | None = None
 
 
 class VerificationResult(BaseModel):
     """Result of credential verification."""
+
     success: bool
     provider: str
-    identity: Optional[str] = None
-    account_info: Optional[str] = None
-    permissions_checked: List[str] = Field(default_factory=list)
-    permissions_available: List[str] = Field(default_factory=list)
-    permissions_missing: List[str] = Field(default_factory=list)
-    errors: List[str] = Field(default_factory=list)
+    identity: str | None = None
+    account_info: str | None = None
+    permissions_checked: list[str] = Field(default_factory=list)
+    permissions_available: list[str] = Field(default_factory=list)
+    permissions_missing: list[str] = Field(default_factory=list)
+    errors: list[str] = Field(default_factory=list)
     raw_output: str = ""
 
 
@@ -127,17 +149,17 @@ def verify_aws_credentials(creds: AWSCredentials) -> VerificationResult:
             aws_access_key_id=creds.access_key_id,
             aws_secret_access_key=creds.secret_access_key,
             aws_session_token=creds.session_token,
-            region_name=creds.region
+            region_name=creds.region,
         )
 
         # Get caller identity
-        sts = session.client('sts')
+        sts = session.client("sts")
         identity = sts.get_caller_identity()
 
-        result.identity = identity.get('Arn', '')
+        result.identity = identity.get("Arn", "")
         result.account_info = f"Account: {identity.get('Account', 'Unknown')}"
 
-        output_lines.append(f"[SUCCESS] Credentials are valid!")
+        output_lines.append("[SUCCESS] Credentials are valid!")
         output_lines.append("")
         output_lines.append("IDENTITY INFORMATION:")
         output_lines.append(f"  ARN:     {identity.get('Arn', 'N/A')}")
@@ -171,22 +193,26 @@ def verify_aws_credentials(creds: AWSCredentials) -> VerificationResult:
                 result.permissions_available.append(permission)
                 output_lines.append(f"  [OK]   {permission}")
             except ClientError as e:
-                error_code = e.response.get('Error', {}).get('Code', '')
-                if error_code in ['AccessDenied', 'UnauthorizedOperation', 'AccessDeniedException']:
+                error_code = e.response.get("Error", {}).get("Code", "")
+                if error_code in ["AccessDenied", "UnauthorizedOperation", "AccessDeniedException"]:
                     result.permissions_missing.append(permission)
                     output_lines.append(f"  [DENY] {permission}")
                 else:
                     # Other errors (region not available, service not enabled, etc.)
                     result.permissions_available.append(permission)
                     output_lines.append(f"  [OK]   {permission} (service responded)")
-            except Exception as e:
+            except Exception:
                 result.permissions_available.append(permission)
                 output_lines.append(f"  [OK]   {permission} (service available)")
 
         output_lines.append("")
         output_lines.append("SUMMARY:")
-        output_lines.append(f"  Permissions Available: {len(result.permissions_available)}/{len(result.permissions_checked)}")
-        output_lines.append(f"  Permissions Missing:   {len(result.permissions_missing)}/{len(result.permissions_checked)}")
+        output_lines.append(
+            f"  Permissions Available: {len(result.permissions_available)}/{len(result.permissions_checked)}"
+        )
+        output_lines.append(
+            f"  Permissions Missing:   {len(result.permissions_missing)}/{len(result.permissions_checked)}"
+        )
         output_lines.append("")
 
         # Determine overall success
@@ -195,7 +221,9 @@ def verify_aws_credentials(creds: AWSCredentials) -> VerificationResult:
         if result.success:
             output_lines.append("[RESULT] Credentials verified successfully!")
             if result.permissions_missing:
-                output_lines.append(f"         Note: {len(result.permissions_missing)} permissions are restricted.")
+                output_lines.append(
+                    f"         Note: {len(result.permissions_missing)} permissions are restricted."
+                )
         else:
             output_lines.append("[RESULT] Credentials have no usable permissions.")
 
@@ -230,9 +258,7 @@ def verify_azure_credentials(creds: AzureCredentials) -> VerificationResult:
 
         # Create credential object
         credential = ClientSecretCredential(
-            tenant_id=creds.tenant_id,
-            client_id=creds.client_id,
-            client_secret=creds.client_secret
+            tenant_id=creds.tenant_id, client_id=creds.client_id, client_secret=creds.client_secret
         )
 
         # List subscriptions to verify access
@@ -282,8 +308,8 @@ def verify_gcp_credentials(creds: GCPCredentials) -> VerificationResult:
     output_lines = []
 
     try:
-        from google.oauth2 import service_account
         from google.cloud import resourcemanager_v3
+        from google.oauth2 import service_account
 
         output_lines.append("=" * 60)
         output_lines.append("GCP CREDENTIAL VERIFICATION")
@@ -300,7 +326,7 @@ def verify_gcp_credentials(creds: GCPCredentials) -> VerificationResult:
             return result
 
         # Write to temp file for SDK
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
             json.dump(creds_dict, f)
             temp_path = f.name
 
@@ -309,7 +335,7 @@ def verify_gcp_credentials(creds: GCPCredentials) -> VerificationResult:
             credentials = service_account.Credentials.from_service_account_file(temp_path)
 
             result.success = True
-            result.identity = creds_dict.get('client_email', 'Unknown')
+            result.identity = creds_dict.get("client_email", "Unknown")
             result.account_info = f"Project: {creds.project_id}"
 
             output_lines.append("[SUCCESS] Credentials are valid!")
@@ -352,7 +378,7 @@ def verify_kubernetes_credentials(creds: KubernetesCredentials) -> VerificationR
         output_lines.append("")
 
         # Write kubeconfig to temp file
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.yaml', delete=False) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".yaml", delete=False) as f:
             f.write(creds.kubeconfig)
             temp_path = f.name
 
@@ -442,7 +468,7 @@ async def verify_credentials(request: VerificationRequest) -> VerificationResult
 
 
 @router.get("/providers")
-async def list_providers() -> Dict[str, Any]:
+async def list_providers() -> dict[str, Any]:
     """List all supported cloud providers and required fields."""
     return {
         "providers": [
@@ -450,38 +476,84 @@ async def list_providers() -> Dict[str, Any]:
                 "id": "aws",
                 "name": "Amazon Web Services",
                 "fields": [
-                    {"name": "access_key_id", "label": "Access Key ID", "type": "text", "required": True},
-                    {"name": "secret_access_key", "label": "Secret Access Key", "type": "password", "required": True},
-                    {"name": "session_token", "label": "Session Token", "type": "password", "required": False},
-                    {"name": "region", "label": "Region", "type": "text", "required": False, "default": "us-east-1"}
-                ]
+                    {
+                        "name": "access_key_id",
+                        "label": "Access Key ID",
+                        "type": "text",
+                        "required": True,
+                    },
+                    {
+                        "name": "secret_access_key",
+                        "label": "Secret Access Key",
+                        "type": "password",
+                        "required": True,
+                    },
+                    {
+                        "name": "session_token",
+                        "label": "Session Token",
+                        "type": "password",
+                        "required": False,
+                    },
+                    {
+                        "name": "region",
+                        "label": "Region",
+                        "type": "text",
+                        "required": False,
+                        "default": "us-east-1",
+                    },
+                ],
             },
             {
                 "id": "azure",
                 "name": "Microsoft Azure",
                 "fields": [
                     {"name": "tenant_id", "label": "Tenant ID", "type": "text", "required": True},
-                    {"name": "client_id", "label": "Client/App ID", "type": "text", "required": True},
-                    {"name": "client_secret", "label": "Client Secret", "type": "password", "required": True},
-                    {"name": "subscription_id", "label": "Subscription ID", "type": "text", "required": False}
-                ]
+                    {
+                        "name": "client_id",
+                        "label": "Client/App ID",
+                        "type": "text",
+                        "required": True,
+                    },
+                    {
+                        "name": "client_secret",
+                        "label": "Client Secret",
+                        "type": "password",
+                        "required": True,
+                    },
+                    {
+                        "name": "subscription_id",
+                        "label": "Subscription ID",
+                        "type": "text",
+                        "required": False,
+                    },
+                ],
             },
             {
                 "id": "gcp",
                 "name": "Google Cloud Platform",
                 "fields": [
                     {"name": "project_id", "label": "Project ID", "type": "text", "required": True},
-                    {"name": "credentials_json", "label": "Service Account JSON", "type": "textarea", "required": True}
-                ]
+                    {
+                        "name": "credentials_json",
+                        "label": "Service Account JSON",
+                        "type": "textarea",
+                        "required": True,
+                    },
+                ],
             },
             {
                 "id": "kubernetes",
                 "name": "Kubernetes",
                 "fields": [
-                    {"name": "kubeconfig", "label": "Kubeconfig YAML", "type": "textarea", "required": True},
-                    {"name": "context", "label": "Context Name", "type": "text", "required": False}
-                ]
-            }
+                    {
+                        "name": "kubeconfig",
+                        "label": "Kubeconfig YAML",
+                        "type": "textarea",
+                        "required": True,
+                    },
+                    {"name": "context", "label": "Context Name", "type": "text", "required": False},
+                ],
+            },
         ]
     }
 
@@ -490,35 +562,39 @@ async def list_providers() -> Dict[str, Any]:
 # Tool Readiness Models
 # ============================================================================
 
+
 class ToolReadiness(BaseModel):
     """Readiness status for a single tool."""
+
     tool_name: str
     tool_display_name: str
     ready: bool
     status: str = Field(description="ready, partial, or failed")
-    permissions_ok: List[str] = []
-    permissions_missing: List[str] = []
-    remediation: Optional[str] = None
-    note: Optional[str] = None
+    permissions_ok: list[str] = []
+    permissions_missing: list[str] = []
+    remediation: str | None = None
+    note: str | None = None
 
 
 class EnhancedVerificationResult(BaseModel):
     """Enhanced verification result with tool readiness."""
+
     success: bool
     provider: str
-    identity: Optional[str] = None
-    account_info: Optional[str] = None
+    identity: str | None = None
+    account_info: str | None = None
     overall_status: str = Field(description="ready, partial, or failed")
-    tools: List[ToolReadiness] = []
-    tools_ready: List[str] = []
-    tools_partial: List[str] = []
-    tools_failed: List[str] = []
-    errors: List[str] = []
+    tools: list[ToolReadiness] = []
+    tools_ready: list[str] = []
+    tools_partial: list[str] = []
+    tools_failed: list[str] = []
+    errors: list[str] = []
     raw_output: str = ""
 
 
 class CredentialStatusSummary(BaseModel):
     """Summary of credential status for all providers."""
+
     aws: str = "unknown"
     azure: str = "unknown"
     gcp: str = "unknown"
@@ -527,11 +603,14 @@ class CredentialStatusSummary(BaseModel):
 
 class AllCredentialStatus(BaseModel):
     """Full credential status for all providers."""
+
     summary: CredentialStatusSummary
-    details: Dict[str, Any] = {}
+    details: dict[str, Any] = {}
 
 
-def check_aws_tool_permissions(session, region: str, tool_name: str, tool_config: dict) -> ToolReadiness:
+def check_aws_tool_permissions(
+    session, region: str, tool_name: str, tool_config: dict
+) -> ToolReadiness:
     """Check permissions for a specific AWS tool."""
     from botocore.exceptions import ClientError
 
@@ -539,7 +618,7 @@ def check_aws_tool_permissions(session, region: str, tool_name: str, tool_config
         tool_name=tool_name,
         tool_display_name=tool_config.get("name", tool_name),
         ready=False,
-        status="failed"
+        status="failed",
     )
 
     required_actions = tool_config.get("required_actions", [])
@@ -575,8 +654,8 @@ def check_aws_tool_permissions(session, region: str, tool_name: str, tool_config
                     result.permissions_ok.append(action)
                     passed += 1
             except ClientError as e:
-                error_code = e.response.get('Error', {}).get('Code', '')
-                if error_code in ['AccessDenied', 'UnauthorizedOperation', 'AccessDeniedException']:
+                error_code = e.response.get("Error", {}).get("Code", "")
+                if error_code in ["AccessDenied", "UnauthorizedOperation", "AccessDeniedException"]:
                     result.permissions_missing.append(action)
                 else:
                     result.permissions_ok.append(action)
@@ -586,10 +665,7 @@ def check_aws_tool_permissions(session, region: str, tool_name: str, tool_config
                 passed += 1
             checked += 1
 
-    if checked == 0:
-        result.ready = True
-        result.status = "ready"
-    elif passed == checked:
+    if checked == 0 or passed == checked:
         result.ready = True
         result.status = "ready"
     elif passed > 0:
@@ -598,18 +674,17 @@ def check_aws_tool_permissions(session, region: str, tool_name: str, tool_config
         result.remediation = f"Missing {checked - passed} permissions for full {tool_config.get('name', tool_name)} coverage"
     else:
         result.status = "failed"
-        result.remediation = f"Attach {tool_config.get('required_managed_policies', ['SecurityAudit'])} policy"
+        result.remediation = (
+            f"Attach {tool_config.get('required_managed_policies', ['SecurityAudit'])} policy"
+        )
 
     return result
 
 
-def verify_aws_enhanced(creds: 'AWSCredentials') -> EnhancedVerificationResult:
+def verify_aws_enhanced(creds: "AWSCredentials") -> EnhancedVerificationResult:
     """Enhanced AWS credential verification with tool readiness."""
     result = EnhancedVerificationResult(
-        success=False,
-        provider="aws",
-        overall_status="failed",
-        raw_output=""
+        success=False, provider="aws", overall_status="failed", raw_output=""
     )
     output_lines = []
 
@@ -632,18 +707,18 @@ def verify_aws_enhanced(creds: 'AWSCredentials') -> EnhancedVerificationResult:
             aws_access_key_id=creds.access_key_id,
             aws_secret_access_key=creds.secret_access_key,
             aws_session_token=creds.session_token,
-            region_name=creds.region
+            region_name=creds.region,
         )
 
         # Get caller identity
-        sts = session.client('sts')
+        sts = session.client("sts")
         identity = sts.get_caller_identity()
 
-        result.identity = identity.get('Arn', '')
+        result.identity = identity.get("Arn", "")
         result.account_info = f"Account: {identity.get('Account', 'Unknown')}"
         result.success = True
 
-        output_lines.append(f"[SUCCESS] Credentials are valid!")
+        output_lines.append("[SUCCESS] Credentials are valid!")
         output_lines.append("")
         output_lines.append("IDENTITY INFORMATION:")
         output_lines.append(f"  ARN:     {identity.get('Arn', 'N/A')}")
@@ -699,8 +774,7 @@ def verify_aws_enhanced(creds: 'AWSCredentials') -> EnhancedVerificationResult:
 
 @router.post("/verify-enhanced", response_model=EnhancedVerificationResult)
 async def verify_credentials_enhanced(
-    request: VerificationRequest,
-    db: Session = Depends(get_db)
+    request: VerificationRequest, db: Session = Depends(get_db)
 ) -> EnhancedVerificationResult:
     """
     Enhanced credential verification with tool-level readiness.
@@ -728,15 +802,17 @@ async def verify_credentials_enhanced(
             overall_status="ready" if basic_result.success else "failed",
             tools_ready=list(AZURE_TOOLS.keys()) if basic_result.success else [],
             errors=basic_result.errors,
-            raw_output=basic_result.raw_output
+            raw_output=basic_result.raw_output,
         )
         for tool_name, tool_config in AZURE_TOOLS.items():
-            result.tools.append(ToolReadiness(
-                tool_name=tool_name,
-                tool_display_name=tool_config.get("name", tool_name),
-                ready=basic_result.success,
-                status="ready" if basic_result.success else "failed"
-            ))
+            result.tools.append(
+                ToolReadiness(
+                    tool_name=tool_name,
+                    tool_display_name=tool_config.get("name", tool_name),
+                    ready=basic_result.success,
+                    status="ready" if basic_result.success else "failed",
+                )
+            )
 
     elif request.provider == Provider.GCP:
         if not request.gcp:
@@ -750,15 +826,17 @@ async def verify_credentials_enhanced(
             overall_status="ready" if basic_result.success else "failed",
             tools_ready=list(GCP_TOOLS.keys()) if basic_result.success else [],
             errors=basic_result.errors,
-            raw_output=basic_result.raw_output
+            raw_output=basic_result.raw_output,
         )
         for tool_name, tool_config in GCP_TOOLS.items():
-            result.tools.append(ToolReadiness(
-                tool_name=tool_name,
-                tool_display_name=tool_config.get("name", tool_name),
-                ready=basic_result.success,
-                status="ready" if basic_result.success else "failed"
-            ))
+            result.tools.append(
+                ToolReadiness(
+                    tool_name=tool_name,
+                    tool_display_name=tool_config.get("name", tool_name),
+                    ready=basic_result.success,
+                    status="ready" if basic_result.success else "failed",
+                )
+            )
 
     elif request.provider == Provider.KUBERNETES:
         if not request.kubernetes:
@@ -772,25 +850,29 @@ async def verify_credentials_enhanced(
             overall_status="ready" if basic_result.success else "failed",
             tools_ready=list(KUBERNETES_TOOLS.keys()) if basic_result.success else [],
             errors=basic_result.errors,
-            raw_output=basic_result.raw_output
+            raw_output=basic_result.raw_output,
         )
         for tool_name, tool_config in KUBERNETES_TOOLS.items():
-            result.tools.append(ToolReadiness(
-                tool_name=tool_name,
-                tool_display_name=tool_config.get("name", tool_name),
-                ready=basic_result.success,
-                status="ready" if basic_result.success else "failed",
-                note=tool_config.get("note")
-            ))
+            result.tools.append(
+                ToolReadiness(
+                    tool_name=tool_name,
+                    tool_display_name=tool_config.get("name", tool_name),
+                    ready=basic_result.success,
+                    status="ready" if basic_result.success else "failed",
+                    note=tool_config.get("note"),
+                )
+            )
 
     else:
         raise HTTPException(status_code=400, detail=f"Unsupported provider: {request.provider}")
 
     # Cache the result
     try:
-        cache_entry = db.query(CredentialStatusCache).filter(
-            CredentialStatusCache.provider == request.provider.value
-        ).first()
+        cache_entry = (
+            db.query(CredentialStatusCache)
+            .filter(CredentialStatusCache.provider == request.provider.value)
+            .first()
+        )
 
         if cache_entry:
             cache_entry.status = result.overall_status
@@ -812,7 +894,7 @@ async def verify_credentials_enhanced(
                 tools_partial=result.tools_partial,
                 tools_failed=result.tools_failed,
                 last_verified=datetime.utcnow(),
-                verification_error=result.errors[0] if result.errors else None
+                verification_error=result.errors[0] if result.errors else None,
             )
             db.add(cache_entry)
 
@@ -845,24 +927,21 @@ async def get_credential_status(db: Session = Depends(get_db)) -> AllCredentialS
             "tools_partial": entry.tools_partial or [],
             "tools_failed": entry.tools_failed or [],
             "last_verified": entry.last_verified.isoformat() if entry.last_verified else None,
-            "error": entry.verification_error
+            "error": entry.verification_error,
         }
 
     return AllCredentialStatus(summary=summary, details=details)
 
 
 @router.get("/requirements")
-async def get_tool_requirements_endpoint() -> Dict[str, Any]:
+async def get_tool_requirements_endpoint() -> dict[str, Any]:
     """
     Get permission requirements for all tools by provider.
 
     Returns the required permissions, roles, and policies for each security tool.
     """
     if not REQUIREMENTS_AVAILABLE:
-        raise HTTPException(
-            status_code=500,
-            detail="Permission requirements module not available"
-        )
+        raise HTTPException(status_code=500, detail="Permission requirements module not available")
 
     return {
         "aws": {
@@ -901,5 +980,5 @@ async def get_tool_requirements_endpoint() -> Dict[str, Any]:
                 "note": config.get("note"),
             }
             for tool_name, config in KUBERNETES_TOOLS.items()
-        }
+        },
     }

@@ -13,15 +13,15 @@ Sync Strategy:
 """
 
 import logging
-from datetime import datetime
-from typing import Dict, List, Optional, Tuple, Any
 from dataclasses import dataclass, field
+from datetime import datetime
 from enum import Enum
+from typing import Any
 
-from neo4j import GraphDatabase, Driver
-from neo4j.exceptions import ServiceUnavailable, AuthError
-from sqlalchemy.orm import Session
+from neo4j import Driver, GraphDatabase
+from neo4j.exceptions import AuthError, ServiceUnavailable
 from sqlalchemy import func
+from sqlalchemy.orm import Session
 
 from config import get_settings
 from models.database import Asset, Finding
@@ -31,6 +31,7 @@ logger = logging.getLogger(__name__)
 
 class SyncDirection(str, Enum):
     """Direction of sync operation."""
+
     NEO4J_TO_PG = "neo4j_to_pg"
     PG_TO_NEO4J = "pg_to_neo4j"
     BIDIRECTIONAL = "bidirectional"
@@ -39,6 +40,7 @@ class SyncDirection(str, Enum):
 @dataclass
 class SyncResult:
     """Result of a sync operation."""
+
     success: bool
     direction: SyncDirection
     assets_synced: int = 0
@@ -46,8 +48,8 @@ class SyncResult:
     assets_updated: int = 0
     assets_deleted: int = 0
     findings_propagated: int = 0
-    errors: List[str] = field(default_factory=list)
-    warnings: List[str] = field(default_factory=list)
+    errors: list[str] = field(default_factory=list)
+    warnings: list[str] = field(default_factory=list)
     duration_ms: int = 0
     timestamp: datetime = field(default_factory=datetime.utcnow)
 
@@ -55,6 +57,7 @@ class SyncResult:
 @dataclass
 class SyncStatus:
     """Current sync status between databases."""
+
     neo4j_connected: bool
     postgres_connected: bool
     neo4j_asset_count: int = 0
@@ -62,9 +65,9 @@ class SyncStatus:
     count_mismatch: int = 0
     missing_in_postgres: int = 0
     missing_in_neo4j: int = 0
-    last_sync: Optional[datetime] = None
+    last_sync: datetime | None = None
     last_sync_success: bool = True
-    details: Dict[str, Any] = field(default_factory=dict)
+    details: dict[str, Any] = field(default_factory=dict)
 
 
 class Neo4jConnection:
@@ -74,7 +77,7 @@ class Neo4jConnection:
         self.uri = uri
         self.user = user
         self.password = password
-        self._driver: Optional[Driver] = None
+        self._driver: Driver | None = None
 
     def connect(self) -> Driver:
         """Establish connection to Neo4j."""
@@ -84,7 +87,7 @@ class Neo4jConnection:
                     self.uri,
                     auth=(self.user, self.password),
                     max_connection_lifetime=300,
-                    max_connection_pool_size=10
+                    max_connection_pool_size=10,
                 )
                 # Verify connectivity
                 self._driver.verify_connectivity()
@@ -184,10 +187,7 @@ class Neo4jSyncService:
 
         Returns counts from both databases and identifies discrepancies.
         """
-        status = SyncStatus(
-            neo4j_connected=False,
-            postgres_connected=False
-        )
+        status = SyncStatus(neo4j_connected=False, postgres_connected=False)
 
         # Check PostgreSQL
         try:
@@ -236,17 +236,12 @@ class Neo4jSyncService:
 
         return status
 
-    def _get_discrepancies(self, db: Session) -> Dict[str, List[str]]:
+    def _get_discrepancies(self, db: Session) -> dict[str, list[str]]:
         """Find assets that exist in one database but not the other."""
-        discrepancies = {
-            "missing_in_pg": [],
-            "missing_in_neo4j": []
-        }
+        discrepancies = {"missing_in_pg": [], "missing_in_neo4j": []}
 
         # Get all asset IDs from PostgreSQL
-        pg_asset_ids = set(
-            row[0] for row in db.query(Asset.asset_id).all()
-        )
+        pg_asset_ids = set(row[0] for row in db.query(Asset.asset_id).all())
 
         # Get all asset IDs from Neo4j
         neo4j_asset_ids = set()
@@ -281,10 +276,7 @@ class Neo4jSyncService:
         and we sync that data to PostgreSQL for our findings to reference.
         """
         start_time = datetime.utcnow()
-        result = SyncResult(
-            success=True,
-            direction=SyncDirection.NEO4J_TO_PG
-        )
+        result = SyncResult(success=True, direction=SyncDirection.NEO4J_TO_PG)
 
         try:
             driver = self.neo4j.connect()
@@ -312,7 +304,7 @@ class Neo4jSyncService:
         result.duration_ms = int((datetime.utcnow() - start_time).total_seconds() * 1000)
         return result
 
-    def _fetch_assets_by_label(self, session, label: str) -> List[Dict]:
+    def _fetch_assets_by_label(self, session, label: str) -> list[dict]:
         """Fetch all assets of a specific label from Neo4j."""
         # Cartography typically stores these properties
         query = f"""
@@ -328,17 +320,19 @@ class Neo4jSyncService:
         assets = []
         for record in result:
             if record["id"]:
-                assets.append({
-                    "id": record["id"],
-                    "arn": record.get("arn"),
-                    "name": record.get("name"),
-                    "labels": record.get("labels", []),
-                    "region": record.get("region"),
-                    "lastupdated": record.get("lastupdated")
-                })
+                assets.append(
+                    {
+                        "id": record["id"],
+                        "arn": record.get("arn"),
+                        "name": record.get("name"),
+                        "labels": record.get("labels", []),
+                        "region": record.get("region"),
+                        "lastupdated": record.get("lastupdated"),
+                    }
+                )
         return assets
 
-    def _upsert_asset_to_postgres(self, db: Session, asset_data: Dict, asset_type: str):
+    def _upsert_asset_to_postgres(self, db: Session, asset_data: dict, asset_type: str):
         """Insert or update asset in PostgreSQL."""
         asset_id = asset_data["id"]
 
@@ -378,7 +372,7 @@ class Neo4jSyncService:
                 asset_type=asset_type,
                 asset_name=asset_data.get("name"),
                 is_active=True,
-                metadata={"neo4j_labels": asset_data.get("labels", [])}
+                metadata={"neo4j_labels": asset_data.get("labels", [])},
             )
             db.add(new_asset)
 
@@ -393,25 +387,24 @@ class Neo4jSyncService:
         - last_scan_date: When the asset was last scanned
         """
         start_time = datetime.utcnow()
-        result = SyncResult(
-            success=True,
-            direction=SyncDirection.PG_TO_NEO4J
-        )
+        result = SyncResult(success=True, direction=SyncDirection.PG_TO_NEO4J)
 
         try:
             # Get finding counts per resource from PostgreSQL
-            finding_stats = db.query(
-                Finding.resource_id,
-                func.count(Finding.id).label("total"),
-                func.count(Finding.id).filter(Finding.severity == "critical").label("critical"),
-                func.count(Finding.id).filter(Finding.severity == "high").label("high"),
-                func.count(Finding.id).filter(Finding.severity == "medium").label("medium"),
-                func.count(Finding.id).filter(Finding.severity == "low").label("low"),
-                func.max(Finding.scan_date).label("last_scan")
-            ).filter(
-                Finding.status.in_(["open", "fail"]),
-                Finding.resource_id.isnot(None)
-            ).group_by(Finding.resource_id).all()
+            finding_stats = (
+                db.query(
+                    Finding.resource_id,
+                    func.count(Finding.id).label("total"),
+                    func.count(Finding.id).filter(Finding.severity == "critical").label("critical"),
+                    func.count(Finding.id).filter(Finding.severity == "high").label("high"),
+                    func.count(Finding.id).filter(Finding.severity == "medium").label("medium"),
+                    func.count(Finding.id).filter(Finding.severity == "low").label("low"),
+                    func.max(Finding.scan_date).label("last_scan"),
+                )
+                .filter(Finding.status.in_(["open", "fail"]), Finding.resource_id.isnot(None))
+                .group_by(Finding.resource_id)
+                .all()
+            )
 
             driver = self.neo4j.connect()
             with driver.session() as session:
@@ -437,7 +430,7 @@ class Neo4jSyncService:
                             high=stats.high,
                             medium=stats.medium,
                             low=stats.low,
-                            last_scan=stats.last_scan.isoformat() if stats.last_scan else None
+                            last_scan=stats.last_scan.isoformat() if stats.last_scan else None,
                         )
                         if update_result.single()["updated"] > 0:
                             result.findings_propagated += 1
@@ -463,10 +456,7 @@ class Neo4jSyncService:
         3. Mark stale assets as inactive
         """
         start_time = datetime.utcnow()
-        result = SyncResult(
-            success=True,
-            direction=SyncDirection.BIDIRECTIONAL
-        )
+        result = SyncResult(success=True, direction=SyncDirection.BIDIRECTIONAL)
 
         # Step 1: Sync from Neo4j to PostgreSQL
         neo4j_result = self.sync_from_neo4j(db)
@@ -515,10 +505,11 @@ class Neo4jSyncService:
                             neo4j_ids.add(record["id"])
 
             # Mark assets not in Neo4j as inactive
-            stale_assets = db.query(Asset).filter(
-                Asset.asset_id.notin_(neo4j_ids),
-                Asset.is_active == True
-            ).all()
+            stale_assets = (
+                db.query(Asset)
+                .filter(Asset.asset_id.notin_(neo4j_ids), Asset.is_active == True)
+                .all()
+            )
 
             for asset in stale_assets:
                 asset.is_active = False
@@ -539,8 +530,6 @@ def get_neo4j_sync_service() -> Neo4jSyncService:
     """Factory function to create Neo4jSyncService with configured connection."""
     settings = get_settings()
     conn = Neo4jConnection(
-        uri=settings.neo4j_uri,
-        user=settings.neo4j_user,
-        password=settings.neo4j_password
+        uri=settings.neo4j_uri, user=settings.neo4j_user, password=settings.neo4j_password
     )
     return Neo4jSyncService(conn)

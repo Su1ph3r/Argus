@@ -1,22 +1,29 @@
 """Database connection and SQLAlchemy models."""
-from sqlalchemy import create_engine, Column, String, Integer, DateTime, Text, Boolean, Numeric, ForeignKey
-from sqlalchemy.dialects.postgresql import UUID, JSONB
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker, relationship
-from datetime import datetime
+
 import uuid
+from datetime import datetime
+
+from sqlalchemy import (
+    Boolean,
+    Column,
+    DateTime,
+    ForeignKey,
+    Integer,
+    Numeric,
+    String,
+    Text,
+    create_engine,
+)
+from sqlalchemy.dialects.postgresql import JSONB, UUID
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import relationship, sessionmaker
 
 from config import get_settings
 
 settings = get_settings()
 
 # Create engine
-engine = create_engine(
-    settings.database_url,
-    pool_pre_ping=True,
-    pool_size=10,
-    max_overflow=20
-)
+engine = create_engine(settings.database_url, pool_pre_ping=True, pool_size=10, max_overflow=20)
 
 # Create session factory
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
@@ -36,6 +43,7 @@ def get_db():
 
 class Scan(Base):
     """Scan metadata model."""
+
     __tablename__ = "scans"
 
     scan_id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
@@ -59,6 +67,7 @@ class Scan(Base):
 
 class Finding(Base):
     """Security finding model."""
+
     __tablename__ = "findings"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
@@ -107,6 +116,7 @@ class Finding(Base):
 
 class Asset(Base):
     """Cloud asset model."""
+
     __tablename__ = "assets"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
@@ -127,6 +137,7 @@ class Asset(Base):
 
 class AttackPath(Base):
     """Attack path model for penetration testing analysis."""
+
     __tablename__ = "attack_paths"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
@@ -151,7 +162,7 @@ class AttackPath(Base):
     poc_available = Column(Boolean, default=False)
     poc_steps = Column(JSONB)
     mitre_tactics = Column(JSONB)  # Array stored as JSONB
-    aws_services = Column(JSONB)   # Array stored as JSONB
+    aws_services = Column(JSONB)  # Array stored as JSONB
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
@@ -162,8 +173,10 @@ class AttackPath(Base):
 # Pentest Feature Models
 # ============================================================================
 
+
 class PublicExposure(Base):
     """Public exposure aggregator model."""
+
     __tablename__ = "public_exposures"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
@@ -193,6 +206,7 @@ class PublicExposure(Base):
 
 class ExposedCredential(Base):
     """Exposed credential model for credential harvesting."""
+
     __tablename__ = "exposed_credentials"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
@@ -220,6 +234,7 @@ class ExposedCredential(Base):
 
 class SeverityOverride(Base):
     """Severity override model for finding severity adjustments."""
+
     __tablename__ = "severity_overrides"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
@@ -240,6 +255,7 @@ class SeverityOverride(Base):
 
 class PrivescPath(Base):
     """Privilege escalation path model."""
+
     __tablename__ = "privesc_paths"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
@@ -270,6 +286,7 @@ class PrivescPath(Base):
 
 class ImdsCheck(Base):
     """IMDS/Metadata checker model."""
+
     __tablename__ = "imds_checks"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
@@ -299,6 +316,7 @@ class ImdsCheck(Base):
 
 class CloudfoxResult(Base):
     """CloudFox enumeration result model."""
+
     __tablename__ = "cloudfox_results"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
@@ -322,6 +340,7 @@ class CloudfoxResult(Base):
 
 class PacuResult(Base):
     """Pacu module execution result model."""
+
     __tablename__ = "pacu_results"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
@@ -345,6 +364,7 @@ class PacuResult(Base):
 
 class EnumerateIamResult(Base):
     """enumerate-iam result model."""
+
     __tablename__ = "enumerate_iam_results"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
@@ -370,6 +390,7 @@ class EnumerateIamResult(Base):
 
 class AssumedRoleMapping(Base):
     """Assumed role mapping model for Neo4j visualization."""
+
     __tablename__ = "assumed_role_mappings"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
@@ -399,6 +420,7 @@ class AssumedRoleMapping(Base):
 
 class LambdaAnalysis(Base):
     """Lambda code analysis result model."""
+
     __tablename__ = "lambda_analysis"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
@@ -435,6 +457,7 @@ class LambdaAnalysis(Base):
 
 class ToolExecution(Base):
     """Tool execution tracking model for async container runs."""
+
     __tablename__ = "tool_executions"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
@@ -455,6 +478,7 @@ class ToolExecution(Base):
 
 class UserSetting(Base):
     """User settings model for application preferences."""
+
     __tablename__ = "user_settings"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
@@ -468,6 +492,7 @@ class UserSetting(Base):
 
 class CredentialStatusCache(Base):
     """Credential status cache for quick status display."""
+
     __tablename__ = "credential_status_cache"
 
     id = Column(Integer, primary_key=True, autoincrement=True)

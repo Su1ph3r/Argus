@@ -1,16 +1,15 @@
 """Pacu Integration API endpoints."""
-from fastapi import APIRouter, Depends, Query, HTTPException
-from sqlalchemy.orm import Session
-from sqlalchemy import func, desc
-from typing import Optional
-from uuid import UUID
 
-from models.database import get_db, PacuResult, ToolExecution
+from fastapi import APIRouter, Depends, HTTPException, Query
+from sqlalchemy import desc, func
+from sqlalchemy.orm import Session
+
+from models.database import PacuResult, ToolExecution, get_db
 from models.schemas import (
-    PacuResultResponse,
     PacuResultListResponse,
-    PacuSummary,
+    PacuResultResponse,
     PacuRunRequest,
+    PacuSummary,
     ToolExecutionStartResponse,
 )
 from routers.executions import start_tool_execution
@@ -23,12 +22,12 @@ router = APIRouter(prefix="/pacu", tags=["Pacu"])
 @router.get("/", response_model=PacuResultListResponse)
 async def list_pacu_results(
     db: Session = Depends(get_db),
-    module_name: Optional[str] = Query(None, description="Filter by module name"),
-    module_category: Optional[str] = Query(None, description="Filter by module category"),
-    execution_status: Optional[str] = Query(None, description="Filter by execution status"),
-    session_name: Optional[str] = Query(None, description="Filter by session name"),
+    module_name: str | None = Query(None, description="Filter by module name"),
+    module_category: str | None = Query(None, description="Filter by module category"),
+    execution_status: str | None = Query(None, description="Filter by execution status"),
+    session_name: str | None = Query(None, description="Filter by session name"),
     page: int = Query(1, ge=1, description="Page number"),
-    page_size: int = Query(50, ge=1, le=500, description="Items per page")
+    page_size: int = Query(50, ge=1, le=500, description="Items per page"),
 ):
     """List Pacu execution results with optional filters."""
     query = db.query(PacuResult)
@@ -47,15 +46,18 @@ async def list_pacu_results(
 
     total = query.count()
 
-    results = query.order_by(
-        desc(PacuResult.created_at)
-    ).offset((page - 1) * page_size).limit(page_size).all()
+    results = (
+        query.order_by(desc(PacuResult.created_at))
+        .offset((page - 1) * page_size)
+        .limit(page_size)
+        .all()
+    )
 
     return PacuResultListResponse(
         results=[PacuResultResponse.model_validate(r) for r in results],
         total=total,
         page=page,
-        page_size=page_size
+        page_size=page_size,
     )
 
 
@@ -65,23 +67,26 @@ async def backfill_pacu_results(db: Session = Depends(get_db)):
     Backfill PacuResult records from completed ToolExecution records.
     Use this once to populate results for past executions.
     """
-    from routers.executions import _create_pacu_result, _parse_pacu_output
+    from routers.executions import _create_pacu_result
     from services.docker_executor import get_docker_executor
 
     # Get all Pacu executions that don't have results yet
-    executions = db.query(ToolExecution).filter(
-        ToolExecution.tool_name == "pacu",
-        ToolExecution.status.in_(["completed", "failed"])
-    ).all()
+    executions = (
+        db.query(ToolExecution)
+        .filter(
+            ToolExecution.tool_name == "pacu", ToolExecution.status.in_(["completed", "failed"])
+        )
+        .all()
+    )
 
     created = 0
     skipped = 0
 
     for execution in executions:
         # Check if result already exists
-        existing = db.query(PacuResult).filter(
-            PacuResult.result_id == execution.execution_id
-        ).first()
+        existing = (
+            db.query(PacuResult).filter(PacuResult.result_id == execution.execution_id).first()
+        )
 
         if existing:
             skipped += 1
@@ -100,11 +105,7 @@ async def backfill_pacu_results(db: Session = Depends(get_db)):
         _create_pacu_result(db, execution, logs)
         created += 1
 
-    return {
-        "message": f"Backfill complete",
-        "created": created,
-        "skipped": skipped
-    }
+    return {"message": "Backfill complete", "created": created, "skipped": skipped}
 
 
 @router.get("/summary", response_model=PacuSummary)
@@ -131,7 +132,7 @@ async def get_pacu_summary(db: Session = Depends(get_db)):
         successful=successful,
         failed=failed,
         by_module={k: v for k, v in module_counts.items() if k},
-        by_category={k: v for k, v in category_counts.items() if k}
+        by_category={k: v for k, v in category_counts.items() if k},
     )
 
 
@@ -224,10 +225,7 @@ async def list_available_modules():
 
 
 @router.get("/{result_id}", response_model=PacuResultResponse)
-async def get_pacu_result(
-    result_id: int,
-    db: Session = Depends(get_db)
-):
+async def get_pacu_result(result_id: int, db: Session = Depends(get_db)):
     """Get a specific Pacu result by ID."""
     result = db.query(PacuResult).filter(PacuResult.id == result_id).first()
 
@@ -242,30 +240,30 @@ async def get_results_by_session(
     session_name: str,
     db: Session = Depends(get_db),
     page: int = Query(1, ge=1, description="Page number"),
-    page_size: int = Query(50, ge=1, le=500, description="Items per page")
+    page_size: int = Query(50, ge=1, le=500, description="Items per page"),
 ):
     """Get all Pacu results for a specific session."""
     query = db.query(PacuResult).filter(PacuResult.session_name == session_name)
 
     total = query.count()
 
-    results = query.order_by(
-        desc(PacuResult.created_at)
-    ).offset((page - 1) * page_size).limit(page_size).all()
+    results = (
+        query.order_by(desc(PacuResult.created_at))
+        .offset((page - 1) * page_size)
+        .limit(page_size)
+        .all()
+    )
 
     return PacuResultListResponse(
         results=[PacuResultResponse.model_validate(r) for r in results],
         total=total,
         page=page,
-        page_size=page_size
+        page_size=page_size,
     )
 
 
 @router.post("/run", response_model=ToolExecutionStartResponse)
-async def run_pacu_module(
-    request: PacuRunRequest,
-    db: Session = Depends(get_db)
-):
+async def run_pacu_module(request: PacuRunRequest, db: Session = Depends(get_db)):
     """
     Trigger Pacu module execution.
 
@@ -294,7 +292,7 @@ async def run_pacu_module(
     # Use yes command to auto-answer all prompts with "y"
     command = [
         "-c",
-        f'yes y | pacu --new-session {session_name} --module-name {request.module} --exec'
+        f"yes y | pacu --new-session {session_name} --module-name {request.module} --exec",
     ]
 
     # Build config for tracking

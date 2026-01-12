@@ -8,9 +8,9 @@ Provides:
 - Readiness probe for Kubernetes
 - Neo4j and PostgreSQL connectivity checks
 """
+
 import time
-from datetime import datetime, timezone
-from typing import Optional
+from datetime import UTC, datetime
 
 from fastapi import APIRouter, Depends
 from sqlalchemy import text
@@ -34,7 +34,7 @@ settings = get_settings()
 router: APIRouter = APIRouter(prefix="/health", tags=["Health"])
 
 # Track API startup time for uptime calculation
-_startup_time: Optional[float] = None
+_startup_time: float | None = None
 
 
 def set_startup_time() -> None:
@@ -43,7 +43,7 @@ def set_startup_time() -> None:
     _startup_time = time.time()
 
 
-def get_uptime_seconds() -> Optional[float]:
+def get_uptime_seconds() -> float | None:
     """Get the API uptime in seconds."""
     if _startup_time is None:
         return None
@@ -60,7 +60,7 @@ def check_postgresql(db: Session) -> ServiceStatus:
         latency_ms = (time.time() - start_time) * 1000
 
         # Get connection pool stats if available
-        pool_size = db.get_bind().pool.size() if hasattr(db.get_bind(), 'pool') else None
+        pool_size = db.get_bind().pool.size() if hasattr(db.get_bind(), "pool") else None
 
         return ServiceStatus(
             name="postgresql",
@@ -70,7 +70,7 @@ def check_postgresql(db: Session) -> ServiceStatus:
             details={
                 "version": version[:50] if version else None,
                 "pool_size": pool_size,
-            }
+            },
         )
     except Exception as e:
         latency_ms = (time.time() - start_time) * 1000
@@ -109,7 +109,7 @@ def check_neo4j() -> ServiceStatus:
             status="healthy",
             message="Connection successful",
             latency_ms=round(latency_ms, 2),
-            details={"uri": settings.neo4j_uri}
+            details={"uri": settings.neo4j_uri},
         )
 
     except ImportError:
@@ -150,7 +150,7 @@ def check_database_tables(db: Session) -> ServiceStatus:
             status="healthy",
             message="All core tables accessible",
             latency_ms=round(latency_ms, 2),
-            details={"table_counts": table_counts}
+            details={"table_counts": table_counts},
         )
     except Exception as e:
         latency_ms = (time.time() - start_time) * 1000
@@ -184,10 +184,7 @@ async def health_check(db: Session = Depends(get_db)):
     overall_status = "healthy" if db_status == "healthy" else "degraded"
 
     return HealthResponse(
-        status=overall_status,
-        database=db_status,
-        timestamp=datetime.now(timezone.utc),
-        version="1.0.0"
+        status=overall_status, database=db_status, timestamp=datetime.now(UTC), version="1.0.0"
     )
 
 
@@ -235,7 +232,7 @@ async def detailed_health_check(db: Session = Depends(get_db)):
     return DetailedHealthResponse(
         status=overall_status,
         services=services,
-        timestamp=datetime.now(timezone.utc),
+        timestamp=datetime.now(UTC),
         uptime_seconds=get_uptime_seconds(),
         request_id=request_id,
     )
@@ -249,10 +246,7 @@ async def liveness_probe():
     Returns 200 if the application is running.
     This endpoint does not check dependencies - it only confirms the API is responsive.
     """
-    return LivenessResponse(
-        status="alive",
-        timestamp=datetime.now(timezone.utc)
-    )
+    return LivenessResponse(status="alive", timestamp=datetime.now(UTC))
 
 
 @router.get("/ready", response_model=ReadinessResponse)
@@ -276,6 +270,7 @@ async def readiness_probe(db: Session = Depends(get_db)):
     # Check Neo4j (optional, but logged)
     try:
         from neo4j import GraphDatabase
+
         driver = GraphDatabase.driver(
             settings.neo4j_uri,
             auth=(settings.neo4j_user, settings.neo4j_password),
@@ -298,5 +293,5 @@ async def readiness_probe(db: Session = Depends(get_db)):
         ready=is_ready,
         status="ready" if is_ready else "not_ready",
         checks=checks,
-        timestamp=datetime.now(timezone.utc)
+        timestamp=datetime.now(UTC),
     )

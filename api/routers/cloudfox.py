@@ -1,16 +1,15 @@
 """CloudFox Integration API endpoints."""
-from fastapi import APIRouter, Depends, Query, HTTPException
-from sqlalchemy.orm import Session
-from sqlalchemy import func, desc
-from typing import Optional
-from uuid import UUID
 
-from models.database import get_db, CloudfoxResult, ToolExecution
+from fastapi import APIRouter, Depends, HTTPException, Query
+from sqlalchemy import desc, func
+from sqlalchemy.orm import Session
+
+from models.database import CloudfoxResult, get_db
 from models.schemas import (
-    CloudfoxResultResponse,
     CloudfoxResultListResponse,
-    CloudfoxSummary,
+    CloudfoxResultResponse,
     CloudfoxRunRequest,
+    CloudfoxSummary,
     ToolExecutionStartResponse,
 )
 from routers.executions import start_tool_execution
@@ -23,12 +22,12 @@ router = APIRouter(prefix="/cloudfox", tags=["CloudFox"])
 @router.get("/", response_model=CloudfoxResultListResponse)
 async def list_cloudfox_results(
     db: Session = Depends(get_db),
-    module_name: Optional[str] = Query(None, description="Filter by module name"),
-    finding_category: Optional[str] = Query(None, description="Filter by finding category"),
-    cloud_provider: Optional[str] = Query(None, description="Filter by cloud provider"),
-    risk_level: Optional[str] = Query(None, description="Filter by risk level"),
+    module_name: str | None = Query(None, description="Filter by module name"),
+    finding_category: str | None = Query(None, description="Filter by finding category"),
+    cloud_provider: str | None = Query(None, description="Filter by cloud provider"),
+    risk_level: str | None = Query(None, description="Filter by risk level"),
     page: int = Query(1, ge=1, description="Page number"),
-    page_size: int = Query(50, ge=1, le=500, description="Items per page")
+    page_size: int = Query(50, ge=1, le=500, description="Items per page"),
 ):
     """List CloudFox results with optional filters."""
     query = db.query(CloudfoxResult)
@@ -47,15 +46,18 @@ async def list_cloudfox_results(
 
     total = query.count()
 
-    results = query.order_by(
-        desc(CloudfoxResult.created_at)
-    ).offset((page - 1) * page_size).limit(page_size).all()
+    results = (
+        query.order_by(desc(CloudfoxResult.created_at))
+        .offset((page - 1) * page_size)
+        .limit(page_size)
+        .all()
+    )
 
     return CloudfoxResultListResponse(
         results=[CloudfoxResultResponse.model_validate(r) for r in results],
         total=total,
         page=page,
-        page_size=page_size
+        page_size=page_size,
     )
 
 
@@ -86,7 +88,7 @@ async def get_cloudfox_summary(db: Session = Depends(get_db)):
         total_results=total,
         by_module={k: v for k, v in module_counts.items() if k},
         by_category={k: v for k, v in category_counts.items() if k},
-        by_risk={k: v for k, v in risk_counts.items() if k}
+        by_risk={k: v for k, v in risk_counts.items() if k},
     )
 
 
@@ -129,10 +131,7 @@ async def list_available_modules():
 
 
 @router.get("/{result_id}", response_model=CloudfoxResultResponse)
-async def get_cloudfox_result(
-    result_id: int,
-    db: Session = Depends(get_db)
-):
+async def get_cloudfox_result(result_id: int, db: Session = Depends(get_db)):
     """Get a specific CloudFox result by ID."""
     result = db.query(CloudfoxResult).filter(CloudfoxResult.id == result_id).first()
 
@@ -147,30 +146,30 @@ async def get_results_by_module(
     module_name: str,
     db: Session = Depends(get_db),
     page: int = Query(1, ge=1, description="Page number"),
-    page_size: int = Query(50, ge=1, le=500, description="Items per page")
+    page_size: int = Query(50, ge=1, le=500, description="Items per page"),
 ):
     """Get all CloudFox results for a specific module."""
     query = db.query(CloudfoxResult).filter(CloudfoxResult.module_name == module_name)
 
     total = query.count()
 
-    results = query.order_by(
-        desc(CloudfoxResult.created_at)
-    ).offset((page - 1) * page_size).limit(page_size).all()
+    results = (
+        query.order_by(desc(CloudfoxResult.created_at))
+        .offset((page - 1) * page_size)
+        .limit(page_size)
+        .all()
+    )
 
     return CloudfoxResultListResponse(
         results=[CloudfoxResultResponse.model_validate(r) for r in results],
         total=total,
         page=page,
-        page_size=page_size
+        page_size=page_size,
     )
 
 
 @router.post("/run", response_model=ToolExecutionStartResponse)
-async def run_cloudfox(
-    request: CloudfoxRunRequest,
-    db: Session = Depends(get_db)
-):
+async def run_cloudfox(request: CloudfoxRunRequest, db: Session = Depends(get_db)):
     """
     Trigger CloudFox enumeration.
 

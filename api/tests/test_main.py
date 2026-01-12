@@ -1,5 +1,5 @@
 """Tests for main application endpoints."""
-import pytest
+
 from fastapi.testclient import TestClient
 
 
@@ -42,7 +42,7 @@ class TestCORSHeaders:
             headers={
                 "Origin": "http://localhost:8080",
                 "Access-Control-Request-Method": "GET",
-            }
+            },
         )
 
         # CORS preflight should succeed

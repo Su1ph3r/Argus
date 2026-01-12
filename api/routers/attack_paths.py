@@ -21,10 +21,10 @@ Endpoints:
     GET /attack-paths/{path_id}/export - Export path as markdown/JSON
     DELETE /attack-paths/{path_id} - Delete an attack path
 """
+
 import sys
 import time
 from collections import defaultdict
-from typing import Any, List, Optional
 from uuid import UUID
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
@@ -93,14 +93,20 @@ def _convert_path_to_response(path: AttackPath) -> AttackPathResponse:
 @router.get("/", response_model=AttackPathListResponse)
 async def list_attack_paths(
     db: Session = Depends(get_db),
-    min_risk_score: Optional[int] = Query(None, ge=0, le=100, description="Minimum risk score (inclusive)"),
-    max_risk_score: Optional[int] = Query(None, ge=0, le=100, description="Maximum risk score (exclusive)"),
-    exploitability: Optional[str] = Query(None, description="Filter by exploitability: confirmed, likely, theoretical"),
-    entry_point_type: Optional[str] = Query(None, description="Filter by entry point type"),
-    target_type: Optional[str] = Query(None, description="Filter by target type"),
-    scan_id: Optional[UUID] = Query(None, description="Filter by scan ID"),
+    min_risk_score: int | None = Query(
+        None, ge=0, le=100, description="Minimum risk score (inclusive)"
+    ),
+    max_risk_score: int | None = Query(
+        None, ge=0, le=100, description="Maximum risk score (exclusive)"
+    ),
+    exploitability: str | None = Query(
+        None, description="Filter by exploitability: confirmed, likely, theoretical"
+    ),
+    entry_point_type: str | None = Query(None, description="Filter by entry point type"),
+    target_type: str | None = Query(None, description="Filter by target type"),
+    scan_id: UUID | None = Query(None, description="Filter by scan ID"),
     page: int = Query(1, ge=1, description="Page number"),
-    page_size: int = Query(20, ge=1, le=100, description="Items per page")
+    page_size: int = Query(20, ge=1, le=100, description="Items per page"),
 ):
     """
     List attack paths with optional filters and pagination.
@@ -145,16 +151,18 @@ async def list_attack_paths(
     total = query.count()
 
     # Apply pagination and ordering (highest risk first)
-    paths = query.order_by(
-        desc(AttackPath.risk_score),
-        desc(AttackPath.created_at)
-    ).offset((page - 1) * page_size).limit(page_size).all()
+    paths = (
+        query.order_by(desc(AttackPath.risk_score), desc(AttackPath.created_at))
+        .offset((page - 1) * page_size)
+        .limit(page_size)
+        .all()
+    )
 
     return AttackPathListResponse(
         paths=[_convert_path_to_response(p) for p in paths],
         total=total,
         page=page,
-        page_size=page_size
+        page_size=page_size,
     )
 
 
@@ -172,8 +180,12 @@ async def get_attack_paths_summary(db: Session = Depends(get_db)):
     # Count by risk level
     total = db.query(AttackPath).count()
     critical = db.query(AttackPath).filter(AttackPath.risk_score >= 80).count()
-    high = db.query(AttackPath).filter(AttackPath.risk_score >= 60, AttackPath.risk_score < 80).count()
-    medium = db.query(AttackPath).filter(AttackPath.risk_score >= 40, AttackPath.risk_score < 60).count()
+    high = (
+        db.query(AttackPath).filter(AttackPath.risk_score >= 60, AttackPath.risk_score < 80).count()
+    )
+    medium = (
+        db.query(AttackPath).filter(AttackPath.risk_score >= 40, AttackPath.risk_score < 60).count()
+    )
     low = db.query(AttackPath).filter(AttackPath.risk_score < 40).count()
 
     # Count by entry point type
@@ -214,15 +226,12 @@ async def get_attack_paths_summary(db: Session = Depends(get_db)):
         entry_point_types=entry_counts,
         target_types=target_counts,
         top_mitre_tactics=top_tactics,
-        avg_risk_score=round(avg_score, 1)
+        avg_risk_score=round(avg_score, 1),
     )
 
 
 @router.get("/{path_id}", response_model=AttackPathResponse)
-async def get_attack_path(
-    path_id: int,
-    db: Session = Depends(get_db)
-):
+async def get_attack_path(path_id: int, db: Session = Depends(get_db)):
     """
     Get a specific attack path by database ID.
 
@@ -247,10 +256,7 @@ async def get_attack_path(
 
 
 @router.get("/by-path-id/{path_id}", response_model=AttackPathResponse)
-async def get_attack_path_by_path_id(
-    path_id: str,
-    db: Session = Depends(get_db)
-):
+async def get_attack_path_by_path_id(path_id: str, db: Session = Depends(get_db)):
     """
     Get a specific attack path by its unique path_id hash.
 
@@ -278,7 +284,7 @@ async def get_attack_path_by_path_id(
 async def analyze_attack_paths(
     request: AttackPathAnalyzeRequest,
     background_tasks: BackgroundTasks,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ):
     """
     Trigger attack path analysis.
@@ -291,7 +297,7 @@ async def analyze_attack_paths(
     try:
         # Import and run the analyzer
         # Note: In production, this might be better as a background task
-        sys.path.insert(0, '/app/report-processor')
+        sys.path.insert(0, "/app/report-processor")
         from attack_path_analyzer import AttackPathAnalyzer
 
         analyzer = AttackPathAnalyzer()
@@ -308,8 +314,16 @@ async def analyze_attack_paths(
         # Re-query for accurate counts
         total = db.query(AttackPath).count()
         critical = db.query(AttackPath).filter(AttackPath.risk_score >= 80).count()
-        high = db.query(AttackPath).filter(AttackPath.risk_score >= 60, AttackPath.risk_score < 80).count()
-        medium = db.query(AttackPath).filter(AttackPath.risk_score >= 40, AttackPath.risk_score < 60).count()
+        high = (
+            db.query(AttackPath)
+            .filter(AttackPath.risk_score >= 60, AttackPath.risk_score < 80)
+            .count()
+        )
+        medium = (
+            db.query(AttackPath)
+            .filter(AttackPath.risk_score >= 40, AttackPath.risk_score < 60)
+            .count()
+        )
         low = db.query(AttackPath).filter(AttackPath.risk_score < 40).count()
 
         summary = AttackPathSummary(
@@ -321,32 +335,21 @@ async def analyze_attack_paths(
             entry_point_types={},
             target_types={},
             top_mitre_tactics=[],
-            avg_risk_score=0.0
+            avg_risk_score=0.0,
         )
 
         return AttackPathAnalyzeResponse(
-            paths_discovered=len(paths),
-            analysis_time_ms=elapsed_ms,
-            summary=summary
+            paths_discovered=len(paths), analysis_time_ms=elapsed_ms, summary=summary
         )
 
     except ImportError as e:
-        raise HTTPException(
-            status_code=500,
-            detail=f"Attack path analyzer not available: {str(e)}"
-        )
+        raise HTTPException(status_code=500, detail=f"Attack path analyzer not available: {str(e)}")
     except Exception as e:
-        raise HTTPException(
-            status_code=500,
-            detail=f"Analysis failed: {str(e)}"
-        )
+        raise HTTPException(status_code=500, detail=f"Analysis failed: {str(e)}")
 
 
-@router.get("/{path_id}/findings", response_model=List[dict])
-async def get_path_findings(
-    path_id: int,
-    db: Session = Depends(get_db)
-):
+@router.get("/{path_id}/findings", response_model=list[dict])
+async def get_path_findings(path_id: int, db: Session = Depends(get_db)):
     """
     Get all findings associated with an attack path.
 
@@ -374,23 +377,20 @@ async def get_path_findings(
 
     return [
         {
-            'id': f.id,
-            'finding_id': f.finding_id,
-            'title': f.title,
-            'severity': f.severity,
-            'resource_type': f.resource_type,
-            'resource_id': f.resource_id,
-            'region': f.region,
+            "id": f.id,
+            "finding_id": f.finding_id,
+            "title": f.title,
+            "severity": f.severity,
+            "resource_type": f.resource_type,
+            "resource_id": f.resource_id,
+            "region": f.region,
         }
         for f in findings
     ]
 
 
 @router.delete("/{path_id}")
-async def delete_attack_path(
-    path_id: int,
-    db: Session = Depends(get_db)
-):
+async def delete_attack_path(path_id: int, db: Session = Depends(get_db)):
     """
     Delete an attack path.
 
@@ -421,7 +421,7 @@ async def delete_attack_path(
 async def export_attack_path(
     path_id: int,
     format: str = Query("markdown", description="Export format: markdown, json"),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ):
     """
     Export an attack path in various formats for reporting.
@@ -478,17 +478,21 @@ async def export_attack_path(
     # Add nodes
     nodes = path.nodes or []
     for i, node in enumerate(nodes):
-        md_lines.append(f"{i + 1}. **{node.get('name', 'Unknown')}** ({node.get('type', 'unknown')})")
-        if node.get('resource_id'):
+        md_lines.append(
+            f"{i + 1}. **{node.get('name', 'Unknown')}** ({node.get('type', 'unknown')})"
+        )
+        if node.get("resource_id"):
             md_lines.append(f"   - Resource: `{node.get('resource_id')}`")
-        if node.get('region'):
+        if node.get("region"):
             md_lines.append(f"   - Region: {node.get('region')}")
 
-    md_lines.extend([
-        "",
-        "## Proof of Concept",
-        "",
-    ])
+    md_lines.extend(
+        [
+            "",
+            "## Proof of Concept",
+            "",
+        ]
+    )
 
     # Add PoC steps
     poc_steps = path.poc_steps or []
@@ -496,23 +500,25 @@ async def export_attack_path(
         for step in poc_steps:
             md_lines.append(f"### Step {step.get('step', '?')}: {step.get('name', 'Unknown')}")
             md_lines.append("")
-            md_lines.append(step.get('description', ''))
+            md_lines.append(step.get("description", ""))
             md_lines.append("")
             md_lines.append("```bash")
-            md_lines.append(step.get('command', '# No command available'))
+            md_lines.append(step.get("command", "# No command available"))
             md_lines.append("```")
             md_lines.append("")
-            if step.get('mitre_technique'):
+            if step.get("mitre_technique"):
                 md_lines.append(f"*MITRE ATT&CK: {step.get('mitre_technique')}*")
             md_lines.append("")
     else:
         md_lines.append("No PoC steps available for this path.")
 
-    md_lines.extend([
-        "",
-        "## MITRE ATT&CK Mapping",
-        "",
-    ])
+    md_lines.extend(
+        [
+            "",
+            "## MITRE ATT&CK Mapping",
+            "",
+        ]
+    )
 
     mitre_tactics = path.mitre_tactics or []
     if mitre_tactics:
@@ -521,11 +527,13 @@ async def export_attack_path(
     else:
         md_lines.append("No MITRE ATT&CK tactics mapped.")
 
-    md_lines.extend([
-        "",
-        "## Affected AWS Services",
-        "",
-    ])
+    md_lines.extend(
+        [
+            "",
+            "## Affected AWS Services",
+            "",
+        ]
+    )
 
     aws_services = path.aws_services or []
     if aws_services:
@@ -534,10 +542,12 @@ async def export_attack_path(
     else:
         md_lines.append("No specific AWS services identified.")
 
-    md_lines.extend([
-        "",
-        "---",
-        f"*Generated by Nubicustos Attack Path Analyzer*",
-    ])
+    md_lines.extend(
+        [
+            "",
+            "---",
+            "*Generated by Nubicustos Attack Path Analyzer*",
+        ]
+    )
 
     return {"format": "markdown", "content": "\n".join(md_lines)}

@@ -1,14 +1,13 @@
 """Public Exposures API endpoints."""
-from fastapi import APIRouter, Depends, Query, HTTPException
-from sqlalchemy.orm import Session
-from sqlalchemy import func, desc
-from typing import Optional
-from uuid import UUID
 
-from models.database import get_db, PublicExposure
+from fastapi import APIRouter, Depends, HTTPException, Query
+from sqlalchemy import desc, func
+from sqlalchemy.orm import Session
+
+from models.database import PublicExposure, get_db
 from models.schemas import (
-    PublicExposureResponse,
     PublicExposureListResponse,
+    PublicExposureResponse,
     PublicExposureSummary,
 )
 
@@ -19,13 +18,13 @@ router = APIRouter(prefix="/public-exposures", tags=["Public Exposures"])
 @router.get("/", response_model=PublicExposureListResponse)
 async def list_public_exposures(
     db: Session = Depends(get_db),
-    exposure_type: Optional[str] = Query(None, description="Filter by exposure type"),
-    risk_level: Optional[str] = Query(None, description="Filter by risk level"),
-    cloud_provider: Optional[str] = Query(None, description="Filter by cloud provider"),
-    is_internet_exposed: Optional[bool] = Query(None, description="Filter by internet exposure"),
-    status: Optional[str] = Query(None, description="Filter by status"),
+    exposure_type: str | None = Query(None, description="Filter by exposure type"),
+    risk_level: str | None = Query(None, description="Filter by risk level"),
+    cloud_provider: str | None = Query(None, description="Filter by cloud provider"),
+    is_internet_exposed: bool | None = Query(None, description="Filter by internet exposure"),
+    status: str | None = Query(None, description="Filter by status"),
     page: int = Query(1, ge=1, description="Page number"),
-    page_size: int = Query(50, ge=1, le=500, description="Items per page")
+    page_size: int = Query(50, ge=1, le=500, description="Items per page"),
 ):
     """List public exposures with optional filters."""
     query = db.query(PublicExposure)
@@ -49,16 +48,18 @@ async def list_public_exposures(
 
     total = query.count()
 
-    exposures = query.order_by(
-        desc(PublicExposure.last_seen),
-        PublicExposure.risk_level
-    ).offset((page - 1) * page_size).limit(page_size).all()
+    exposures = (
+        query.order_by(desc(PublicExposure.last_seen), PublicExposure.risk_level)
+        .offset((page - 1) * page_size)
+        .limit(page_size)
+        .all()
+    )
 
     return PublicExposureListResponse(
         exposures=[PublicExposureResponse.model_validate(e) for e in exposures],
         total=total,
         page=page,
-        page_size=page_size
+        page_size=page_size,
     )
 
 
@@ -100,15 +101,12 @@ async def get_public_exposure_summary(db: Session = Depends(get_db)):
         low=risk_counts.get("low", 0),
         internet_exposed=internet_exposed,
         by_type={k: v for k, v in type_counts.items() if k},
-        by_provider={k: v for k, v in provider_counts.items() if k}
+        by_provider={k: v for k, v in provider_counts.items() if k},
     )
 
 
 @router.get("/{exposure_id}", response_model=PublicExposureResponse)
-async def get_public_exposure(
-    exposure_id: int,
-    db: Session = Depends(get_db)
-):
+async def get_public_exposure(exposure_id: int, db: Session = Depends(get_db)):
     """Get a specific public exposure by ID."""
     exposure = db.query(PublicExposure).filter(PublicExposure.id == exposure_id).first()
 
@@ -122,7 +120,7 @@ async def get_public_exposure(
 async def update_exposure_status(
     exposure_id: int,
     status: str = Query(..., description="New status: open, closed, accepted"),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ):
     """Update the status of a public exposure."""
     exposure = db.query(PublicExposure).filter(PublicExposure.id == exposure_id).first()
@@ -132,7 +130,9 @@ async def update_exposure_status(
 
     valid_statuses = ["open", "closed", "accepted"]
     if status.lower() not in valid_statuses:
-        raise HTTPException(status_code=400, detail=f"Invalid status. Must be one of: {valid_statuses}")
+        raise HTTPException(
+            status_code=400, detail=f"Invalid status. Must be one of: {valid_statuses}"
+        )
 
     exposure.status = status.lower()
     db.commit()
