@@ -5,15 +5,24 @@
       <div class="overview-grid">
         <div class="overview-item">
           <span class="item-label">Risk Score</span>
-          <span class="item-value risk-score" :class="riskClass">{{ path.risk_score }}/100</span>
+          <span
+            class="item-value risk-score"
+            :class="riskClass"
+          >{{ path.risk_score }}/100</span>
         </div>
         <div class="overview-item">
           <span class="item-label">Exploitability</span>
-          <span class="item-value tag" :class="path.exploitability">{{ path.exploitability }}</span>
+          <span
+            class="item-value tag"
+            :class="path.exploitability"
+          >{{ path.exploitability }}</span>
         </div>
         <div class="overview-item">
           <span class="item-label">Impact</span>
-          <span class="item-value tag" :class="path.impact">{{ path.impact }}</span>
+          <span
+            class="item-value tag"
+            :class="path.impact"
+          >{{ path.impact }}</span>
         </div>
         <div class="overview-item">
           <span class="item-label">Hops</span>
@@ -25,7 +34,7 @@
     <!-- Path Visualization -->
     <div class="detail-section">
       <h4>
-        <i class="pi pi-sitemap"></i>
+        <i class="pi pi-sitemap" />
         Attack Chain
       </h4>
       <div class="path-visualization">
@@ -34,23 +43,38 @@
           :key="node.id"
           class="path-step"
         >
-          <div class="step-node" :class="node.type">
+          <div
+            class="step-node"
+            :class="node.type"
+          >
             <div class="node-icon">
-              <i :class="getNodeIcon(node.type)"></i>
+              <i :class="getNodeIcon(node.type)" />
             </div>
             <div class="node-info">
               <span class="node-name">{{ node.name }}</span>
-              <span v-if="node.resource_id" class="node-resource">{{ node.resource_id }}</span>
-              <span v-if="node.region" class="node-region">{{ node.region }}</span>
+              <span
+                v-if="node.resource_id"
+                class="node-resource"
+              >{{ node.resource_id }}</span>
+              <span
+                v-if="node.region"
+                class="node-region"
+              >{{ node.region }}</span>
             </div>
           </div>
-          <div v-if="index < path.nodes.length - 1" class="step-connector">
-            <div class="connector-line"></div>
-            <div v-if="path.edges[index]" class="connector-label">
+          <div
+            v-if="index < path.nodes.length - 1"
+            class="step-connector"
+          >
+            <div class="connector-line" />
+            <div
+              v-if="path.edges[index]"
+              class="connector-label"
+            >
               {{ path.edges[index].name }}
             </div>
             <div class="connector-arrow">
-              <i class="pi pi-arrow-down"></i>
+              <i class="pi pi-arrow-down" />
             </div>
           </div>
         </div>
@@ -58,21 +82,33 @@
     </div>
 
     <!-- PoC Steps -->
-    <div v-if="path.poc_steps && path.poc_steps.length" class="detail-section">
+    <div
+      v-if="path.poc_steps && path.poc_steps.length"
+      class="detail-section"
+    >
       <h4>
-        <i class="pi pi-code"></i>
+        <i class="pi pi-code" />
         Proof of Concept Steps
       </h4>
       <div class="poc-steps">
-        <div v-for="step in path.poc_steps" :key="step.step" class="poc-step">
+        <div
+          v-for="step in path.poc_steps"
+          :key="step.step"
+          class="poc-step"
+        >
           <div class="step-header">
             <span class="step-number">Step {{ step.step }}</span>
             <span class="step-name">{{ step.name }}</span>
-            <span v-if="step.requires_auth" class="auth-badge">
-              <i class="pi pi-lock"></i> Auth Required
+            <span
+              v-if="step.requires_auth"
+              class="auth-badge"
+            >
+              <i class="pi pi-lock" /> Auth Required
             </span>
           </div>
-          <p class="step-description">{{ step.description }}</p>
+          <p class="step-description">
+            {{ step.description }}
+          </p>
           <div class="step-command">
             <code>{{ step.command }}</code>
             <Button
@@ -84,7 +120,10 @@
               @click="copyCommand(step.command)"
             />
           </div>
-          <div v-if="step.mitre_technique" class="step-mitre">
+          <div
+            v-if="step.mitre_technique"
+            class="step-mitre"
+          >
             MITRE ATT&CK: {{ step.mitre_technique }}
           </div>
         </div>
@@ -92,39 +131,60 @@
     </div>
 
     <!-- MITRE ATT&CK Mapping -->
-    <div v-if="path.mitre_tactics && path.mitre_tactics.length" class="detail-section">
+    <div
+      v-if="path.mitre_tactics && path.mitre_tactics.length"
+      class="detail-section"
+    >
       <h4>
-        <i class="pi pi-shield"></i>
+        <i class="pi pi-shield" />
         MITRE ATT&CK Tactics
       </h4>
       <div class="mitre-tags">
-        <span v-for="tactic in path.mitre_tactics" :key="tactic" class="mitre-tag">
+        <span
+          v-for="tactic in path.mitre_tactics"
+          :key="tactic"
+          class="mitre-tag"
+        >
           {{ formatMitreTactic(tactic) }}
         </span>
       </div>
     </div>
 
     <!-- AWS Services -->
-    <div v-if="path.aws_services && path.aws_services.length" class="detail-section">
+    <div
+      v-if="path.aws_services && path.aws_services.length"
+      class="detail-section"
+    >
       <h4>
-        <i class="pi pi-cloud"></i>
+        <i class="pi pi-cloud" />
         Affected AWS Services
       </h4>
       <div class="service-tags">
-        <span v-for="service in path.aws_services" :key="service" class="service-tag">
+        <span
+          v-for="service in path.aws_services"
+          :key="service"
+          class="service-tag"
+        >
           {{ service }}
         </span>
       </div>
     </div>
 
     <!-- Associated Findings -->
-    <div v-if="path.finding_ids && path.finding_ids.length" class="detail-section">
+    <div
+      v-if="path.finding_ids && path.finding_ids.length"
+      class="detail-section"
+    >
       <h4>
-        <i class="pi pi-list"></i>
+        <i class="pi pi-list" />
         Related Findings
       </h4>
       <div class="findings-list">
-        <div v-for="id in path.finding_ids" :key="id" class="finding-link">
+        <div
+          v-for="id in path.finding_ids"
+          :key="id"
+          class="finding-link"
+        >
           <router-link :to="`/findings/${id}`">
             Finding #{{ id }}
           </router-link>
@@ -157,8 +217,8 @@ import { useToast } from 'primevue/usetoast'
 const props = defineProps({
   path: {
     type: Object,
-    required: true
-  }
+    required: true,
+  },
 })
 
 defineEmits(['export'])
@@ -176,7 +236,7 @@ const getNodeIcon = (type) => {
   const icons = {
     'entry_point': 'pi pi-sign-in',
     'resource': 'pi pi-server',
-    'target': 'pi pi-bullseye'
+    'target': 'pi pi-bullseye',
   }
   return icons[type] || 'pi pi-circle'
 }
@@ -193,7 +253,7 @@ const formatMitreTactic = (tactic) => {
     'TA0008': 'Lateral Movement',
     'TA0009': 'Collection',
     'TA0010': 'Exfiltration',
-    'TA0011': 'Command and Control'
+    'TA0011': 'Command and Control',
   }
   return labels[tactic] || tactic
 }
@@ -205,14 +265,14 @@ const copyCommand = async (command) => {
       severity: 'success',
       summary: 'Copied',
       detail: 'Command copied to clipboard',
-      life: 2000
+      life: 2000,
     })
   } catch (e) {
     toast.add({
       severity: 'error',
       summary: 'Failed',
       detail: 'Could not copy to clipboard',
-      life: 2000
+      life: 2000,
     })
   }
 }
@@ -230,14 +290,14 @@ const copyAllCommands = async () => {
       severity: 'success',
       summary: 'Copied',
       detail: 'All commands copied to clipboard',
-      life: 2000
+      life: 2000,
     })
   } catch (e) {
     toast.add({
       severity: 'error',
       summary: 'Failed',
       detail: 'Could not copy to clipboard',
-      life: 2000
+      life: 2000,
     })
   }
 }

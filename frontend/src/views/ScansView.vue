@@ -3,21 +3,25 @@
     <div class="page-header">
       <div class="header-content">
         <h1>Scans</h1>
-        <p class="subtitle">Launch security scans and monitor execution status</p>
+        <p class="subtitle">
+          Launch security scans and monitor execution status
+        </p>
       </div>
       <div class="header-actions">
         <Button
           label="New Scan"
           icon="pi pi-plus"
-          @click="showNewScanDialog = true"
           :disabled="store.hasRunningScans"
+          @click="showNewScanDialog = true"
         />
       </div>
     </div>
 
     <!-- Credential Status Section -->
     <section class="section">
-      <h2 class="section-title">Credential Status</h2>
+      <h2 class="section-title">
+        Credential Status
+      </h2>
       <div class="credential-cards">
         <div
           class="credential-card"
@@ -25,13 +29,16 @@
           @click="$router.push('/credentials')"
         >
           <div class="provider-icon">
-            <i class="pi pi-cloud"></i>
+            <i class="pi pi-cloud" />
           </div>
           <div class="provider-info">
             <span class="provider-name">AWS</span>
             <span class="provider-status">{{ formatStatus(store.awsStatus) }}</span>
           </div>
-          <div class="status-indicator" :class="store.awsStatus"></div>
+          <div
+            class="status-indicator"
+            :class="store.awsStatus"
+          />
         </div>
 
         <div
@@ -40,13 +47,16 @@
           @click="$router.push('/credentials')"
         >
           <div class="provider-icon">
-            <i class="pi pi-microsoft"></i>
+            <i class="pi pi-microsoft" />
           </div>
           <div class="provider-info">
             <span class="provider-name">Azure</span>
             <span class="provider-status">{{ formatStatus(store.azureStatus) }}</span>
           </div>
-          <div class="status-indicator" :class="store.azureStatus"></div>
+          <div
+            class="status-indicator"
+            :class="store.azureStatus"
+          />
         </div>
 
         <div
@@ -55,13 +65,16 @@
           @click="$router.push('/credentials')"
         >
           <div class="provider-icon">
-            <i class="pi pi-google"></i>
+            <i class="pi pi-google" />
           </div>
           <div class="provider-info">
             <span class="provider-name">GCP</span>
             <span class="provider-status">{{ formatStatus(store.gcpStatus) }}</span>
           </div>
-          <div class="status-indicator" :class="store.gcpStatus"></div>
+          <div
+            class="status-indicator"
+            :class="store.gcpStatus"
+          />
         </div>
 
         <div
@@ -70,13 +83,16 @@
           @click="$router.push('/credentials')"
         >
           <div class="provider-icon">
-            <i class="pi pi-server"></i>
+            <i class="pi pi-server" />
           </div>
           <div class="provider-info">
             <span class="provider-name">Kubernetes</span>
             <span class="provider-status">{{ formatStatus(store.kubernetesStatus) }}</span>
           </div>
-          <div class="status-indicator" :class="store.kubernetesStatus"></div>
+          <div
+            class="status-indicator"
+            :class="store.kubernetesStatus"
+          />
         </div>
       </div>
       <div class="credential-actions">
@@ -92,7 +108,9 @@
 
     <!-- Quick Actions Section -->
     <section class="section">
-      <h2 class="section-title">Quick Actions</h2>
+      <h2 class="section-title">
+        Quick Actions
+      </h2>
       <div class="profile-cards">
         <div
           v-for="profile in store.profiles"
@@ -104,7 +122,9 @@
             <h3>{{ profile.name }}</h3>
             <span class="profile-time">{{ profile.estimatedTime }}</span>
           </div>
-          <p class="profile-description">{{ profile.description }}</p>
+          <p class="profile-description">
+            {{ profile.description }}
+          </p>
           <Button
             label="Start"
             icon="pi pi-play"
@@ -120,7 +140,9 @@
     <!-- Recent Scans Section -->
     <section class="section">
       <div class="section-header">
-        <h2 class="section-title">Recent Scans</h2>
+        <h2 class="section-title">
+          Recent Scans
+        </h2>
         <Button
           label="View All"
           icon="pi pi-list"
@@ -130,45 +152,69 @@
         />
       </div>
 
-      <div v-if="store.loading && store.scans.length === 0" class="loading-container">
+      <div
+        v-if="store.loading && store.scans.length === 0"
+        class="loading-container"
+      >
         <ProgressSpinner />
         <span>Loading scans...</span>
       </div>
 
-      <div v-else-if="store.scans.length === 0" class="empty-state">
-        <i class="pi pi-search"></i>
+      <div
+        v-else-if="store.scans.length === 0"
+        class="empty-state"
+      >
+        <i class="pi pi-search" />
         <p>No scans yet. Start a scan to begin security assessment.</p>
       </div>
 
       <DataTable
         v-else
         :value="store.scans"
-        responsiveLayout="scroll"
+        responsive-layout="scroll"
         class="p-datatable-sm"
         @row-click="viewScan"
       >
-        <Column field="scan_id" header="ID">
+        <Column
+          field="scan_id"
+          header="ID"
+        >
           <template #body="{ data }">
             <span class="scan-id">{{ data.scan_id?.slice(0, 8) || '-' }}</span>
           </template>
         </Column>
-        <Column field="scan_type" header="Profile">
+        <Column
+          field="scan_type"
+          header="Profile"
+        >
           <template #body="{ data }">
             {{ data.scan_type || data.tool || 'N/A' }}
           </template>
         </Column>
-        <Column field="status" header="Status">
+        <Column
+          field="status"
+          header="Status"
+        >
           <template #body="{ data }">
-            <Tag :severity="getStatusSeverity(data.status)" :value="data.status" />
+            <Tag
+              :severity="getStatusSeverity(data.status)"
+              :value="data.status"
+            />
           </template>
         </Column>
-        <Column field="total_findings" header="Findings">
+        <Column
+          field="total_findings"
+          header="Findings"
+        >
           <template #body="{ data }">
             <span v-if="data.status === 'completed'">{{ data.total_findings || 0 }}</span>
             <span v-else>-</span>
           </template>
         </Column>
-        <Column field="started_at" header="Started">
+        <Column
+          field="started_at"
+          header="Started"
+        >
           <template #body="{ data }">
             {{ formatDate(data.started_at) }}
           </template>
@@ -207,8 +253,8 @@
           <Dropdown
             v-model="newScanConfig.profile"
             :options="store.profiles"
-            optionLabel="name"
-            optionValue="id"
+            option-label="name"
+            option-value="id"
             placeholder="Select a profile"
             class="w-full"
           />
@@ -219,8 +265,8 @@
           <MultiSelect
             v-model="newScanConfig.providers"
             :options="providerOptions"
-            optionLabel="label"
-            optionValue="value"
+            option-label="label"
+            option-value="value"
             placeholder="Select providers to scan"
             class="w-full"
             display="chip"
@@ -241,26 +287,34 @@
           <MultiSelect
             v-model="newScanConfig.severities"
             :options="severityOptions"
-            optionLabel="label"
-            optionValue="value"
+            option-label="label"
+            option-value="value"
             placeholder="All severities"
             class="w-full"
           />
         </div>
 
         <div class="form-field checkbox-field">
-          <Checkbox v-model="newScanConfig.dryRun" binary inputId="dryRun" />
+          <Checkbox
+            v-model="newScanConfig.dryRun"
+            binary
+            input-id="dryRun"
+          />
           <label for="dryRun">Dry Run (preview commands without execution)</label>
         </div>
       </div>
 
       <template #footer>
-        <Button label="Cancel" text @click="showNewScanDialog = false" />
+        <Button
+          label="Cancel"
+          text
+          @click="showNewScanDialog = false"
+        />
         <Button
           label="Start Scan"
           icon="pi pi-play"
-          @click="startScan"
           :loading="store.loading"
+          @click="startScan"
         />
       </template>
     </Dialog>
@@ -297,21 +351,21 @@ const newScanConfig = ref({
   target: '',
   severities: [],
   providers: ['aws'],
-  dryRun: false
+  dryRun: false,
 })
 
 const providerOptions = [
   { label: 'AWS', value: 'aws' },
   { label: 'Azure', value: 'azure' },
   { label: 'GCP', value: 'gcp' },
-  { label: 'Kubernetes', value: 'kubernetes' }
+  { label: 'Kubernetes', value: 'kubernetes' },
 ]
 
 const severityOptions = [
   { label: 'Critical', value: 'critical' },
   { label: 'High', value: 'high' },
   { label: 'Medium', value: 'medium' },
-  { label: 'Low', value: 'low' }
+  { label: 'Low', value: 'low' },
 ]
 
 function getStatusClass(status) {
@@ -319,7 +373,7 @@ function getStatusClass(status) {
     'status-ready': status === 'ready',
     'status-partial': status === 'partial',
     'status-failed': status === 'failed',
-    'status-unknown': status === 'unknown'
+    'status-unknown': status === 'unknown',
   }
 }
 
@@ -328,7 +382,7 @@ function formatStatus(status) {
     ready: 'Ready',
     partial: 'Partial',
     failed: 'Not Configured',
-    unknown: 'Unknown'
+    unknown: 'Unknown',
   }
   return labels[status] || status
 }
@@ -339,7 +393,7 @@ function getStatusSeverity(status) {
     completed: 'success',
     failed: 'danger',
     cancelled: 'warning',
-    pending: 'secondary'
+    pending: 'secondary',
   }
   return map[status] || 'secondary'
 }
@@ -378,7 +432,7 @@ async function startScan() {
       providers: newScanConfig.value.providers.length > 0
         ? newScanConfig.value.providers.join(',')
         : null,
-      dryRun: newScanConfig.value.dryRun
+      dryRun: newScanConfig.value.dryRun,
     })
     showNewScanDialog.value = false
     // Reset form
@@ -387,7 +441,7 @@ async function startScan() {
       target: '',
       severities: [],
       providers: ['aws'],
-      dryRun: false
+      dryRun: false,
     }
   } catch (e) {
     console.error('Failed to start scan:', e)
@@ -417,7 +471,7 @@ onMounted(async () => {
   await Promise.all([
     store.fetchScans(),
     store.fetchProfiles(),
-    store.fetchCredentialStatus()
+    store.fetchCredentialStatus(),
   ])
 
   // Start polling for running scans

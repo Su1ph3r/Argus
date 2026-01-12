@@ -3,7 +3,9 @@
     <div class="page-header">
       <div class="header-content">
         <h1>Severity Overrides</h1>
-        <p class="subtitle">Custom severity adjustments for findings</p>
+        <p class="subtitle">
+          Custom severity adjustments for findings
+        </p>
       </div>
     </div>
 
@@ -12,39 +14,66 @@
         v-model="filters.approvalStatus"
         :options="statusOptions"
         placeholder="Approval Status"
-        @change="applyFilters"
         class="filter-dropdown"
+        @change="applyFilters"
       />
     </div>
 
     <DataTable
       :value="store.overrides"
       :loading="store.loading"
-      responsiveLayout="scroll"
+      responsive-layout="scroll"
       class="p-datatable-sm"
     >
-      <Column field="finding_id" header="Finding ID" />
-      <Column field="original_severity" header="Original">
+      <Column
+        field="finding_id"
+        header="Finding ID"
+      />
+      <Column
+        field="original_severity"
+        header="Original"
+      >
         <template #body="{ data }">
-          <Tag :severity="getSeverity(data.original_severity)" :value="data.original_severity" />
+          <Tag
+            :severity="getSeverity(data.original_severity)"
+            :value="data.original_severity"
+          />
         </template>
       </Column>
-      <Column field="new_severity" header="New">
+      <Column
+        field="new_severity"
+        header="New"
+      >
         <template #body="{ data }">
-          <Tag :severity="getSeverity(data.new_severity)" :value="data.new_severity" />
+          <Tag
+            :severity="getSeverity(data.new_severity)"
+            :value="data.new_severity"
+          />
         </template>
       </Column>
-      <Column field="justification" header="Justification">
+      <Column
+        field="justification"
+        header="Justification"
+      >
         <template #body="{ data }">
           <span>{{ truncate(data.justification, 60) }}</span>
         </template>
       </Column>
-      <Column field="approval_status" header="Status">
+      <Column
+        field="approval_status"
+        header="Status"
+      >
         <template #body="{ data }">
-          <Tag :severity="getApprovalSeverity(data.approval_status)" :value="data.approval_status" />
+          <Tag
+            :severity="getApprovalSeverity(data.approval_status)"
+            :value="data.approval_status"
+          />
         </template>
       </Column>
-      <Column field="created_by" header="Created By" />
+      <Column
+        field="created_by"
+        header="Created By"
+      />
       <Column header="Actions">
         <template #body="{ data }">
           <Button
@@ -59,7 +88,11 @@
             class="p-button-danger p-button-text"
             @click="rejectOverride(data.id)"
           />
-          <Button icon="pi pi-trash" class="p-button-text" @click="deleteOverride(data.id)" />
+          <Button
+            icon="pi pi-trash"
+            class="p-button-text"
+            @click="deleteOverride(data.id)"
+          />
         </template>
       </Column>
     </DataTable>

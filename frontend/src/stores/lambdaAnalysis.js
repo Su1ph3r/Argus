@@ -16,25 +16,25 @@ export const useLambdaAnalysisStore = defineStore('lambdaAnalysis', () => {
   const pagination = ref({
     page: 1,
     pageSize: 50,
-    total: 0
+    total: 0,
   })
   const filters = ref({
     region: null,
     runtime: null,
     riskLevel: null,
     analysisStatus: null,
-    hasSecrets: null
+    hasSecrets: null,
   })
 
   // Getters
   const riskyFunctions = computed(() =>
-    analyses.value.filter(a => a.risk_score >= 50)
+    analyses.value.filter(a => a.risk_score >= 50),
   )
 
   const functionsWithSecrets = computed(() =>
     analyses.value.filter(a =>
-      a.secrets_found && a.secrets_found.length > 0
-    )
+      a.secrets_found && a.secrets_found.length > 0,
+    ),
   )
 
   // Actions
@@ -168,7 +168,7 @@ export const useLambdaAnalysisStore = defineStore('lambdaAnalysis', () => {
   async function exportAnalysis(analysisId, format = 'markdown') {
     try {
       const response = await fetch(
-        `${API_BASE}/lambda-analysis/${analysisId}/export?format=${format}`
+        `${API_BASE}/lambda-analysis/${analysisId}/export?format=${format}`,
       )
       if (!response.ok) throw new Error('Export failed')
 
@@ -204,7 +204,7 @@ export const useLambdaAnalysisStore = defineStore('lambdaAnalysis', () => {
       const response = await fetch(`${API_BASE}/lambda-analysis/analyze`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(requestWithCreds)
+        body: JSON.stringify(requestWithCreds),
       })
 
       if (!response.ok) throw new Error('Failed to run Lambda analysis')
@@ -277,6 +277,6 @@ export const useLambdaAnalysisStore = defineStore('lambdaAnalysis', () => {
     runAnalysis,
     stopCurrentExecution,
     getExecutionLogs,
-    setFilters
+    setFilters,
   }
 })

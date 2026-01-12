@@ -239,7 +239,7 @@ describe('Attack Paths Store', () => {
         expect.objectContaining({
           method: 'POST',
           body: JSON.stringify({ max_depth: 5 }),
-        })
+        }),
       )
     })
 
@@ -285,7 +285,7 @@ describe('Attack Paths Store', () => {
 
       expect(result).toEqual(mockExport)
       expect(global.fetch).toHaveBeenCalledWith(
-        '/api/attack-paths/1/export?format=markdown'
+        '/api/attack-paths/1/export?format=markdown',
       )
     })
 
@@ -298,7 +298,7 @@ describe('Attack Paths Store', () => {
       await store.exportPath(1)
 
       expect(global.fetch).toHaveBeenCalledWith(
-        '/api/attack-paths/1/export?format=markdown'
+        '/api/attack-paths/1/export?format=markdown',
       )
     })
   })

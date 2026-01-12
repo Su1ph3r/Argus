@@ -3,32 +3,40 @@
     <div class="page-header">
       <div class="header-content">
         <h1>Settings</h1>
-        <p class="subtitle">Configure scan defaults, notifications, and data management</p>
+        <p class="subtitle">
+          Configure scan defaults, notifications, and data management
+        </p>
       </div>
       <div class="header-actions">
         <Button
           label="Reset All"
           icon="pi pi-refresh"
           severity="secondary"
-          @click="confirmReset"
           :disabled="store.loading"
+          @click="confirmReset"
         />
         <Button
           label="Save Changes"
           icon="pi pi-check"
-          @click="saveAllSettings"
           :loading="store.saving"
           :disabled="!hasChanges"
+          @click="saveAllSettings"
         />
       </div>
     </div>
 
-    <div v-if="store.loading" class="loading-container">
+    <div
+      v-if="store.loading"
+      class="loading-container"
+    >
       <ProgressSpinner />
       <span>Loading settings...</span>
     </div>
 
-    <TabView v-else class="settings-tabs">
+    <TabView
+      v-else
+      class="settings-tabs"
+    >
       <!-- Scan Defaults Tab -->
       <TabPanel header="Scan Defaults">
         <div class="settings-section">
@@ -41,8 +49,8 @@
               <Dropdown
                 v-model="localSettings.default_scan_profile"
                 :options="profileOptions"
-                optionLabel="label"
-                optionValue="value"
+                option-label="label"
+                option-value="value"
                 class="setting-input"
               />
             </div>
@@ -55,11 +63,11 @@
               <MultiSelect
                 v-model="localSettings.default_regions"
                 :options="regionOptions"
-                optionLabel="label"
-                optionValue="value"
+                option-label="label"
+                option-value="value"
                 placeholder="Select regions"
                 class="setting-input"
-                :maxSelectedLabels="3"
+                :max-selected-labels="3"
               />
             </div>
 
@@ -72,7 +80,7 @@
                 v-model="localSettings.max_concurrent_scans"
                 :min="1"
                 :max="10"
-                showButtons
+                show-buttons
                 class="setting-input"
               />
             </div>
@@ -92,7 +100,10 @@
               <InputSwitch v-model="localSettings.notifications_enabled" />
             </div>
 
-            <div class="setting-item" :class="{ disabled: !localSettings.notifications_enabled }">
+            <div
+              class="setting-item"
+              :class="{ disabled: !localSettings.notifications_enabled }"
+            >
               <div class="setting-label">
                 <h4>Webhook URL</h4>
                 <p>Webhook endpoint for notifications (Slack, Discord, etc.)</p>
@@ -105,7 +116,10 @@
               />
             </div>
 
-            <div class="setting-item" :class="{ disabled: !localSettings.notifications_enabled }">
+            <div
+              class="setting-item"
+              :class="{ disabled: !localSettings.notifications_enabled }"
+            >
               <div class="setting-label">
                 <h4>Webhook Events</h4>
                 <p>Events that trigger webhook notifications</p>
@@ -113,8 +127,8 @@
               <MultiSelect
                 v-model="localSettings.webhook_events"
                 :options="webhookEventOptions"
-                optionLabel="label"
-                optionValue="value"
+                option-label="label"
+                option-value="value"
                 placeholder="Select events"
                 class="setting-input"
                 :disabled="!localSettings.notifications_enabled"
@@ -129,7 +143,10 @@
               <InputSwitch v-model="localSettings.email_alerts_enabled" />
             </div>
 
-            <div class="setting-item" :class="{ disabled: !localSettings.email_alerts_enabled }">
+            <div
+              class="setting-item"
+              :class="{ disabled: !localSettings.email_alerts_enabled }"
+            >
               <div class="setting-label">
                 <h4>Alert Email Address</h4>
                 <p>Email address for security alerts</p>
@@ -142,7 +159,10 @@
               />
             </div>
 
-            <div class="setting-item" :class="{ disabled: !localSettings.email_alerts_enabled }">
+            <div
+              class="setting-item"
+              :class="{ disabled: !localSettings.email_alerts_enabled }"
+            >
               <div class="setting-label">
                 <h4>Alert Threshold</h4>
                 <p>Minimum severity for email alerts</p>
@@ -150,8 +170,8 @@
               <Dropdown
                 v-model="localSettings.email_alert_threshold"
                 :options="thresholdOptions"
-                optionLabel="label"
-                optionValue="value"
+                option-label="label"
+                option-value="value"
                 class="setting-input"
                 :disabled="!localSettings.email_alerts_enabled"
               />
@@ -174,7 +194,7 @@
                   v-model="localSettings.auto_cleanup_days"
                   :min="1"
                   :max="365"
-                  showButtons
+                  show-buttons
                 />
                 <span class="suffix">days</span>
               </div>
@@ -188,8 +208,8 @@
               <Dropdown
                 v-model="localSettings.export_format"
                 :options="exportFormatOptions"
-                optionLabel="label"
-                optionValue="value"
+                option-label="label"
+                option-value="value"
                 class="setting-input"
               />
             </div>
@@ -233,8 +253,8 @@
               <Dropdown
                 v-model="localSettings.theme"
                 :options="themeOptions"
-                optionLabel="label"
-                optionValue="value"
+                option-label="label"
+                option-value="value"
                 class="setting-input"
               />
             </div>
@@ -247,8 +267,8 @@
               <Dropdown
                 v-model="localSettings.findings_per_page"
                 :options="pageeSizeOptions"
-                optionLabel="label"
-                optionValue="value"
+                option-label="label"
+                option-value="value"
                 class="setting-input"
               />
             </div>
@@ -266,12 +286,16 @@
     >
       <p>Are you sure you want to reset all settings to their default values?</p>
       <template #footer>
-        <Button label="Cancel" text @click="showResetDialog = false" />
+        <Button
+          label="Cancel"
+          text
+          @click="showResetDialog = false"
+        />
         <Button
           label="Reset"
           severity="danger"
-          @click="resetAllSettings"
           :loading="store.loading"
+          @click="resetAllSettings"
         />
       </template>
     </Dialog>
@@ -285,16 +309,22 @@
     >
       <div class="clear-old-info">
         <p>This will delete scans and related data older than <strong>{{ localSettings.auto_cleanup_days }} days</strong>.</p>
-        <p class="info-note">You can adjust the number of days in the Auto Cleanup setting above.</p>
+        <p class="info-note">
+          You can adjust the number of days in the Auto Cleanup setting above.
+        </p>
       </div>
       <template #footer>
-        <Button label="Cancel" text @click="showClearOldDialog = false" />
+        <Button
+          label="Cancel"
+          text
+          @click="showClearOldDialog = false"
+        />
         <Button
           label="Clear Old Scans"
           severity="warning"
           icon="pi pi-trash"
-          @click="clearOldScans"
           :loading="clearingOld"
+          @click="clearOldScans"
         />
       </template>
     </Dialog>
@@ -308,7 +338,7 @@
     >
       <div class="purge-warning">
         <div class="warning-header">
-          <i class="pi pi-exclamation-triangle"></i>
+          <i class="pi pi-exclamation-triangle" />
           <span>Warning: This action cannot be undone</span>
         </div>
         <p>This will permanently delete ALL scan data including:</p>
@@ -322,13 +352,17 @@
         <p>Credential verification status will also be reset.</p>
       </div>
       <template #footer>
-        <Button label="Cancel" text @click="showPurgeDialog = false" />
+        <Button
+          label="Cancel"
+          text
+          @click="showPurgeDialog = false"
+        />
         <Button
           label="Purge All Data"
           severity="danger"
           icon="pi pi-trash"
-          @click="purgeDatabase"
           :loading="purging"
+          @click="purgeDatabase"
         />
       </template>
     </Dialog>
@@ -371,7 +405,7 @@ const localSettings = ref({
   email_alert_address: null,
   email_alert_threshold: 'critical',
   theme: 'dark',
-  findings_per_page: 50
+  findings_per_page: 50,
 })
 
 const originalSettings = ref({})
@@ -379,7 +413,7 @@ const originalSettings = ref({})
 const profileOptions = [
   { label: 'Quick Scan', value: 'quick' },
   { label: 'Comprehensive Scan', value: 'comprehensive' },
-  { label: 'Compliance Only', value: 'compliance-only' }
+  { label: 'Compliance Only', value: 'compliance-only' },
 ]
 
 const regionOptions = [
@@ -390,38 +424,38 @@ const regionOptions = [
   { label: 'EU (Ireland)', value: 'eu-west-1' },
   { label: 'EU (Frankfurt)', value: 'eu-central-1' },
   { label: 'Asia Pacific (Tokyo)', value: 'ap-northeast-1' },
-  { label: 'Asia Pacific (Singapore)', value: 'ap-southeast-1' }
+  { label: 'Asia Pacific (Singapore)', value: 'ap-southeast-1' },
 ]
 
 const webhookEventOptions = [
   { label: 'Scan Complete', value: 'scan_complete' },
   { label: 'Scan Failed', value: 'scan_failed' },
   { label: 'Critical Finding', value: 'critical_finding' },
-  { label: 'High Finding', value: 'high_finding' }
+  { label: 'High Finding', value: 'high_finding' },
 ]
 
 const thresholdOptions = [
   { label: 'Critical', value: 'critical' },
   { label: 'High', value: 'high' },
   { label: 'Medium', value: 'medium' },
-  { label: 'Low', value: 'low' }
+  { label: 'Low', value: 'low' },
 ]
 
 const exportFormatOptions = [
   { label: 'JSON', value: 'json' },
   { label: 'CSV', value: 'csv' },
-  { label: 'Markdown', value: 'markdown' }
+  { label: 'Markdown', value: 'markdown' },
 ]
 
 const themeOptions = [
   { label: 'Dark', value: 'dark' },
-  { label: 'Light', value: 'light' }
+  { label: 'Light', value: 'light' },
 ]
 
 const pageeSizeOptions = [
   { label: '25 per page', value: 25 },
   { label: '50 per page', value: 50 },
-  { label: '100 per page', value: 100 }
+  { label: '100 per page', value: 100 },
 ]
 
 const hasChanges = computed(() => {
@@ -446,7 +480,7 @@ async function loadSettings() {
     email_alert_address: s.notifications?.email_alert_address || null,
     email_alert_threshold: s.notifications?.email_alert_threshold || 'critical',
     theme: s.display?.theme || 'dark',
-    findings_per_page: s.display?.findings_per_page || 50
+    findings_per_page: s.display?.findings_per_page || 50,
   }
 
   originalSettings.value = { ...localSettings.value }
@@ -474,7 +508,7 @@ async function saveAllSettings() {
         severity: 'success',
         summary: 'Settings Saved',
         detail: 'Your settings have been updated successfully',
-        life: 3000
+        life: 3000,
       })
       originalSettings.value = { ...localSettings.value }
     } else {
@@ -482,7 +516,7 @@ async function saveAllSettings() {
         severity: 'warn',
         summary: 'Partial Save',
         detail: `Some settings could not be saved: ${result.errors.map(e => e.key).join(', ')}`,
-        life: 5000
+        life: 5000,
       })
     }
   } catch (e) {
@@ -490,7 +524,7 @@ async function saveAllSettings() {
       severity: 'error',
       summary: 'Save Failed',
       detail: e.message,
-      life: 5000
+      life: 5000,
     })
   }
 }
@@ -508,14 +542,14 @@ async function resetAllSettings() {
       severity: 'success',
       summary: 'Settings Reset',
       detail: 'All settings have been reset to defaults',
-      life: 3000
+      life: 3000,
     })
   } catch (e) {
     toast.add({
       severity: 'error',
       summary: 'Reset Failed',
       detail: e.message,
-      life: 5000
+      life: 5000,
     })
   }
 }
@@ -533,7 +567,7 @@ async function clearOldScans() {
   try {
     const days = localSettings.value.auto_cleanup_days || 90
     const response = await fetch(`/api/database/clear-old?days=${days}&confirm=true`, {
-      method: 'DELETE'
+      method: 'DELETE',
     })
 
     if (!response.ok) {
@@ -547,7 +581,7 @@ async function clearOldScans() {
       severity: 'success',
       summary: 'Scans Cleared',
       detail: `Removed ${result.scans_deleted || 0} scans older than ${days} days`,
-      life: 5000
+      life: 5000,
     })
 
     showClearOldDialog.value = false
@@ -556,7 +590,7 @@ async function clearOldScans() {
       severity: 'error',
       summary: 'Clear Failed',
       detail: e.message,
-      life: 5000
+      life: 5000,
     })
   } finally {
     clearingOld.value = false
@@ -567,7 +601,7 @@ async function purgeDatabase() {
   purging.value = true
   try {
     const response = await fetch('/api/database/purge?confirm=true', {
-      method: 'DELETE'
+      method: 'DELETE',
     })
 
     if (!response.ok) {
@@ -581,7 +615,7 @@ async function purgeDatabase() {
       severity: 'success',
       summary: 'Database Purged',
       detail: `Removed ${result.total_rows_deleted} records from ${result.tables_purged.length} tables`,
-      life: 5000
+      life: 5000,
     })
 
     showPurgeDialog.value = false
@@ -590,7 +624,7 @@ async function purgeDatabase() {
       severity: 'error',
       summary: 'Purge Failed',
       detail: e.message,
-      life: 5000
+      life: 5000,
     })
   } finally {
     purging.value = false

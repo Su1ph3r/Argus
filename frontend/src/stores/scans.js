@@ -29,36 +29,36 @@ export const useScansStore = defineStore('scans', () => {
   const pagination = ref({
     page: 1,
     pageSize: 20,
-    total: 0
+    total: 0,
   })
 
   // Computed
   const runningScans = computed(() =>
-    scans.value.filter(s => s.status === 'running')
+    scans.value.filter(s => s.status === 'running'),
   )
 
   const recentScans = computed(() =>
-    scans.value.slice(0, 5)
+    scans.value.slice(0, 5),
   )
 
   const hasRunningScans = computed(() =>
-    runningScans.value.length > 0
+    runningScans.value.length > 0,
   )
 
   const awsStatus = computed(() =>
-    credentialStatus.value?.summary?.aws || 'unknown'
+    credentialStatus.value?.summary?.aws || 'unknown',
   )
 
   const azureStatus = computed(() =>
-    credentialStatus.value?.summary?.azure || 'unknown'
+    credentialStatus.value?.summary?.azure || 'unknown',
   )
 
   const gcpStatus = computed(() =>
-    credentialStatus.value?.summary?.gcp || 'unknown'
+    credentialStatus.value?.summary?.gcp || 'unknown',
   )
 
   const kubernetesStatus = computed(() =>
-    credentialStatus.value?.summary?.kubernetes || 'unknown'
+    credentialStatus.value?.summary?.kubernetes || 'unknown',
   )
 
   // Actions
@@ -120,8 +120,8 @@ export const useScansStore = defineStore('scans', () => {
           profile: config.profile || 'quick',
           target: config.target || null,
           severity_filter: config.severityFilter || null,
-          dry_run: config.dryRun || false
-        })
+          dry_run: config.dryRun || false,
+        }),
       })
 
       if (!response.ok) {
@@ -156,7 +156,7 @@ export const useScansStore = defineStore('scans', () => {
   async function cancelScan(scanId) {
     try {
       const response = await fetch(`${API_BASE}/scans/${scanId}`, {
-        method: 'DELETE'
+        method: 'DELETE',
       })
       if (!response.ok) throw new Error('Failed to cancel scan')
 
@@ -184,22 +184,22 @@ export const useScansStore = defineStore('scans', () => {
           name: 'Quick Scan',
           description: '5-10 minute fast security assessment',
           estimatedTime: '5-10 min',
-          tools: ['prowler', 'kubescape']
+          tools: ['prowler', 'kubescape'],
         },
         {
           id: 'comprehensive',
           name: 'Full Scan',
           description: 'Complete security audit with all tools',
           estimatedTime: '30-60 min',
-          tools: ['prowler', 'scoutsuite', 'kubescape', 'trivy', 'checkov']
+          tools: ['prowler', 'scoutsuite', 'kubescape', 'trivy', 'checkov'],
         },
         {
           id: 'compliance-only',
           name: 'Compliance',
           description: 'Compliance-focused security checks',
           estimatedTime: '15-20 min',
-          tools: ['prowler', 'kube-bench']
-        }
+          tools: ['prowler', 'kube-bench'],
+        },
       ]
       return profiles.value
     } catch (e) {
@@ -309,6 +309,6 @@ export const useScansStore = defineStore('scans', () => {
     startPolling,
     stopPolling,
     stopAllPolling,
-    setToast
+    setToast,
   }
 })

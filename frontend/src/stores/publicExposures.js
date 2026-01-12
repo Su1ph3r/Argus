@@ -13,23 +13,23 @@ export const usePublicExposuresStore = defineStore('publicExposures', () => {
   const pagination = ref({
     page: 1,
     pageSize: 50,
-    total: 0
+    total: 0,
   })
   const filters = ref({
     exposureType: null,
     riskLevel: null,
     cloudProvider: null,
     isInternetExposed: null,
-    status: 'open'
+    status: 'open',
   })
 
   // Getters
   const criticalExposures = computed(() =>
-    exposures.value.filter(e => e.risk_level === 'critical')
+    exposures.value.filter(e => e.risk_level === 'critical'),
   )
 
   const internetExposedCount = computed(() =>
-    exposures.value.filter(e => e.is_internet_exposed).length
+    exposures.value.filter(e => e.is_internet_exposed).length,
   )
 
   // Actions
@@ -107,7 +107,7 @@ export const usePublicExposuresStore = defineStore('publicExposures', () => {
     try {
       const response = await fetch(
         `${API_BASE}/public-exposures/${exposureId}/status?status=${status}`,
-        { method: 'PATCH' }
+        { method: 'PATCH' },
       )
       if (!response.ok) throw new Error('Failed to update status')
 
@@ -131,7 +131,7 @@ export const usePublicExposuresStore = defineStore('publicExposures', () => {
       riskLevel: null,
       cloudProvider: null,
       isInternetExposed: null,
-      status: 'open'
+      status: 'open',
     }
     pagination.value.page = 1
     fetchExposures()
@@ -152,6 +152,6 @@ export const usePublicExposuresStore = defineStore('publicExposures', () => {
     fetchSummary,
     updateStatus,
     setFilters,
-    clearFilters
+    clearFilters,
   }
 })

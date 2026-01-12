@@ -14,9 +14,9 @@ async function request(endpoint, options = {}) {
   const config = {
     headers: {
       'Content-Type': 'application/json',
-      ...options.headers
+      ...options.headers,
     },
-    ...options
+    ...options,
   }
 
   try {
@@ -27,7 +27,7 @@ async function request(endpoint, options = {}) {
       throw new ApiError(
         data.detail || `HTTP error ${response.status}`,
         response.status,
-        data
+        data,
       )
     }
 
@@ -73,7 +73,7 @@ export const api = {
   async updateFinding(id, data) {
     return request(`/findings/${id}`, {
       method: 'PATCH',
-      body: JSON.stringify(data)
+      body: JSON.stringify(data),
     })
   },
 
@@ -113,7 +113,7 @@ export const api = {
 
   async getDetailedHealth() {
     return request('/health/detailed')
-  }
+  },
 }
 
 export { ApiError }

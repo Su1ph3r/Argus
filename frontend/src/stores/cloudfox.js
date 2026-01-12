@@ -16,13 +16,13 @@ export const useCloudfoxStore = defineStore('cloudfox', () => {
   const pagination = ref({
     page: 1,
     pageSize: 50,
-    total: 0
+    total: 0,
   })
   const filters = ref({
     moduleName: null,
     findingCategory: null,
     cloudProvider: null,
-    riskLevel: null
+    riskLevel: null,
   })
 
   // Actions
@@ -96,7 +96,7 @@ export const useCloudfoxStore = defineStore('cloudfox', () => {
       const response = await fetch(`${API_BASE}/cloudfox/run`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(request)
+        body: JSON.stringify(request),
       })
 
       if (!response.ok) throw new Error('Failed to run CloudFox')
@@ -164,6 +164,6 @@ export const useCloudfoxStore = defineStore('cloudfox', () => {
     runCloudfox,
     stopCurrentExecution,
     getExecutionLogs,
-    setFilters
+    setFilters,
   }
 })

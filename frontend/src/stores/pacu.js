@@ -17,18 +17,18 @@ export const usePacuStore = defineStore('pacu', () => {
   const pagination = ref({
     page: 1,
     pageSize: 50,
-    total: 0
+    total: 0,
   })
   const filters = ref({
     moduleName: null,
     moduleCategory: null,
     executionStatus: null,
-    sessionName: null
+    sessionName: null,
   })
 
   // Getters
   const successfulExecutions = computed(() =>
-    results.value.filter(r => r.execution_status === 'success')
+    results.value.filter(r => r.execution_status === 'success'),
   )
 
   // Actions
@@ -119,7 +119,7 @@ export const usePacuStore = defineStore('pacu', () => {
       const response = await fetch(`${API_BASE}/pacu/run`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(requestWithCreds)
+        body: JSON.stringify(requestWithCreds),
       })
 
       if (!response.ok) throw new Error('Failed to run Pacu module')
@@ -188,6 +188,6 @@ export const usePacuStore = defineStore('pacu', () => {
     runModule,
     stopCurrentExecution,
     getExecutionLogs,
-    setFilters
+    setFilters,
   }
 })

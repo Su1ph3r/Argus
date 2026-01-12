@@ -1,13 +1,21 @@
 <template>
   <div class="remediation-panel">
     <!-- Basic Remediation Text -->
-    <div v-if="finding.remediation" class="remediation-section">
+    <div
+      v-if="finding.remediation"
+      class="remediation-section"
+    >
       <h5>Recommendation</h5>
-      <p class="remediation-text">{{ finding.remediation }}</p>
+      <p class="remediation-text">
+        {{ finding.remediation }}
+      </p>
     </div>
 
     <!-- Remediation Commands -->
-    <div v-if="hasCommands" class="remediation-section">
+    <div
+      v-if="hasCommands"
+      class="remediation-section"
+    >
       <h5>Remediation Commands</h5>
       <div class="commands-list">
         <div
@@ -16,8 +24,14 @@
           class="command-item"
         >
           <div class="command-header">
-            <Tag :value="cmd.type || 'command'" severity="info" />
-            <span v-if="cmd.description" class="command-description">{{ cmd.description }}</span>
+            <Tag
+              :value="cmd.type || 'command'"
+              severity="info"
+            />
+            <span
+              v-if="cmd.description"
+              class="command-description"
+            >{{ cmd.description }}</span>
             <Button
               icon="pi pi-copy"
               size="small"
@@ -25,13 +39,19 @@
               @click="copyToClipboard(cmd.command)"
             />
           </div>
-          <RemediationCode :code="cmd.command" :language="cmd.type" />
+          <RemediationCode
+            :code="cmd.command"
+            :language="cmd.type"
+          />
         </div>
       </div>
     </div>
 
     <!-- Remediation Code Snippets -->
-    <div v-if="hasCodeSnippets" class="remediation-section">
+    <div
+      v-if="hasCodeSnippets"
+      class="remediation-section"
+    >
       <h5>Code Snippets</h5>
       <TabView>
         <TabPanel
@@ -39,28 +59,44 @@
           :key="lang"
           :header="formatLanguage(lang)"
         >
-          <RemediationCode :code="code" :language="lang" />
+          <RemediationCode
+            :code="code"
+            :language="lang"
+          />
         </TabPanel>
       </TabView>
     </div>
 
     <!-- External Resources -->
-    <div v-if="hasResources" class="remediation-section">
+    <div
+      v-if="hasResources"
+      class="remediation-section"
+    >
       <h5>Additional Resources</h5>
       <ul class="resources-list">
-        <li v-for="(resource, index) in finding.remediation_resources" :key="index">
-          <a :href="resource.url" target="_blank" rel="noopener noreferrer">
-            <i :class="getResourceIcon(resource.type)"></i>
+        <li
+          v-for="(resource, index) in finding.remediation_resources"
+          :key="index"
+        >
+          <a
+            :href="resource.url"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            <i :class="getResourceIcon(resource.type)" />
             {{ resource.title }}
-            <i class="pi pi-external-link"></i>
+            <i class="pi pi-external-link" />
           </a>
         </li>
       </ul>
     </div>
 
     <!-- No Remediation Available -->
-    <div v-if="!hasAnyRemediation" class="no-remediation">
-      <i class="pi pi-info-circle"></i>
+    <div
+      v-if="!hasAnyRemediation"
+      class="no-remediation"
+    >
+      <i class="pi pi-info-circle" />
       No specific remediation guidance available for this finding.
       <p class="suggestion">
         Consider consulting the tool documentation or cloud provider best practices.
@@ -77,8 +113,8 @@ import RemediationCode from './RemediationCode.vue'
 const props = defineProps({
   finding: {
     type: Object,
-    required: true
-  }
+    required: true,
+  },
 })
 
 const toast = useToast()
@@ -114,7 +150,7 @@ const formatLanguage = (lang) => {
     kubectl: 'kubectl',
     python: 'Python',
     bash: 'Bash',
-    powershell: 'PowerShell'
+    powershell: 'PowerShell',
   }
   return langMap[lang] || lang.charAt(0).toUpperCase() + lang.slice(1)
 }
@@ -125,7 +161,7 @@ const getResourceIcon = (type) => {
     blog: 'pi pi-file',
     video: 'pi pi-video',
     github: 'pi pi-github',
-    default: 'pi pi-link'
+    default: 'pi pi-link',
   }
   return iconMap[type] || iconMap.default
 }
@@ -137,14 +173,14 @@ const copyToClipboard = async (text) => {
       severity: 'success',
       summary: 'Copied',
       detail: 'Command copied to clipboard',
-      life: 2000
+      life: 2000,
     })
   } catch (err) {
     toast.add({
       severity: 'error',
       summary: 'Error',
       detail: 'Failed to copy to clipboard',
-      life: 3000
+      life: 3000,
     })
   }
 }

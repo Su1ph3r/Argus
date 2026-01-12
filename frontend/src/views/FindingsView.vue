@@ -20,10 +20,17 @@
 
     <FindingFilters @filter-change="handleFilterChange" />
 
-    <div v-if="findingsStore.error" class="error-message">
-      <i class="pi pi-exclamation-triangle"></i>
+    <div
+      v-if="findingsStore.error"
+      class="error-message"
+    >
+      <i class="pi pi-exclamation-triangle" />
       {{ findingsStore.error }}
-      <Button label="Retry" size="small" @click="loadFindings" />
+      <Button
+        label="Retry"
+        size="small"
+        @click="loadFindings"
+      />
     </div>
 
     <FindingsTable

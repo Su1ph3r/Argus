@@ -13,23 +13,23 @@ export const usePrivescPathsStore = defineStore('privescPaths', () => {
   const pagination = ref({
     page: 1,
     pageSize: 50,
-    total: 0
+    total: 0,
   })
   const filters = ref({
     minRiskScore: null,
     escalationMethod: null,
     cloudProvider: null,
     exploitability: null,
-    status: 'open'
+    status: 'open',
   })
 
   // Getters
   const criticalPaths = computed(() =>
-    paths.value.filter(p => p.risk_score >= 80)
+    paths.value.filter(p => p.risk_score >= 80),
   )
 
   const highRiskPaths = computed(() =>
-    paths.value.filter(p => p.risk_score >= 60 && p.risk_score < 80)
+    paths.value.filter(p => p.risk_score >= 60 && p.risk_score < 80),
   )
 
   // Actions
@@ -106,7 +106,7 @@ export const usePrivescPathsStore = defineStore('privescPaths', () => {
   async function exportPath(pathId, format = 'markdown') {
     try {
       const response = await fetch(
-        `${API_BASE}/privesc-paths/${pathId}/export?format=${format}`
+        `${API_BASE}/privesc-paths/${pathId}/export?format=${format}`,
       )
       if (!response.ok) throw new Error('Export failed')
 
@@ -137,6 +137,6 @@ export const usePrivescPathsStore = defineStore('privescPaths', () => {
     fetchPath,
     fetchSummary,
     exportPath,
-    setFilters
+    setFilters,
   }
 })

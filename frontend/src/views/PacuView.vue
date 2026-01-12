@@ -3,17 +3,19 @@
     <div class="page-header">
       <div class="header-content">
         <h1>Pacu</h1>
-        <p class="subtitle">AWS exploitation framework results</p>
+        <p class="subtitle">
+          AWS exploitation framework results
+        </p>
       </div>
       <div class="header-actions">
         <Button
           v-if="!isRunning"
+          v-tooltip.left="!hasAwsCredentials ? 'Set up AWS credentials first' : ''"
           label="Run Module"
           icon="pi pi-play"
-          @click="showModuleDialog = true"
           :loading="store.loading"
           :disabled="!hasAwsCredentials"
-          v-tooltip.left="!hasAwsCredentials ? 'Set up AWS credentials first' : ''"
+          @click="showModuleDialog = true"
         />
         <Button
           v-else
@@ -26,38 +28,74 @@
     </div>
 
     <!-- No Credentials Warning -->
-    <div v-if="!hasAwsCredentials" class="no-credentials-warning">
-      <i class="pi pi-info-circle"></i>
+    <div
+      v-if="!hasAwsCredentials"
+      class="no-credentials-warning"
+    >
+      <i class="pi pi-info-circle" />
       <span>AWS credentials required. Go to <router-link to="/credentials">Credentials</router-link>, verify your credentials, and click "Use for Scans".</span>
     </div>
 
     <!-- Execution Status Panel -->
-    <div v-if="store.currentExecution" class="execution-panel" :class="executionStatusClass">
+    <div
+      v-if="store.currentExecution"
+      class="execution-panel"
+      :class="executionStatusClass"
+    >
       <div class="execution-header">
         <div class="execution-info">
-          <i :class="executionIcon" class="execution-icon"></i>
+          <i
+            :class="executionIcon"
+            class="execution-icon"
+          />
           <span class="execution-title">{{ executionTitle }}</span>
         </div>
         <div class="execution-meta">
-          <span v-if="store.currentExecution.execution_id" class="execution-id">
+          <span
+            v-if="store.currentExecution.execution_id"
+            class="execution-id"
+          >
             ID: {{ store.currentExecution.execution_id }}
           </span>
         </div>
       </div>
-      <div v-if="store.currentExecution.error" class="execution-error">
+      <div
+        v-if="store.currentExecution.error"
+        class="execution-error"
+      >
         {{ store.currentExecution.error }}
       </div>
-      <div v-if="executionLogs" class="execution-logs">
+      <div
+        v-if="executionLogs"
+        class="execution-logs"
+      >
         <pre>{{ executionLogs }}</pre>
       </div>
-      <div v-if="!isRunning" class="execution-actions">
-        <Button label="Dismiss" text size="small" @click="dismissExecution" />
-        <Button v-if="store.currentExecution.status === 'completed' || store.currentExecution.status === 'failed'" label="View Logs" size="small" @click="fetchExecutionLogs" />
+      <div
+        v-if="!isRunning"
+        class="execution-actions"
+      >
+        <Button
+          label="Dismiss"
+          text
+          size="small"
+          @click="dismissExecution"
+        />
+        <Button
+          v-if="store.currentExecution.status === 'completed' || store.currentExecution.status === 'failed'"
+          label="View Logs"
+          size="small"
+          @click="fetchExecutionLogs"
+        />
       </div>
     </div>
 
     <!-- Module Selection Dialog -->
-    <Dialog v-model:visible="showModuleDialog" header="Run Pacu Module" :style="{ width: '450px' }">
+    <Dialog
+      v-model:visible="showModuleDialog"
+      header="Run Pacu Module"
+      :style="{ width: '450px' }"
+    >
       <div class="module-form">
         <div class="field">
           <label for="module">Module</label>
@@ -71,18 +109,39 @@
         </div>
         <div class="field">
           <label for="session">Session Name</label>
-          <InputText id="session" v-model="sessionName" placeholder="api-session" class="w-full" />
+          <InputText
+            id="session"
+            v-model="sessionName"
+            placeholder="api-session"
+            class="w-full"
+          />
         </div>
       </div>
       <template #footer>
-        <Button label="Cancel" text @click="showModuleDialog = false" />
-        <Button label="Run" icon="pi pi-play" @click="runModule" :disabled="!selectedModule" />
+        <Button
+          label="Cancel"
+          text
+          @click="showModuleDialog = false"
+        />
+        <Button
+          label="Run"
+          icon="pi pi-play"
+          :disabled="!selectedModule"
+          @click="runModule"
+        />
       </template>
     </Dialog>
 
     <!-- Result Details Dialog -->
-    <Dialog v-model:visible="showResultDialog" header="Execution Details" :style="{ width: '700px' }">
-      <div v-if="selectedResult" class="result-details">
+    <Dialog
+      v-model:visible="showResultDialog"
+      header="Execution Details"
+      :style="{ width: '700px' }"
+    >
+      <div
+        v-if="selectedResult"
+        class="result-details"
+      >
         <div class="detail-grid">
           <div class="detail-item">
             <label>Module</label>
@@ -98,7 +157,10 @@
           </div>
           <div class="detail-item">
             <label>Status</label>
-            <Tag :severity="getStatusSeverity(selectedResult.execution_status)" :value="selectedResult.execution_status" />
+            <Tag
+              :severity="getStatusSeverity(selectedResult.execution_status)"
+              :value="selectedResult.execution_status"
+            />
           </div>
           <div class="detail-item">
             <label>Account ID</label>
@@ -117,33 +179,62 @@
             <span class="value mono">{{ selectedResult.result_id }}</span>
           </div>
         </div>
-        <div v-if="selectedResult.error_message" class="error-section">
+        <div
+          v-if="selectedResult.error_message"
+          class="error-section"
+        >
           <label>Error Details</label>
           <pre class="error-content">{{ selectedResult.error_message }}</pre>
         </div>
-        <div v-if="resultLogs" class="logs-section">
+        <div
+          v-if="resultLogs"
+          class="logs-section"
+        >
           <label>Execution Logs</label>
           <pre class="logs-content">{{ resultLogs }}</pre>
         </div>
       </div>
       <template #footer>
-        <Button label="View Logs" icon="pi pi-file" @click="fetchResultLogs" :loading="logsLoading" />
-        <Button label="Close" @click="showResultDialog = false" />
+        <Button
+          label="View Logs"
+          icon="pi pi-file"
+          :loading="logsLoading"
+          @click="fetchResultLogs"
+        />
+        <Button
+          label="Close"
+          @click="showResultDialog = false"
+        />
       </template>
     </Dialog>
 
-    <div v-if="store.summary" class="summary-cards">
+    <div
+      v-if="store.summary"
+      class="summary-cards"
+    >
       <div class="summary-card info">
-        <div class="card-value">{{ store.summary.total_executions }}</div>
-        <div class="card-label">Total Executions</div>
+        <div class="card-value">
+          {{ store.summary.total_executions }}
+        </div>
+        <div class="card-label">
+          Total Executions
+        </div>
       </div>
       <div class="summary-card success">
-        <div class="card-value">{{ store.summary.successful }}</div>
-        <div class="card-label">Successful</div>
+        <div class="card-value">
+          {{ store.summary.successful }}
+        </div>
+        <div class="card-label">
+          Successful
+        </div>
       </div>
       <div class="summary-card danger">
-        <div class="card-value">{{ store.summary.failed }}</div>
-        <div class="card-label">Failed</div>
+        <div class="card-value">
+          {{ store.summary.failed }}
+        </div>
+        <div class="card-label">
+          Failed
+        </div>
       </div>
     </div>
 
@@ -152,37 +243,62 @@
         v-model="filters.moduleCategory"
         :options="categoryOptions"
         placeholder="Category"
-        @change="applyFilters"
         class="filter-dropdown"
+        @change="applyFilters"
       />
       <Dropdown
         v-model="filters.executionStatus"
         :options="statusOptions"
         placeholder="Status"
-        @change="applyFilters"
         class="filter-dropdown"
+        @change="applyFilters"
       />
     </div>
 
     <DataTable
       :value="store.results"
       :loading="store.loading"
-      responsiveLayout="scroll"
+      responsive-layout="scroll"
       class="p-datatable-sm"
     >
-      <Column field="module_name" header="Module" />
-      <Column field="module_category" header="Category" />
-      <Column field="session_name" header="Session" />
-      <Column field="execution_status" header="Status">
+      <Column
+        field="module_name"
+        header="Module"
+      />
+      <Column
+        field="module_category"
+        header="Category"
+      />
+      <Column
+        field="session_name"
+        header="Session"
+      />
+      <Column
+        field="execution_status"
+        header="Status"
+      >
         <template #body="{ data }">
-          <Tag :severity="getStatusSeverity(data.execution_status)" :value="data.execution_status" />
+          <Tag
+            :severity="getStatusSeverity(data.execution_status)"
+            :value="data.execution_status"
+          />
         </template>
       </Column>
-      <Column field="resources_affected" header="Resources" />
-      <Column field="execution_time_ms" header="Duration (ms)" />
+      <Column
+        field="resources_affected"
+        header="Resources"
+      />
+      <Column
+        field="execution_time_ms"
+        header="Duration (ms)"
+      />
       <Column header="Actions">
         <template #body="{ data }">
-          <Button icon="pi pi-eye" text @click="viewResult(data)" />
+          <Button
+            icon="pi pi-eye"
+            text
+            @click="viewResult(data)"
+          />
         </template>
       </Column>
     </DataTable>
@@ -190,7 +306,7 @@
     <Paginator
       v-if="store.pagination.total > store.pagination.pageSize"
       :rows="store.pagination.pageSize"
-      :totalRecords="store.pagination.total"
+      :total-records="store.pagination.total"
       :first="(store.pagination.page - 1) * store.pagination.pageSize"
       @page="onPageChange"
     />
@@ -224,7 +340,7 @@ const hasAwsCredentials = computed(() => {
 
 const filters = ref({
   moduleCategory: null,
-  executionStatus: null
+  executionStatus: null,
 })
 
 const showModuleDialog = ref(false)
@@ -270,11 +386,11 @@ const pacuModules = [
   // EVADE
   'detection__enum_services',
   'cloudtrail__download_event_history',
-  'guardduty__list_findings'
+  'guardduty__list_findings',
 ]
 
 const isRunning = computed(() =>
-  store.currentExecution?.status === 'running'
+  store.currentExecution?.status === 'running',
 )
 
 const executionStatusClass = computed(() => {
@@ -283,7 +399,7 @@ const executionStatusClass = computed(() => {
     'status-running': status === 'running',
     'status-completed': status === 'completed',
     'status-failed': status === 'failed',
-    'status-pending': status === 'pending'
+    'status-pending': status === 'pending',
   }
 })
 
@@ -293,7 +409,7 @@ const executionIcon = computed(() => {
     running: 'pi pi-spin pi-spinner',
     completed: 'pi pi-check-circle',
     failed: 'pi pi-times-circle',
-    pending: 'pi pi-clock'
+    pending: 'pi pi-clock',
   }
   return icons[status] || 'pi pi-info-circle'
 })
@@ -304,7 +420,7 @@ const executionTitle = computed(() => {
     running: 'Pacu module running...',
     completed: 'Pacu module completed',
     failed: 'Pacu module failed',
-    pending: 'Pacu module pending'
+    pending: 'Pacu module pending',
   }
   return titles[status] || 'Pacu module'
 })
@@ -354,7 +470,7 @@ async function runModule() {
   executionLogs.value = null
   await store.runModule({
     module: selectedModule.value,
-    session_name: sessionName.value || 'api-session'
+    session_name: sessionName.value || 'api-session',
   })
 }
 

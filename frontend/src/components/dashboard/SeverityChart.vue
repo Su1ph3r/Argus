@@ -1,9 +1,20 @@
 <template>
   <div class="chart-container">
-    <h3 class="chart-title">{{ title }}</h3>
+    <h3 class="chart-title">
+      {{ title }}
+    </h3>
     <div class="chart-wrapper">
-      <Doughnut v-if="chartData.labels.length > 0" :data="chartData" :options="chartOptions" />
-      <div v-else class="no-data">No data available</div>
+      <Doughnut
+        v-if="chartData.labels.length > 0"
+        :data="chartData"
+        :options="chartOptions"
+      />
+      <div
+        v-else
+        class="no-data"
+      >
+        No data available
+      </div>
     </div>
   </div>
 </template>
@@ -15,7 +26,7 @@ import {
   Chart as ChartJS,
   ArcElement,
   Tooltip,
-  Legend
+  Legend,
 } from 'chart.js'
 
 ChartJS.register(ArcElement, Tooltip, Legend)
@@ -23,12 +34,12 @@ ChartJS.register(ArcElement, Tooltip, Legend)
 const props = defineProps({
   title: {
     type: String,
-    default: 'Findings by Severity'
+    default: 'Findings by Severity',
   },
   data: {
     type: Array,
-    default: () => []
-  }
+    default: () => [],
+  },
 })
 
 const chartData = computed(() => ({
@@ -36,8 +47,8 @@ const chartData = computed(() => ({
   datasets: [{
     data: props.data.map(item => item.value),
     backgroundColor: props.data.map(item => item.color || '#667eea'),
-    borderWidth: 0
-  }]
+    borderWidth: 0,
+  }],
 }))
 
 const chartOptions = {
@@ -50,9 +61,9 @@ const chartOptions = {
         padding: 20,
         usePointStyle: true,
         font: {
-          size: 12
-        }
-      }
+          size: 12,
+        },
+      },
     },
     tooltip: {
       callbacks: {
@@ -60,11 +71,11 @@ const chartOptions = {
           const total = context.dataset.data.reduce((a, b) => a + b, 0)
           const percentage = ((context.raw / total) * 100).toFixed(1)
           return `${context.label}: ${context.raw} (${percentage}%)`
-        }
-      }
-    }
+        },
+      },
+    },
   },
-  cutout: '60%'
+  cutout: '60%',
 }
 </script>
 

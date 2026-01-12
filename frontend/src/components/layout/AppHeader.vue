@@ -3,14 +3,48 @@
     <div class="header-content">
       <div class="logo">
         <div class="logo-icon">
-          <svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <rect width="32" height="32" rx="8" fill="url(#logo-gradient)"/>
-            <path d="M8 16L12 12L16 16L20 12L24 16" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-            <path d="M8 20L12 16L16 20L20 16L24 20" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" opacity="0.6"/>
+          <svg
+            width="32"
+            height="32"
+            viewBox="0 0 32 32"
+            fill="none"
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            <rect
+              width="32"
+              height="32"
+              rx="8"
+              fill="url(#logo-gradient)"
+            />
+            <path
+              d="M8 16L12 12L16 16L20 12L24 16"
+              stroke="white"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            />
+            <path
+              d="M8 20L12 16L16 20L20 16L24 20"
+              stroke="white"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              opacity="0.6"
+            />
             <defs>
-              <linearGradient id="logo-gradient" x1="0" y1="0" x2="32" y2="32" gradientUnits="userSpaceOnUse">
-                <stop stop-color="#6366f1"/>
-                <stop offset="1" stop-color="#8b5cf6"/>
+              <linearGradient
+                id="logo-gradient"
+                x1="0"
+                y1="0"
+                x2="32"
+                y2="32"
+                gradientUnits="userSpaceOnUse"
+              >
+                <stop stop-color="#6366f1" />
+                <stop
+                  offset="1"
+                  stop-color="#8b5cf6"
+                />
               </linearGradient>
             </defs>
           </svg>
@@ -22,97 +56,177 @@
       </div>
 
       <nav class="nav-links">
-        <router-link to="/" class="nav-link" :class="{ active: $route.path === '/' }">
-          <i class="pi pi-chart-bar"></i>
+        <router-link
+          to="/"
+          class="nav-link"
+          :class="{ active: $route.path === '/' }"
+        >
+          <i class="pi pi-chart-bar" />
           <span>Dashboard</span>
         </router-link>
-        <router-link to="/findings" class="nav-link" :class="{ active: $route.path.startsWith('/findings') }">
-          <i class="pi pi-list"></i>
+        <router-link
+          to="/findings"
+          class="nav-link"
+          :class="{ active: $route.path.startsWith('/findings') }"
+        >
+          <i class="pi pi-list" />
           <span>Findings</span>
         </router-link>
-        <router-link to="/attack-paths" class="nav-link" :class="{ active: $route.path.startsWith('/attack-paths') }">
-          <i class="pi pi-sitemap"></i>
+        <router-link
+          to="/attack-paths"
+          class="nav-link"
+          :class="{ active: $route.path.startsWith('/attack-paths') }"
+        >
+          <i class="pi pi-sitemap" />
           <span>Attack Paths</span>
         </router-link>
-        <div class="nav-dropdown" @mouseenter="showPentestMenu = true" @mouseleave="showPentestMenu = false">
-          <button class="nav-link" :class="{ active: isPentestRouteActive }">
-            <i class="pi pi-shield"></i>
+        <div
+          class="nav-dropdown"
+          @mouseenter="showPentestMenu = true"
+          @mouseleave="showPentestMenu = false"
+        >
+          <button
+            class="nav-link"
+            :class="{ active: isPentestRouteActive }"
+          >
+            <i class="pi pi-shield" />
             <span>Pentest</span>
-            <i class="pi pi-chevron-down dropdown-arrow"></i>
+            <i class="pi pi-chevron-down dropdown-arrow" />
           </button>
-          <div v-if="showPentestMenu" class="dropdown-menu">
-            <router-link to="/public-exposures" class="dropdown-item">
-              <i class="pi pi-globe"></i> Public Exposures
+          <div
+            v-if="showPentestMenu"
+            class="dropdown-menu"
+          >
+            <router-link
+              to="/public-exposures"
+              class="dropdown-item"
+            >
+              <i class="pi pi-globe" /> Public Exposures
             </router-link>
-            <router-link to="/exposed-credentials" class="dropdown-item">
-              <i class="pi pi-key"></i> Exposed Credentials
+            <router-link
+              to="/exposed-credentials"
+              class="dropdown-item"
+            >
+              <i class="pi pi-key" /> Exposed Credentials
             </router-link>
-            <router-link to="/severity-overrides" class="dropdown-item">
-              <i class="pi pi-sliders-h"></i> Severity Overrides
+            <router-link
+              to="/severity-overrides"
+              class="dropdown-item"
+            >
+              <i class="pi pi-sliders-h" /> Severity Overrides
             </router-link>
-            <router-link to="/privesc-paths" class="dropdown-item">
-              <i class="pi pi-arrow-up-right"></i> Privesc Paths
+            <router-link
+              to="/privesc-paths"
+              class="dropdown-item"
+            >
+              <i class="pi pi-arrow-up-right" /> Privesc Paths
             </router-link>
-            <router-link to="/imds-checks" class="dropdown-item">
-              <i class="pi pi-server"></i> IMDS Checks
+            <router-link
+              to="/imds-checks"
+              class="dropdown-item"
+            >
+              <i class="pi pi-server" /> IMDS Checks
             </router-link>
-            <div class="dropdown-divider"></div>
-            <router-link to="/cloudfox" class="dropdown-item">
-              <i class="pi pi-search"></i> CloudFox
+            <div class="dropdown-divider" />
+            <router-link
+              to="/cloudfox"
+              class="dropdown-item"
+            >
+              <i class="pi pi-search" /> CloudFox
             </router-link>
-            <router-link to="/pacu" class="dropdown-item">
-              <i class="pi pi-bolt"></i> Pacu
+            <router-link
+              to="/pacu"
+              class="dropdown-item"
+            >
+              <i class="pi pi-bolt" /> Pacu
             </router-link>
-            <router-link to="/enumerate-iam" class="dropdown-item">
-              <i class="pi pi-id-card"></i> enumerate-iam
+            <router-link
+              to="/enumerate-iam"
+              class="dropdown-item"
+            >
+              <i class="pi pi-id-card" /> enumerate-iam
             </router-link>
-            <div class="dropdown-divider"></div>
-            <router-link to="/assumed-roles" class="dropdown-item">
-              <i class="pi pi-share-alt"></i> Assumed Roles
+            <div class="dropdown-divider" />
+            <router-link
+              to="/assumed-roles"
+              class="dropdown-item"
+            >
+              <i class="pi pi-share-alt" /> Assumed Roles
             </router-link>
-            <router-link to="/lambda-analysis" class="dropdown-item">
-              <i class="pi pi-code"></i> Lambda Analysis
+            <router-link
+              to="/lambda-analysis"
+              class="dropdown-item"
+            >
+              <i class="pi pi-code" /> Lambda Analysis
             </router-link>
           </div>
         </div>
-        <div class="nav-dropdown" @mouseenter="showConfigMenu = true" @mouseleave="showConfigMenu = false">
-          <button class="nav-link" :class="{ active: isConfigRouteActive }">
-            <i class="pi pi-cog"></i>
+        <div
+          class="nav-dropdown"
+          @mouseenter="showConfigMenu = true"
+          @mouseleave="showConfigMenu = false"
+        >
+          <button
+            class="nav-link"
+            :class="{ active: isConfigRouteActive }"
+          >
+            <i class="pi pi-cog" />
             <span>Configuration</span>
-            <i class="pi pi-chevron-down dropdown-arrow"></i>
+            <i class="pi pi-chevron-down dropdown-arrow" />
           </button>
-          <div v-if="showConfigMenu" class="dropdown-menu">
-            <router-link to="/scans" class="dropdown-item">
-              <i class="pi pi-play"></i> Scans
+          <div
+            v-if="showConfigMenu"
+            class="dropdown-menu"
+          >
+            <router-link
+              to="/scans"
+              class="dropdown-item"
+            >
+              <i class="pi pi-play" /> Scans
             </router-link>
-            <router-link to="/credentials" class="dropdown-item">
-              <i class="pi pi-key"></i> Credentials
+            <router-link
+              to="/credentials"
+              class="dropdown-item"
+            >
+              <i class="pi pi-key" /> Credentials
             </router-link>
-            <router-link to="/settings" class="dropdown-item">
-              <i class="pi pi-sliders-h"></i> Settings
+            <router-link
+              to="/settings"
+              class="dropdown-item"
+            >
+              <i class="pi pi-sliders-h" /> Settings
             </router-link>
           </div>
         </div>
-        <a href="/reports/" class="nav-link" target="_blank" rel="noopener">
-          <i class="pi pi-folder"></i>
+        <a
+          href="/reports/"
+          class="nav-link"
+          target="_blank"
+          rel="noopener"
+        >
+          <i class="pi pi-folder" />
           <span>Reports</span>
         </a>
       </nav>
 
       <div class="header-actions">
-        <button class="theme-toggle" @click="toggleTheme" :title="themeLabel">
-          <i :class="themeIcon"></i>
+        <button
+          class="theme-toggle"
+          :title="themeLabel"
+          @click="toggleTheme"
+        >
+          <i :class="themeIcon" />
         </button>
         <Dropdown
           v-model="selectedExport"
           :options="exportOptions"
-          optionLabel="label"
+          option-label="label"
           placeholder="Export"
           class="export-dropdown"
           @change="handleExport"
         >
           <template #value="{ placeholder }">
-            <span class="export-trigger"><i class="pi pi-download"></i> {{ placeholder }}</span>
+            <span class="export-trigger"><i class="pi pi-download" /> {{ placeholder }}</span>
           </template>
         </Dropdown>
       </div>
@@ -143,13 +257,13 @@ const pentestRoutes = [
   '/pacu',
   '/enumerate-iam',
   '/assumed-roles',
-  '/lambda-analysis'
+  '/lambda-analysis',
 ]
 
 const configRoutes = [
   '/scans',
   '/credentials',
-  '/settings'
+  '/settings',
 ]
 
 const isPentestRouteActive = computed(() => {
@@ -163,7 +277,7 @@ const isConfigRouteActive = computed(() => {
 const exportOptions = [
   { label: 'Export CSV', value: 'csv' },
   { label: 'Export JSON', value: 'json' },
-  { label: 'Export PDF', value: 'pdf' }
+  { label: 'Export PDF', value: 'pdf' },
 ]
 
 const themeIcon = computed(() => {
@@ -195,7 +309,7 @@ const handleExport = (event) => {
       severity: 'info',
       summary: 'PDF Export',
       detail: 'PDF export will be available soon',
-      life: 3000
+      life: 3000,
     })
   }
 

@@ -3,49 +3,99 @@
     <div class="page-header">
       <div class="header-content">
         <h1>Privilege Escalation Paths</h1>
-        <p class="subtitle">IAM misconfigurations enabling privilege escalation</p>
+        <p class="subtitle">
+          IAM misconfigurations enabling privilege escalation
+        </p>
       </div>
     </div>
 
-    <div v-if="store.summary" class="summary-cards">
+    <div
+      v-if="store.summary"
+      class="summary-cards"
+    >
       <div class="summary-card critical">
-        <div class="card-value">{{ store.summary.critical_paths }}</div>
-        <div class="card-label">Critical</div>
+        <div class="card-value">
+          {{ store.summary.critical_paths }}
+        </div>
+        <div class="card-label">
+          Critical
+        </div>
       </div>
       <div class="summary-card high">
-        <div class="card-value">{{ store.summary.high_risk_paths }}</div>
-        <div class="card-label">High Risk</div>
+        <div class="card-value">
+          {{ store.summary.high_risk_paths }}
+        </div>
+        <div class="card-label">
+          High Risk
+        </div>
       </div>
       <div class="summary-card info">
-        <div class="card-value">{{ store.summary.total_paths }}</div>
-        <div class="card-label">Total</div>
+        <div class="card-value">
+          {{ store.summary.total_paths }}
+        </div>
+        <div class="card-label">
+          Total
+        </div>
       </div>
     </div>
 
     <DataTable
       :value="store.paths"
       :loading="store.loading"
-      responsiveLayout="scroll"
+      responsive-layout="scroll"
       class="p-datatable-sm"
     >
-      <Column field="escalation_method" header="Method" />
-      <Column field="source_principal_name" header="Source" />
-      <Column field="target_principal_name" header="Target" />
-      <Column field="cloud_provider" header="Provider" />
-      <Column field="risk_score" header="Risk Score">
+      <Column
+        field="escalation_method"
+        header="Method"
+      />
+      <Column
+        field="source_principal_name"
+        header="Source"
+      />
+      <Column
+        field="target_principal_name"
+        header="Target"
+      />
+      <Column
+        field="cloud_provider"
+        header="Provider"
+      />
+      <Column
+        field="risk_score"
+        header="Risk Score"
+      >
         <template #body="{ data }">
-          <ProgressBar :value="data.risk_score" :showValue="true" class="risk-bar" />
+          <ProgressBar
+            :value="data.risk_score"
+            :show-value="true"
+            class="risk-bar"
+          />
         </template>
       </Column>
-      <Column field="exploitability" header="Exploitability">
+      <Column
+        field="exploitability"
+        header="Exploitability"
+      >
         <template #body="{ data }">
-          <Tag :severity="getExploitSeverity(data.exploitability)" :value="data.exploitability" />
+          <Tag
+            :severity="getExploitSeverity(data.exploitability)"
+            :value="data.exploitability"
+          />
         </template>
       </Column>
       <Column header="Actions">
         <template #body="{ data }">
-          <Button icon="pi pi-eye" text @click="viewPath(data)" />
-          <Button icon="pi pi-download" text @click="exportPath(data.id)" />
+          <Button
+            icon="pi pi-eye"
+            text
+            @click="viewPath(data)"
+          />
+          <Button
+            icon="pi pi-download"
+            text
+            @click="exportPath(data.id)"
+          />
         </template>
       </Column>
     </DataTable>
@@ -53,7 +103,7 @@
     <Paginator
       v-if="store.pagination.total > store.pagination.pageSize"
       :rows="store.pagination.pageSize"
-      :totalRecords="store.pagination.total"
+      :total-records="store.pagination.total"
       :first="(store.pagination.page - 1) * store.pagination.pageSize"
       @page="onPageChange"
     />

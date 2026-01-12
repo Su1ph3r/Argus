@@ -4,40 +4,85 @@
     <div class="page-header">
       <div class="header-content">
         <h1>Attack Paths</h1>
-        <p class="subtitle">Discovered attack chains from entry points to targets</p>
+        <p class="subtitle">
+          Discovered attack chains from entry points to targets
+        </p>
       </div>
       <div class="header-actions">
         <Button
           label="Analyze"
           icon="pi pi-refresh"
           :loading="store.loading"
-          @click="runAnalysis"
           class="analyze-btn"
+          @click="runAnalysis"
         />
       </div>
     </div>
 
     <!-- Summary Cards -->
-    <div v-if="store.summary" class="summary-cards">
-      <div class="summary-card critical clickable" :class="{ active: selectedRiskLevel === 'critical' }" @click="filterByRisk('critical')">
-        <div class="card-value">{{ store.summary.critical_paths }}</div>
-        <div class="card-label">Critical Risk</div>
-        <div class="card-score">Score 80-100</div>
+    <div
+      v-if="store.summary"
+      class="summary-cards"
+    >
+      <div
+        class="summary-card critical clickable"
+        :class="{ active: selectedRiskLevel === 'critical' }"
+        @click="filterByRisk('critical')"
+      >
+        <div class="card-value">
+          {{ store.summary.critical_paths }}
+        </div>
+        <div class="card-label">
+          Critical Risk
+        </div>
+        <div class="card-score">
+          Score 80-100
+        </div>
       </div>
-      <div class="summary-card high clickable" :class="{ active: selectedRiskLevel === 'high' }" @click="filterByRisk('high')">
-        <div class="card-value">{{ store.summary.high_risk_paths }}</div>
-        <div class="card-label">High Risk</div>
-        <div class="card-score">Score 60-79</div>
+      <div
+        class="summary-card high clickable"
+        :class="{ active: selectedRiskLevel === 'high' }"
+        @click="filterByRisk('high')"
+      >
+        <div class="card-value">
+          {{ store.summary.high_risk_paths }}
+        </div>
+        <div class="card-label">
+          High Risk
+        </div>
+        <div class="card-score">
+          Score 60-79
+        </div>
       </div>
-      <div class="summary-card medium clickable" :class="{ active: selectedRiskLevel === 'medium' }" @click="filterByRisk('medium')">
-        <div class="card-value">{{ store.summary.medium_risk_paths }}</div>
-        <div class="card-label">Medium Risk</div>
-        <div class="card-score">Score 40-59</div>
+      <div
+        class="summary-card medium clickable"
+        :class="{ active: selectedRiskLevel === 'medium' }"
+        @click="filterByRisk('medium')"
+      >
+        <div class="card-value">
+          {{ store.summary.medium_risk_paths }}
+        </div>
+        <div class="card-label">
+          Medium Risk
+        </div>
+        <div class="card-score">
+          Score 40-59
+        </div>
       </div>
-      <div class="summary-card low clickable" :class="{ active: selectedRiskLevel === 'low' }" @click="filterByRisk('low')">
-        <div class="card-value">{{ store.summary.low_risk_paths }}</div>
-        <div class="card-label">Low Risk</div>
-        <div class="card-score">Score 0-39</div>
+      <div
+        class="summary-card low clickable"
+        :class="{ active: selectedRiskLevel === 'low' }"
+        @click="filterByRisk('low')"
+      >
+        <div class="card-value">
+          {{ store.summary.low_risk_paths }}
+        </div>
+        <div class="card-label">
+          Low Risk
+        </div>
+        <div class="card-score">
+          Score 0-39
+        </div>
       </div>
     </div>
 
@@ -48,8 +93,8 @@
         <Dropdown
           v-model="selectedRiskLevel"
           :options="riskScoreOptions"
-          optionLabel="label"
-          optionValue="value"
+          option-label="label"
+          option-value="value"
           placeholder="Any"
           class="filter-dropdown"
           @change="handleRiskDropdownChange"
@@ -60,8 +105,8 @@
         <Dropdown
           v-model="localFilters.exploitability"
           :options="exploitabilityOptions"
-          optionLabel="label"
-          optionValue="value"
+          option-label="label"
+          option-value="value"
           placeholder="Any"
           class="filter-dropdown"
           @change="applyFilters"
@@ -72,8 +117,8 @@
         <Dropdown
           v-model="localFilters.entryPointType"
           :options="entryPointOptions"
-          optionLabel="label"
-          optionValue="value"
+          option-label="label"
+          option-value="value"
           placeholder="Any"
           class="filter-dropdown"
           @change="applyFilters"
@@ -84,8 +129,8 @@
         <Dropdown
           v-model="localFilters.targetType"
           :options="targetOptions"
-          optionLabel="label"
-          optionValue="value"
+          option-label="label"
+          option-value="value"
           placeholder="Any"
           class="filter-dropdown"
           @change="applyFilters"
@@ -102,14 +147,20 @@
     </div>
 
     <!-- Loading State -->
-    <div v-if="store.loading && !store.paths.length" class="loading-state">
+    <div
+      v-if="store.loading && !store.paths.length"
+      class="loading-state"
+    >
       <ProgressSpinner />
       <p>Loading attack paths...</p>
     </div>
 
     <!-- Empty State -->
-    <div v-else-if="!store.paths.length" class="empty-state">
-      <i class="pi pi-shield empty-icon"></i>
+    <div
+      v-else-if="!store.paths.length"
+      class="empty-state"
+    >
+      <i class="pi pi-shield empty-icon" />
       <h3>No Attack Paths Discovered</h3>
       <p>Run the analyzer to discover attack paths from your security findings.</p>
       <Button
@@ -120,7 +171,10 @@
     </div>
 
     <!-- Attack Paths List -->
-    <div v-else class="paths-list">
+    <div
+      v-else
+      class="paths-list"
+    >
       <AttackPathCard
         v-for="path in store.paths"
         :key="path.id"
@@ -131,10 +185,13 @@
     </div>
 
     <!-- Pagination -->
-    <div v-if="store.pagination.total > store.pagination.pageSize" class="pagination">
+    <div
+      v-if="store.pagination.total > store.pagination.pageSize"
+      class="pagination"
+    >
       <Paginator
         :rows="store.pagination.pageSize"
-        :totalRecords="store.pagination.total"
+        :total-records="store.pagination.total"
         :first="(store.pagination.page - 1) * store.pagination.pageSize"
         @page="onPageChange"
       />
@@ -146,7 +203,7 @@
       :header="selectedPath?.name"
       :style="{ width: '90vw', maxWidth: '1000px' }"
       modal
-      dismissableMask
+      dismissable-mask
     >
       <AttackPathDetail
         v-if="selectedPath"
@@ -175,7 +232,7 @@ const localFilters = reactive({
   maxRiskScore: null,
   exploitability: null,
   entryPointType: null,
-  targetType: null
+  targetType: null,
 })
 
 // Track which risk level is selected for highlighting cards
@@ -187,14 +244,14 @@ const riskScoreOptions = [
   { label: 'Critical (80-100)', value: 'critical', min: 80, max: null },
   { label: 'High (60-79)', value: 'high', min: 60, max: 80 },
   { label: 'Medium (40-59)', value: 'medium', min: 40, max: 60 },
-  { label: 'Low (<40)', value: 'low', min: 0, max: 40 }
+  { label: 'Low (<40)', value: 'low', min: 0, max: 40 },
 ]
 
 const exploitabilityOptions = [
   { label: 'Any', value: null },
   { label: 'Confirmed', value: 'confirmed' },
   { label: 'Likely', value: 'likely' },
-  { label: 'Theoretical', value: 'theoretical' }
+  { label: 'Theoretical', value: 'theoretical' },
 ]
 
 const entryPointOptions = [
@@ -205,7 +262,7 @@ const entryPointOptions = [
   { label: 'Public RDS', value: 'public_rds' },
   { label: 'Security Group', value: 'public_security_group' },
   { label: 'Exposed Credentials', value: 'exposed_credentials' },
-  { label: 'Weak IAM Policy', value: 'weak_iam_policy' }
+  { label: 'Weak IAM Policy', value: 'weak_iam_policy' },
 ]
 
 const targetOptions = [
@@ -214,13 +271,13 @@ const targetOptions = [
   { label: 'Data Exfiltration', value: 'data_exfiltration' },
   { label: 'Persistence', value: 'persistence' },
   { label: 'Privilege Escalation', value: 'privilege_escalation' },
-  { label: 'Lateral Movement', value: 'lateral_movement' }
+  { label: 'Lateral Movement', value: 'lateral_movement' },
 ]
 
 onMounted(async () => {
   await Promise.all([
     store.fetchPaths(),
-    store.fetchSummary()
+    store.fetchSummary(),
   ])
 })
 
@@ -231,7 +288,7 @@ const applyFilters = () => {
     maxRiskScore: localFilters.maxRiskScore,
     exploitability: localFilters.exploitability,
     entryPointType: localFilters.entryPointType,
-    targetType: localFilters.targetType
+    targetType: localFilters.targetType,
   })
 }
 
@@ -248,25 +305,25 @@ const filterByRisk = (level) => {
 
     // Set exact ranges for each level
     switch (level) {
-      case 'critical':
-        localFilters.minRiskScore = 80
-        localFilters.maxRiskScore = null // 80-100
-        break
-      case 'high':
-        localFilters.minRiskScore = 60
-        localFilters.maxRiskScore = 80 // 60-79
-        break
-      case 'medium':
-        localFilters.minRiskScore = 40
-        localFilters.maxRiskScore = 60 // 40-59
-        break
-      case 'low':
-        localFilters.minRiskScore = 0
-        localFilters.maxRiskScore = 40 // 0-39
-        break
-      default:
-        localFilters.minRiskScore = null
-        localFilters.maxRiskScore = null
+    case 'critical':
+      localFilters.minRiskScore = 80
+      localFilters.maxRiskScore = null // 80-100
+      break
+    case 'high':
+      localFilters.minRiskScore = 60
+      localFilters.maxRiskScore = 80 // 60-79
+      break
+    case 'medium':
+      localFilters.minRiskScore = 40
+      localFilters.maxRiskScore = 60 // 40-59
+      break
+    case 'low':
+      localFilters.minRiskScore = 0
+      localFilters.maxRiskScore = 40 // 0-39
+      break
+    default:
+      localFilters.minRiskScore = null
+      localFilters.maxRiskScore = null
     }
   }
   applyFilters()
@@ -309,14 +366,14 @@ const runAnalysis = async () => {
       severity: 'success',
       summary: 'Analysis Complete',
       detail: `Discovered ${result.paths_discovered} attack paths in ${result.analysis_time_ms}ms`,
-      life: 5000
+      life: 5000,
     })
   } catch (e) {
     toast.add({
       severity: 'error',
       summary: 'Analysis Failed',
       detail: e.message,
-      life: 5000
+      life: 5000,
     })
   }
 }
@@ -335,14 +392,14 @@ const exportPath = async (path) => {
       severity: 'success',
       summary: 'Exported',
       detail: 'Attack path copied to clipboard as Markdown',
-      life: 3000
+      life: 3000,
     })
   } catch (e) {
     toast.add({
       severity: 'error',
       summary: 'Export Failed',
       detail: e.message,
-      life: 3000
+      life: 3000,
     })
   }
 }

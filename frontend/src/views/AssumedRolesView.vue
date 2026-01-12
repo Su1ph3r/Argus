@@ -3,25 +3,47 @@
     <div class="page-header">
       <div class="header-content">
         <h1>Assumed Role Mapper</h1>
-        <p class="subtitle">Role assumption relationships for visualization</p>
+        <p class="subtitle">
+          Role assumption relationships for visualization
+        </p>
       </div>
       <div class="header-actions">
-        <Button label="Sync to Neo4j" icon="pi pi-sync" @click="syncAll" :loading="store.loading" />
+        <Button
+          label="Sync to Neo4j"
+          icon="pi pi-sync"
+          :loading="store.loading"
+          @click="syncAll"
+        />
       </div>
     </div>
 
-    <div v-if="store.summary" class="summary-cards">
+    <div
+      v-if="store.summary"
+      class="summary-cards"
+    >
       <div class="summary-card info">
-        <div class="card-value">{{ store.summary.total_mappings }}</div>
-        <div class="card-label">Total Mappings</div>
+        <div class="card-value">
+          {{ store.summary.total_mappings }}
+        </div>
+        <div class="card-label">
+          Total Mappings
+        </div>
       </div>
       <div class="summary-card high">
-        <div class="card-value">{{ store.summary.cross_account }}</div>
-        <div class="card-label">Cross-Account</div>
+        <div class="card-value">
+          {{ store.summary.cross_account }}
+        </div>
+        <div class="card-label">
+          Cross-Account
+        </div>
       </div>
       <div class="summary-card medium">
-        <div class="card-value">{{ store.summary.external_id_required }}</div>
-        <div class="card-label">External ID Required</div>
+        <div class="card-value">
+          {{ store.summary.external_id_required }}
+        </div>
+        <div class="card-label">
+          External ID Required
+        </div>
       </div>
     </div>
 
@@ -36,31 +58,63 @@
     <DataTable
       :value="store.mappings"
       :loading="store.loading"
-      responsiveLayout="scroll"
+      responsive-layout="scroll"
       class="p-datatable-sm"
     >
-      <Column field="source_principal_name" header="Source" />
-      <Column field="source_principal_type" header="Source Type" />
-      <Column field="target_role_name" header="Target Role" />
-      <Column field="target_account_id" header="Target Account" />
-      <Column field="is_cross_account" header="Cross-Account">
+      <Column
+        field="source_principal_name"
+        header="Source"
+      />
+      <Column
+        field="source_principal_type"
+        header="Source Type"
+      />
+      <Column
+        field="target_role_name"
+        header="Target Role"
+      />
+      <Column
+        field="target_account_id"
+        header="Target Account"
+      />
+      <Column
+        field="is_cross_account"
+        header="Cross-Account"
+      >
         <template #body="{ data }">
-          <Tag :severity="data.is_cross_account ? 'warning' : 'secondary'" :value="data.is_cross_account ? 'Yes' : 'No'" />
+          <Tag
+            :severity="data.is_cross_account ? 'warning' : 'secondary'"
+            :value="data.is_cross_account ? 'Yes' : 'No'"
+          />
         </template>
       </Column>
-      <Column field="risk_level" header="Risk">
+      <Column
+        field="risk_level"
+        header="Risk"
+      >
         <template #body="{ data }">
-          <Tag :severity="getRiskSeverity(data.risk_level)" :value="data.risk_level" />
+          <Tag
+            :severity="getRiskSeverity(data.risk_level)"
+            :value="data.risk_level"
+          />
         </template>
       </Column>
-      <Column field="neo4j_synced" header="Synced">
+      <Column
+        field="neo4j_synced"
+        header="Synced"
+      >
         <template #body="{ data }">
           <i :class="data.neo4j_synced ? 'pi pi-check text-success' : 'pi pi-times text-danger'" />
         </template>
       </Column>
       <Column header="Actions">
         <template #body="{ data }">
-          <Button icon="pi pi-code" text @click="getCypher(data.id)" title="Get Cypher Query" />
+          <Button
+            icon="pi pi-code"
+            text
+            title="Get Cypher Query"
+            @click="getCypher(data.id)"
+          />
         </template>
       </Column>
     </DataTable>
@@ -68,7 +122,7 @@
     <Paginator
       v-if="store.pagination.total > store.pagination.pageSize"
       :rows="store.pagination.pageSize"
-      :totalRecords="store.pagination.total"
+      :total-records="store.pagination.total"
       :first="(store.pagination.page - 1) * store.pagination.pageSize"
       @page="onPageChange"
     />

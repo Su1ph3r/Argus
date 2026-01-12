@@ -12,15 +12,15 @@ export const useSeverityOverridesStore = defineStore('severityOverrides', () => 
   const pagination = ref({
     page: 1,
     pageSize: 50,
-    total: 0
+    total: 0,
   })
   const filters = ref({
-    approvalStatus: null
+    approvalStatus: null,
   })
 
   // Getters
   const pendingOverrides = computed(() =>
-    overrides.value.filter(o => o.approval_status === 'pending')
+    overrides.value.filter(o => o.approval_status === 'pending'),
   )
 
   // Actions
@@ -59,7 +59,7 @@ export const useSeverityOverridesStore = defineStore('severityOverrides', () => 
       const response = await fetch(`${API_BASE}/severity-overrides`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(override)
+        body: JSON.stringify(override),
       })
 
       if (!response.ok) {
@@ -87,9 +87,9 @@ export const useSeverityOverridesStore = defineStore('severityOverrides', () => 
           body: JSON.stringify({
             approved,
             approved_by: approvedBy,
-            notes
-          })
-        }
+            notes,
+          }),
+        },
       )
 
       if (!response.ok) throw new Error('Failed to process approval')
@@ -106,7 +106,7 @@ export const useSeverityOverridesStore = defineStore('severityOverrides', () => 
     try {
       const response = await fetch(
         `${API_BASE}/severity-overrides/${overrideId}`,
-        { method: 'DELETE' }
+        { method: 'DELETE' },
       )
 
       if (!response.ok) throw new Error('Failed to delete override')
@@ -143,6 +143,6 @@ export const useSeverityOverridesStore = defineStore('severityOverrides', () => 
     createOverride,
     approveOverride,
     deleteOverride,
-    getOverrideByFinding
+    getOverrideByFinding,
   }
 })

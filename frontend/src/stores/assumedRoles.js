@@ -13,19 +13,19 @@ export const useAssumedRolesStore = defineStore('assumedRoles', () => {
   const pagination = ref({
     page: 1,
     pageSize: 50,
-    total: 0
+    total: 0,
   })
   const filters = ref({
     cloudProvider: null,
     sourcePrincipalType: null,
     isCrossAccount: null,
     riskLevel: null,
-    neo4jSynced: null
+    neo4jSynced: null,
   })
 
   // Getters
   const crossAccountMappings = computed(() =>
-    mappings.value.filter(m => m.is_cross_account)
+    mappings.value.filter(m => m.is_cross_account),
   )
 
   // Actions
@@ -125,8 +125,8 @@ export const useAssumedRolesStore = defineStore('assumedRoles', () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           mapping_ids: mappingIds,
-          sync_all: syncAll
-        })
+          sync_all: syncAll,
+        }),
       })
 
       if (!response.ok) throw new Error('Failed to sync to Neo4j')
@@ -174,6 +174,6 @@ export const useAssumedRolesStore = defineStore('assumedRoles', () => {
     fetchSummary,
     syncToNeo4j,
     getNeo4jQuery,
-    setFilters
+    setFilters,
   }
 })

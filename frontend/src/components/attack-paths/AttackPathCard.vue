@@ -1,15 +1,29 @@
 <template>
-  <div class="attack-path-card" :class="riskClass" @click="$emit('view', path)">
+  <div
+    class="attack-path-card"
+    :class="riskClass"
+    @click="$emit('view', path)"
+  >
     <div class="card-header">
-      <div class="risk-badge" :class="riskClass">
+      <div
+        class="risk-badge"
+        :class="riskClass"
+      >
         <span class="risk-score">{{ path.risk_score }}</span>
         <span class="risk-label">Risk</span>
       </div>
       <div class="path-info">
-        <h3 class="path-name">{{ path.name }}</h3>
-        <p class="path-description">{{ path.description }}</p>
+        <h3 class="path-name">
+          {{ path.name }}
+        </h3>
+        <p class="path-description">
+          {{ path.description }}
+        </p>
       </div>
-      <div class="card-actions" @click.stop>
+      <div
+        class="card-actions"
+        @click.stop
+      >
         <Button
           icon="pi pi-copy"
           severity="secondary"
@@ -33,41 +47,63 @@
       <!-- Path visualization -->
       <div class="path-flow">
         <div class="flow-node entry">
-          <i class="pi pi-sign-in"></i>
+          <i class="pi pi-sign-in" />
           <span>{{ formatEntryPoint(path.entry_point_type) }}</span>
         </div>
         <div class="flow-arrow">
           <span class="hop-count">{{ path.hop_count }} hop{{ path.hop_count !== 1 ? 's' : '' }}</span>
         </div>
         <div class="flow-node target">
-          <i class="pi pi-bullseye"></i>
+          <i class="pi pi-bullseye" />
           <span>{{ formatTarget(path.target_type) }}</span>
         </div>
       </div>
 
       <!-- Metadata tags -->
       <div class="card-tags">
-        <span class="tag exploitability" :class="path.exploitability">
+        <span
+          class="tag exploitability"
+          :class="path.exploitability"
+        >
           {{ path.exploitability }}
         </span>
-        <span class="tag impact" :class="path.impact">
+        <span
+          class="tag impact"
+          :class="path.impact"
+        >
           {{ path.impact }} impact
         </span>
-        <span v-if="path.poc_available" class="tag poc">
-          <i class="pi pi-code"></i> PoC Available
+        <span
+          v-if="path.poc_available"
+          class="tag poc"
+        >
+          <i class="pi pi-code" /> PoC Available
         </span>
-        <span v-if="path.requires_authentication" class="tag auth">
-          <i class="pi pi-lock"></i> Auth Required
+        <span
+          v-if="path.requires_authentication"
+          class="tag auth"
+        >
+          <i class="pi pi-lock" /> Auth Required
         </span>
       </div>
 
       <!-- AWS Services -->
-      <div v-if="path.aws_services && path.aws_services.length" class="services-row">
+      <div
+        v-if="path.aws_services && path.aws_services.length"
+        class="services-row"
+      >
         <span class="services-label">Services:</span>
-        <span v-for="service in path.aws_services.slice(0, 5)" :key="service" class="service-tag">
+        <span
+          v-for="service in path.aws_services.slice(0, 5)"
+          :key="service"
+          class="service-tag"
+        >
           {{ service }}
         </span>
-        <span v-if="path.aws_services.length > 5" class="service-more">
+        <span
+          v-if="path.aws_services.length > 5"
+          class="service-more"
+        >
           +{{ path.aws_services.length - 5 }} more
         </span>
       </div>
@@ -81,8 +117,8 @@ import { computed } from 'vue'
 const props = defineProps({
   path: {
     type: Object,
-    required: true
-  }
+    required: true,
+  },
 })
 
 defineEmits(['view', 'export'])
@@ -102,7 +138,7 @@ const formatEntryPoint = (type) => {
     'public_rds': 'Public RDS',
     'public_security_group': 'Open SG',
     'exposed_credentials': 'Exposed Creds',
-    'weak_iam_policy': 'Weak IAM'
+    'weak_iam_policy': 'Weak IAM',
   }
   return labels[type] || type
 }
@@ -113,7 +149,7 @@ const formatTarget = (type) => {
     'data_exfiltration': 'Data Exfil',
     'persistence': 'Persistence',
     'privilege_escalation': 'Priv Esc',
-    'lateral_movement': 'Lateral Move'
+    'lateral_movement': 'Lateral Move',
   }
   return labels[type] || type
 }

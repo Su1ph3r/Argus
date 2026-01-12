@@ -13,19 +13,19 @@ export const useExposedCredentialsStore = defineStore('exposedCredentials', () =
   const pagination = ref({
     page: 1,
     pageSize: 50,
-    total: 0
+    total: 0,
   })
   const filters = ref({
     credentialType: null,
     sourceType: null,
     cloudProvider: null,
     isActive: null,
-    remediationStatus: null
+    remediationStatus: null,
   })
 
   // Getters
   const activeCredentials = computed(() =>
-    credentials.value.filter(c => c.is_active)
+    credentials.value.filter(c => c.is_active),
   )
 
   // Actions
@@ -108,9 +108,9 @@ export const useExposedCredentialsStore = defineStore('exposedCredentials', () =
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             remediation_status: status,
-            remediation_notes: notes
-          })
-        }
+            remediation_notes: notes,
+          }),
+        },
       )
       if (!response.ok) throw new Error('Failed to update remediation')
 
@@ -141,6 +141,6 @@ export const useExposedCredentialsStore = defineStore('exposedCredentials', () =
     fetchCredential,
     fetchSummary,
     updateRemediation,
-    setFilters
+    setFilters,
   }
 })

@@ -16,19 +16,19 @@ export const useEnumerateIamStore = defineStore('enumerateIam', () => {
   const pagination = ref({
     page: 1,
     pageSize: 50,
-    total: 0
+    total: 0,
   })
   const filters = ref({
     principalType: null,
     privescCapable: null,
-    adminCapable: null
+    adminCapable: null,
   })
 
   // Getters
   const highRiskPrincipals = computed(() =>
     results.value.filter(r =>
-      r.privesc_capable || r.admin_capable || r.data_access_capable
-    )
+      r.privesc_capable || r.admin_capable || r.data_access_capable,
+    ),
   )
 
   // Actions
@@ -134,7 +134,7 @@ export const useEnumerateIamStore = defineStore('enumerateIam', () => {
       const response = await fetch(`${API_BASE}/enumerate-iam/run`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(requestWithCreds)
+        body: JSON.stringify(requestWithCreds),
       })
 
       if (!response.ok) throw new Error('Failed to run enumerate-iam')
@@ -203,6 +203,6 @@ export const useEnumerateIamStore = defineStore('enumerateIam', () => {
     runEnumeration,
     stopCurrentExecution,
     getExecutionLogs,
-    setFilters
+    setFilters,
   }
 })

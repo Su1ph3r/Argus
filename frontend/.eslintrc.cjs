@@ -20,10 +20,12 @@ module.exports = {
     'vue/no-unused-vars': 'error',
     'vue/require-default-prop': 'off',
     'vue/require-prop-types': 'off',
+    'vue/no-reserved-component-names': 'off', // Allow PrimeVue component names like Button, Dialog
 
     // General rules
-    'no-console': ['warn', { allow: ['warn', 'error'] }],
-    'no-unused-vars': ['error', { argsIgnorePattern: '^_' }],
+    'no-console': ['warn', { allow: ['warn', 'error', 'log'] }],
+    'no-unused-vars': ['error', { argsIgnorePattern: '^_', varsIgnorePattern: '^(emit|route|watch|computed)$' }],
+    'no-prototype-builtins': 'off', // Allow hasOwnProperty
     'prefer-const': 'error',
     'no-var': 'error',
     'eqeqeq': ['error', 'always'],

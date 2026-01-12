@@ -3,15 +3,17 @@
     <div class="page-header">
       <div class="header-content">
         <h1>Lambda Code Analysis</h1>
-        <p class="subtitle">Serverless function security analysis</p>
+        <p class="subtitle">
+          Serverless function security analysis
+        </p>
       </div>
       <div class="header-actions">
         <Button
           v-if="!isRunning"
           label="Analyze All"
           icon="pi pi-search"
-          @click="runAnalysis"
           :loading="store.loading"
+          @click="runAnalysis"
         />
         <Button
           v-else
@@ -24,46 +26,94 @@
     </div>
 
     <!-- Execution Status Panel -->
-    <div v-if="store.currentExecution" class="execution-panel" :class="executionStatusClass">
+    <div
+      v-if="store.currentExecution"
+      class="execution-panel"
+      :class="executionStatusClass"
+    >
       <div class="execution-header">
         <div class="execution-info">
-          <i :class="executionIcon" class="execution-icon"></i>
+          <i
+            :class="executionIcon"
+            class="execution-icon"
+          />
           <span class="execution-title">{{ executionTitle }}</span>
         </div>
         <div class="execution-meta">
-          <span v-if="store.currentExecution.execution_id" class="execution-id">
+          <span
+            v-if="store.currentExecution.execution_id"
+            class="execution-id"
+          >
             ID: {{ store.currentExecution.execution_id }}
           </span>
         </div>
       </div>
-      <div v-if="store.currentExecution.error" class="execution-error">
+      <div
+        v-if="store.currentExecution.error"
+        class="execution-error"
+      >
         {{ store.currentExecution.error }}
       </div>
-      <div v-if="executionLogs" class="execution-logs">
+      <div
+        v-if="executionLogs"
+        class="execution-logs"
+      >
         <pre>{{ executionLogs }}</pre>
       </div>
-      <div v-if="!isRunning" class="execution-actions">
-        <Button label="Dismiss" text size="small" @click="dismissExecution" />
-        <Button v-if="store.currentExecution.status === 'completed'" label="View Results" size="small" @click="store.fetchAnalyses()" />
+      <div
+        v-if="!isRunning"
+        class="execution-actions"
+      >
+        <Button
+          label="Dismiss"
+          text
+          size="small"
+          @click="dismissExecution"
+        />
+        <Button
+          v-if="store.currentExecution.status === 'completed'"
+          label="View Results"
+          size="small"
+          @click="store.fetchAnalyses()"
+        />
       </div>
     </div>
 
-    <div v-if="store.summary" class="summary-cards">
+    <div
+      v-if="store.summary"
+      class="summary-cards"
+    >
       <div class="summary-card info">
-        <div class="card-value">{{ store.summary.total_functions }}</div>
-        <div class="card-label">Total Functions</div>
+        <div class="card-value">
+          {{ store.summary.total_functions }}
+        </div>
+        <div class="card-label">
+          Total Functions
+        </div>
       </div>
       <div class="summary-card critical">
-        <div class="card-value">{{ store.summary.functions_with_secrets }}</div>
-        <div class="card-label">With Secrets</div>
+        <div class="card-value">
+          {{ store.summary.functions_with_secrets }}
+        </div>
+        <div class="card-label">
+          With Secrets
+        </div>
       </div>
       <div class="summary-card high">
-        <div class="card-value">{{ store.summary.functions_with_vulns }}</div>
-        <div class="card-label">With Vulns</div>
+        <div class="card-value">
+          {{ store.summary.functions_with_vulns }}
+        </div>
+        <div class="card-label">
+          With Vulns
+        </div>
       </div>
       <div class="summary-card medium">
-        <div class="card-value">{{ store.summary.high_risk }}</div>
-        <div class="card-label">High Risk</div>
+        <div class="card-value">
+          {{ store.summary.high_risk }}
+        </div>
+        <div class="card-label">
+          High Risk
+        </div>
       </div>
     </div>
 
@@ -72,15 +122,15 @@
         v-model="filters.runtime"
         :options="runtimes"
         placeholder="Runtime"
-        @change="applyFilters"
         class="filter-dropdown"
+        @change="applyFilters"
       />
       <Dropdown
         v-model="filters.riskLevel"
         :options="riskLevels"
         placeholder="Risk Level"
-        @change="applyFilters"
         class="filter-dropdown"
+        @change="applyFilters"
       />
       <Button
         :label="showWithSecretsOnly ? 'Show All' : 'Show With Secrets'"
@@ -92,34 +142,72 @@
     <DataTable
       :value="store.analyses"
       :loading="store.loading"
-      responsiveLayout="scroll"
+      responsive-layout="scroll"
       class="p-datatable-sm"
     >
-      <Column field="function_name" header="Function" />
-      <Column field="runtime" header="Runtime" />
-      <Column field="region" header="Region" />
-      <Column field="risk_score" header="Risk Score">
+      <Column
+        field="function_name"
+        header="Function"
+      />
+      <Column
+        field="runtime"
+        header="Runtime"
+      />
+      <Column
+        field="region"
+        header="Region"
+      />
+      <Column
+        field="risk_score"
+        header="Risk Score"
+      >
         <template #body="{ data }">
-          <ProgressBar :value="data.risk_score" :showValue="true" class="risk-bar" />
+          <ProgressBar
+            :value="data.risk_score"
+            :show-value="true"
+            class="risk-bar"
+          />
         </template>
       </Column>
-      <Column field="risk_level" header="Risk">
+      <Column
+        field="risk_level"
+        header="Risk"
+      >
         <template #body="{ data }">
-          <Tag :severity="getRiskSeverity(data.risk_level)" :value="data.risk_level" />
+          <Tag
+            :severity="getRiskSeverity(data.risk_level)"
+            :value="data.risk_level"
+          />
         </template>
       </Column>
       <Column header="Issues">
         <template #body="{ data }">
           <span class="issue-badges">
-            <Tag v-if="data.secrets_found && data.secrets_found.length" severity="danger" value="Secrets" />
-            <Tag v-if="data.vulnerable_dependencies && data.vulnerable_dependencies.length" severity="warning" value="Vulns" />
+            <Tag
+              v-if="data.secrets_found && data.secrets_found.length"
+              severity="danger"
+              value="Secrets"
+            />
+            <Tag
+              v-if="data.vulnerable_dependencies && data.vulnerable_dependencies.length"
+              severity="warning"
+              value="Vulns"
+            />
           </span>
         </template>
       </Column>
       <Column header="Actions">
         <template #body="{ data }">
-          <Button icon="pi pi-eye" text @click="viewAnalysis(data.id)" />
-          <Button icon="pi pi-download" text @click="exportAnalysis(data.id)" />
+          <Button
+            icon="pi pi-eye"
+            text
+            @click="viewAnalysis(data.id)"
+          />
+          <Button
+            icon="pi pi-download"
+            text
+            @click="exportAnalysis(data.id)"
+          />
         </template>
       </Column>
     </DataTable>
@@ -127,7 +215,7 @@
     <Paginator
       v-if="store.pagination.total > store.pagination.pageSize"
       :rows="store.pagination.pageSize"
-      :totalRecords="store.pagination.total"
+      :total-records="store.pagination.total"
       :first="(store.pagination.page - 1) * store.pagination.pageSize"
       @page="onPageChange"
     />
@@ -153,14 +241,14 @@ const executionLogs = ref(null)
 
 const filters = ref({
   runtime: null,
-  riskLevel: null
+  riskLevel: null,
 })
 
 const runtimes = ['python3.11', 'python3.10', 'python3.9', 'nodejs18.x', 'nodejs16.x', 'java17', 'go1.x']
 const riskLevels = ['critical', 'high', 'medium', 'low']
 
 const isRunning = computed(() =>
-  store.currentExecution?.status === 'running'
+  store.currentExecution?.status === 'running',
 )
 
 const executionStatusClass = computed(() => {
@@ -169,7 +257,7 @@ const executionStatusClass = computed(() => {
     'status-running': status === 'running',
     'status-completed': status === 'completed',
     'status-failed': status === 'failed',
-    'status-pending': status === 'pending'
+    'status-pending': status === 'pending',
   }
 })
 
@@ -179,7 +267,7 @@ const executionIcon = computed(() => {
     running: 'pi pi-spin pi-spinner',
     completed: 'pi pi-check-circle',
     failed: 'pi pi-times-circle',
-    pending: 'pi pi-clock'
+    pending: 'pi pi-clock',
   }
   return icons[status] || 'pi pi-info-circle'
 })
@@ -190,7 +278,7 @@ const executionTitle = computed(() => {
     running: 'Lambda analysis running...',
     completed: 'Lambda analysis completed',
     failed: 'Lambda analysis failed',
-    pending: 'Lambda analysis pending'
+    pending: 'Lambda analysis pending',
   }
   return titles[status] || 'Lambda analysis'
 })

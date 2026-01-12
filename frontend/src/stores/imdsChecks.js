@@ -15,14 +15,14 @@ export const useImdsChecksStore = defineStore('imdsChecks', () => {
   const pagination = ref({
     page: 1,
     pageSize: 50,
-    total: 0
+    total: 0,
   })
   const filters = ref({
     cloudProvider: null,
     region: null,
     imdsV1Enabled: null,
     ssrfVulnerable: null,
-    riskLevel: null
+    riskLevel: null,
   })
 
   // Getters
@@ -30,8 +30,8 @@ export const useImdsChecksStore = defineStore('imdsChecks', () => {
     checks.value.filter(c =>
       c.imds_v1_enabled ||
       c.ssrf_vulnerable ||
-      c.container_credential_exposure
-    )
+      c.container_credential_exposure,
+    ),
   )
 
   // Actions
@@ -113,7 +113,7 @@ export const useImdsChecksStore = defineStore('imdsChecks', () => {
     try {
       const response = await fetch(
         `${API_BASE}/imds-checks/${checkId}/remediation?status=${status}`,
-        { method: 'PATCH' }
+        { method: 'PATCH' },
       )
       if (!response.ok) throw new Error('Failed to update remediation')
 
@@ -133,7 +133,7 @@ export const useImdsChecksStore = defineStore('imdsChecks', () => {
       const response = await fetch(`${API_BASE}/imds-checks/scan`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(request)
+        body: JSON.stringify(request),
       })
 
       if (!response.ok) throw new Error('Failed to run IMDS check')
@@ -202,6 +202,6 @@ export const useImdsChecksStore = defineStore('imdsChecks', () => {
     runScan,
     stopCurrentExecution,
     getExecutionLogs,
-    setFilters
+    setFilters,
   }
 })

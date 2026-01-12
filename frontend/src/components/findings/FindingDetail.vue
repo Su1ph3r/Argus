@@ -1,9 +1,12 @@
 <template>
   <div class="finding-detail">
     <!-- Detected By Section -->
-    <div v-if="finding.tool_sources && finding.tool_sources.length > 0" class="detail-section tools-section">
+    <div
+      v-if="finding.tool_sources && finding.tool_sources.length > 0"
+      class="detail-section tools-section"
+    >
       <h4>
-        <i class="pi pi-search"></i>
+        <i class="pi pi-search" />
         Detected By
       </h4>
       <div class="tool-badges">
@@ -20,16 +23,18 @@
     <!-- Description Section -->
     <div class="detail-section">
       <h4>
-        <i class="pi pi-file-edit"></i>
+        <i class="pi pi-file-edit" />
         Description
       </h4>
-      <p class="description">{{ finding.description || 'No description available' }}</p>
+      <p class="description">
+        {{ finding.description || 'No description available' }}
+      </p>
     </div>
 
     <!-- Resource Details -->
     <div class="detail-section">
       <h4>
-        <i class="pi pi-server"></i>
+        <i class="pi pi-server" />
         Resource Details
       </h4>
       <div class="detail-grid">
@@ -61,9 +66,12 @@
     </div>
 
     <!-- Affected Resources Section -->
-    <div v-if="finding.affected_resources && finding.affected_resources.length > 0" class="detail-section">
+    <div
+      v-if="finding.affected_resources && finding.affected_resources.length > 0"
+      class="detail-section"
+    >
       <h4>
-        <i class="pi pi-list"></i>
+        <i class="pi pi-list" />
         Affected Resources
         <span class="count-badge">{{ finding.affected_count || finding.affected_resources.length }}</span>
       </h4>
@@ -76,16 +84,32 @@
         >
           <div class="resource-header">
             <div class="resource-id">
-              <i class="pi pi-chevron-right" :class="{ 'expanded': expandedResources.includes(index) }"></i>
+              <i
+                class="pi pi-chevron-right"
+                :class="{ 'expanded': expandedResources.includes(index) }"
+              />
               {{ resource.id }}
             </div>
             <div class="resource-meta">
-              <span v-if="resource.name && resource.name !== resource.id" class="meta-tag">{{ resource.name }}</span>
-              <span v-if="resource.region" class="meta-tag region">{{ resource.region }}</span>
-              <span v-if="resource.type" class="meta-tag type">{{ resource.type }}</span>
+              <span
+                v-if="resource.name && resource.name !== resource.id"
+                class="meta-tag"
+              >{{ resource.name }}</span>
+              <span
+                v-if="resource.region"
+                class="meta-tag region"
+              >{{ resource.region }}</span>
+              <span
+                v-if="resource.type"
+                class="meta-tag type"
+              >{{ resource.type }}</span>
             </div>
           </div>
-          <div v-if="expandedResources.includes(index)" class="resource-poc" @click.stop>
+          <div
+            v-if="expandedResources.includes(index)"
+            class="resource-poc"
+            @click.stop
+          >
             <h5>Proof of Concept for this Resource</h5>
             <div class="poc-content">
               <pre v-if="resource.poc_output">{{ resource.poc_output }}</pre>
@@ -93,7 +117,10 @@
                 <strong>Verification Command:</strong>
                 <code>{{ finding.poc_verification.replace('{resource_id}', resource.id) }}</code>
               </p>
-              <p v-else class="no-poc">
+              <p
+                v-else
+                class="no-poc"
+              >
                 Run verification command to generate PoC for this specific resource.
               </p>
             </div>
@@ -103,9 +130,12 @@
     </div>
 
     <!-- PoC Evidence Section -->
-    <div v-if="hasPocEvidence" class="detail-section">
+    <div
+      v-if="hasPocEvidence"
+      class="detail-section"
+    >
       <h4>
-        <i class="pi pi-eye"></i>
+        <i class="pi pi-eye" />
         Proof of Concept Evidence
       </h4>
       <PocEvidence :finding="finding" />
@@ -114,7 +144,7 @@
     <!-- Remediation Section -->
     <div class="detail-section">
       <h4>
-        <i class="pi pi-wrench"></i>
+        <i class="pi pi-wrench" />
         Remediation
       </h4>
       <RemediationPanel :finding="finding" />
@@ -123,7 +153,7 @@
     <!-- Metadata -->
     <div class="detail-section metadata-section">
       <h4>
-        <i class="pi pi-info-circle"></i>
+        <i class="pi pi-info-circle" />
         Metadata
       </h4>
       <div class="detail-grid">
@@ -139,17 +169,30 @@
           <span class="label">Last Seen</span>
           <span class="value">{{ formatDate(finding.last_seen) }}</span>
         </div>
-        <div v-if="finding.canonical_id" class="detail-item">
+        <div
+          v-if="finding.canonical_id"
+          class="detail-item"
+        >
           <span class="label">Canonical ID</span>
           <span class="value code small">{{ finding.canonical_id }}</span>
         </div>
-        <div v-if="finding.cvss_score" class="detail-item">
+        <div
+          v-if="finding.cvss_score"
+          class="detail-item"
+        >
           <span class="label">CVSS Score</span>
           <span class="value">{{ finding.cvss_score }}</span>
         </div>
-        <div v-if="finding.cve_id" class="detail-item">
+        <div
+          v-if="finding.cve_id"
+          class="detail-item"
+        >
           <span class="label">CVE</span>
-          <a :href="`https://nvd.nist.gov/vuln/detail/${finding.cve_id}`" target="_blank" class="value link">
+          <a
+            :href="`https://nvd.nist.gov/vuln/detail/${finding.cve_id}`"
+            target="_blank"
+            class="value link"
+          >
             {{ finding.cve_id }}
           </a>
         </div>
@@ -166,8 +209,8 @@ import RemediationPanel from '../remediation/RemediationPanel.vue'
 const props = defineProps({
   finding: {
     type: Object,
-    required: true
-  }
+    required: true,
+  },
 })
 
 // Track which affected resources are expanded

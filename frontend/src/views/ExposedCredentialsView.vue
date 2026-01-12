@@ -3,18 +3,31 @@
     <div class="page-header">
       <div class="header-content">
         <h1>Exposed Credentials</h1>
-        <p class="subtitle">Credentials discovered in scan data</p>
+        <p class="subtitle">
+          Credentials discovered in scan data
+        </p>
       </div>
     </div>
 
-    <div v-if="store.summary" class="summary-cards">
+    <div
+      v-if="store.summary"
+      class="summary-cards"
+    >
       <div class="summary-card critical">
-        <div class="card-value">{{ store.summary.total }}</div>
-        <div class="card-label">Total</div>
+        <div class="card-value">
+          {{ store.summary.total }}
+        </div>
+        <div class="card-label">
+          Total
+        </div>
       </div>
       <div class="summary-card high">
-        <div class="card-value">{{ store.summary.active }}</div>
-        <div class="card-label">Active</div>
+        <div class="card-value">
+          {{ store.summary.active }}
+        </div>
+        <div class="card-label">
+          Active
+        </div>
       </div>
     </div>
 
@@ -23,41 +36,68 @@
         v-model="filters.credentialType"
         :options="credentialTypes"
         placeholder="Credential Type"
-        @change="applyFilters"
         class="filter-dropdown"
+        @change="applyFilters"
       />
       <Dropdown
         v-model="filters.sourceType"
         :options="sourceTypes"
         placeholder="Source Type"
-        @change="applyFilters"
         class="filter-dropdown"
+        @change="applyFilters"
       />
     </div>
 
     <DataTable
       :value="store.credentials"
       :loading="store.loading"
-      responsiveLayout="scroll"
+      responsive-layout="scroll"
       class="p-datatable-sm"
     >
-      <Column field="credential_type" header="Type" />
-      <Column field="credential_name" header="Name" />
-      <Column field="source_type" header="Source" />
-      <Column field="source_location" header="Location">
+      <Column
+        field="credential_type"
+        header="Type"
+      />
+      <Column
+        field="credential_name"
+        header="Name"
+      />
+      <Column
+        field="source_type"
+        header="Source"
+      />
+      <Column
+        field="source_location"
+        header="Location"
+      >
         <template #body="{ data }">
           <span class="location-text">{{ truncate(data.source_location, 50) }}</span>
         </template>
       </Column>
-      <Column field="cloud_provider" header="Provider" />
-      <Column field="is_active" header="Active">
+      <Column
+        field="cloud_provider"
+        header="Provider"
+      />
+      <Column
+        field="is_active"
+        header="Active"
+      >
         <template #body="{ data }">
-          <Tag :severity="data.is_active ? 'danger' : 'success'" :value="data.is_active ? 'Yes' : 'No'" />
+          <Tag
+            :severity="data.is_active ? 'danger' : 'success'"
+            :value="data.is_active ? 'Yes' : 'No'"
+          />
         </template>
       </Column>
-      <Column field="remediation_status" header="Status">
+      <Column
+        field="remediation_status"
+        header="Status"
+      >
         <template #body="{ data }">
-          <Tag :severity="getStatusSeverity(data.remediation_status)" :value="data.remediation_status" />
+          <Tag
+            :severity="getStatusSeverity(data.remediation_status)"
+            :value="data.remediation_status"
+          />
         </template>
       </Column>
     </DataTable>
@@ -65,7 +105,7 @@
     <Paginator
       v-if="store.pagination.total > store.pagination.pageSize"
       :rows="store.pagination.pageSize"
-      :totalRecords="store.pagination.total"
+      :total-records="store.pagination.total"
       :first="(store.pagination.page - 1) * store.pagination.pageSize"
       @page="onPageChange"
     />
@@ -85,7 +125,7 @@ const store = useExposedCredentialsStore()
 
 const filters = ref({
   credentialType: null,
-  sourceType: null
+  sourceType: null,
 })
 
 const credentialTypes = ['aws_access_key', 'api_key', 'password', 'token', 'certificate', 'ssh_key']

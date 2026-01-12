@@ -13,27 +13,27 @@ export const useAttackPathsStore = defineStore('attackPaths', () => {
   const pagination = ref({
     page: 1,
     pageSize: 20,
-    total: 0
+    total: 0,
   })
   const filters = ref({
     minRiskScore: null,
     maxRiskScore: null,
     exploitability: null,
     entryPointType: null,
-    targetType: null
+    targetType: null,
   })
 
   // Getters
   const criticalPaths = computed(() =>
-    paths.value.filter(p => p.risk_score >= 80)
+    paths.value.filter(p => p.risk_score >= 80),
   )
 
   const highRiskPaths = computed(() =>
-    paths.value.filter(p => p.risk_score >= 60 && p.risk_score < 80)
+    paths.value.filter(p => p.risk_score >= 60 && p.risk_score < 80),
   )
 
   const hasFilters = computed(() =>
-    Object.values(filters.value).some(v => v !== null && v !== '')
+    Object.values(filters.value).some(v => v !== null && v !== ''),
   )
 
   // Actions
@@ -116,7 +116,7 @@ export const useAttackPathsStore = defineStore('attackPaths', () => {
       const response = await fetch(`${API_BASE}/attack-paths/analyze`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ max_depth: 5 })
+        body: JSON.stringify({ max_depth: 5 }),
       })
 
       if (!response.ok) throw new Error('Analysis failed')
@@ -152,7 +152,7 @@ export const useAttackPathsStore = defineStore('attackPaths', () => {
   async function deletePath(pathId) {
     try {
       const response = await fetch(`${API_BASE}/attack-paths/${pathId}`, {
-        method: 'DELETE'
+        method: 'DELETE',
       })
       if (!response.ok) throw new Error('Delete failed')
 
@@ -177,7 +177,7 @@ export const useAttackPathsStore = defineStore('attackPaths', () => {
       maxRiskScore: newFilters.maxRiskScore,
       exploitability: newFilters.exploitability,
       entryPointType: newFilters.entryPointType,
-      targetType: newFilters.targetType
+      targetType: newFilters.targetType,
     }
     pagination.value.page = 1
     fetchPaths()
@@ -189,7 +189,7 @@ export const useAttackPathsStore = defineStore('attackPaths', () => {
       maxRiskScore: null,
       exploitability: null,
       entryPointType: null,
-      targetType: null
+      targetType: null,
     }
     pagination.value.page = 1
     fetchPaths()
@@ -217,6 +217,6 @@ export const useAttackPathsStore = defineStore('attackPaths', () => {
     deletePath,
     setPage,
     setFilters,
-    clearFilters
+    clearFilters,
   }
 })

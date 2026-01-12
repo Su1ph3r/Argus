@@ -73,7 +73,7 @@ describe('Theme Store', () => {
       store.setTheme('dark')
       expect(window.localStorage.setItem).toHaveBeenCalledWith(
         'nubicustos-theme',
-        'dark'
+        'dark',
       )
     })
 

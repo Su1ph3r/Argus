@@ -24,7 +24,7 @@ export const useSummaryStore = defineStore('summary', () => {
       { label: 'High', value: summary.value.high || 0, color: '#e67e22' },
       { label: 'Medium', value: summary.value.medium || 0, color: '#f1c40f' },
       { label: 'Low', value: summary.value.low || 0, color: '#27ae60' },
-      { label: 'Info', value: summary.value.info || 0, color: '#3498db' }
+      { label: 'Info', value: summary.value.info || 0, color: '#3498db' },
     ].filter(item => item.value > 0)
   })
 
@@ -32,7 +32,7 @@ export const useSummaryStore = defineStore('summary', () => {
     if (!summary.value?.by_provider) return []
     return Object.entries(summary.value.by_provider).map(([name, value]) => ({
       label: name,
-      value
+      value,
     }))
   })
 
@@ -40,7 +40,7 @@ export const useSummaryStore = defineStore('summary', () => {
     if (!summary.value?.by_tool) return []
     return Object.entries(summary.value.by_tool).map(([name, value]) => ({
       label: name,
-      value
+      value,
     }))
   })
 
@@ -85,6 +85,6 @@ export const useSummaryStore = defineStore('summary', () => {
 
     // Actions
     fetchSummary,
-    startAutoRefresh
+    startAutoRefresh,
   }
 })

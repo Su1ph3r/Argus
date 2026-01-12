@@ -3,15 +3,17 @@
     <div class="page-header">
       <div class="header-content">
         <h1>CloudFox</h1>
-        <p class="subtitle">AWS/Azure/GCP enumeration results</p>
+        <p class="subtitle">
+          AWS/Azure/GCP enumeration results
+        </p>
       </div>
       <div class="header-actions">
         <Button
           v-if="!isRunning"
           label="Run CloudFox"
           icon="pi pi-play"
-          @click="runCloudfox"
           :loading="store.loading"
+          @click="runCloudfox"
         />
         <Button
           v-else
@@ -24,34 +26,70 @@
     </div>
 
     <!-- Execution Status Panel -->
-    <div v-if="store.currentExecution" class="execution-panel" :class="executionStatusClass">
+    <div
+      v-if="store.currentExecution"
+      class="execution-panel"
+      :class="executionStatusClass"
+    >
       <div class="execution-header">
         <div class="execution-info">
-          <i :class="executionIcon" class="execution-icon"></i>
+          <i
+            :class="executionIcon"
+            class="execution-icon"
+          />
           <span class="execution-title">{{ executionTitle }}</span>
         </div>
         <div class="execution-meta">
-          <span v-if="store.currentExecution.execution_id" class="execution-id">
+          <span
+            v-if="store.currentExecution.execution_id"
+            class="execution-id"
+          >
             ID: {{ store.currentExecution.execution_id }}
           </span>
         </div>
       </div>
-      <div v-if="store.currentExecution.error" class="execution-error">
+      <div
+        v-if="store.currentExecution.error"
+        class="execution-error"
+      >
         {{ store.currentExecution.error }}
       </div>
-      <div v-if="executionLogs" class="execution-logs">
+      <div
+        v-if="executionLogs"
+        class="execution-logs"
+      >
         <pre>{{ executionLogs }}</pre>
       </div>
-      <div v-if="!isRunning" class="execution-actions">
-        <Button label="Dismiss" text size="small" @click="dismissExecution" />
-        <Button v-if="store.currentExecution.status === 'completed'" label="View Results" size="small" @click="store.fetchResults()" />
+      <div
+        v-if="!isRunning"
+        class="execution-actions"
+      >
+        <Button
+          label="Dismiss"
+          text
+          size="small"
+          @click="dismissExecution"
+        />
+        <Button
+          v-if="store.currentExecution.status === 'completed'"
+          label="View Results"
+          size="small"
+          @click="store.fetchResults()"
+        />
       </div>
     </div>
 
-    <div v-if="store.summary" class="summary-cards">
+    <div
+      v-if="store.summary"
+      class="summary-cards"
+    >
       <div class="summary-card info">
-        <div class="card-value">{{ store.summary.total_results }}</div>
-        <div class="card-label">Total Results</div>
+        <div class="card-value">
+          {{ store.summary.total_results }}
+        </div>
+        <div class="card-label">
+          Total Results
+        </div>
       </div>
     </div>
 
@@ -60,36 +98,57 @@
         v-model="filters.moduleName"
         :options="moduleOptions"
         placeholder="Module"
-        @change="applyFilters"
         class="filter-dropdown"
+        @change="applyFilters"
       />
       <Dropdown
         v-model="filters.riskLevel"
         :options="riskLevels"
         placeholder="Risk Level"
-        @change="applyFilters"
         class="filter-dropdown"
+        @change="applyFilters"
       />
     </div>
 
     <DataTable
       :value="store.results"
       :loading="store.loading"
-      responsiveLayout="scroll"
+      responsive-layout="scroll"
       class="p-datatable-sm"
     >
-      <Column field="module_name" header="Module" />
-      <Column field="resource_name" header="Resource" />
-      <Column field="resource_arn" header="ARN">
+      <Column
+        field="module_name"
+        header="Module"
+      />
+      <Column
+        field="resource_name"
+        header="Resource"
+      />
+      <Column
+        field="resource_arn"
+        header="ARN"
+      >
         <template #body="{ data }">
           <span class="arn-text">{{ truncate(data.resource_arn, 50) }}</span>
         </template>
       </Column>
-      <Column field="finding_category" header="Category" />
-      <Column field="cloud_provider" header="Provider" />
-      <Column field="risk_level" header="Risk">
+      <Column
+        field="finding_category"
+        header="Category"
+      />
+      <Column
+        field="cloud_provider"
+        header="Provider"
+      />
+      <Column
+        field="risk_level"
+        header="Risk"
+      >
         <template #body="{ data }">
-          <Tag :severity="getRiskSeverity(data.risk_level)" :value="data.risk_level" />
+          <Tag
+            :severity="getRiskSeverity(data.risk_level)"
+            :value="data.risk_level"
+          />
         </template>
       </Column>
     </DataTable>
@@ -97,7 +156,7 @@
     <Paginator
       v-if="store.pagination.total > store.pagination.pageSize"
       :rows="store.pagination.pageSize"
-      :totalRecords="store.pagination.total"
+      :total-records="store.pagination.total"
       :first="(store.pagination.page - 1) * store.pagination.pageSize"
       @page="onPageChange"
     />
@@ -120,7 +179,7 @@ const executionsStore = useExecutionsStore()
 
 const filters = ref({
   moduleName: null,
-  riskLevel: null
+  riskLevel: null,
 })
 
 const executionLogs = ref(null)
@@ -129,7 +188,7 @@ const moduleOptions = ['all-checks', 'iam', 'buckets', 'secrets', 'lambda', 'env
 const riskLevels = ['critical', 'high', 'medium', 'low']
 
 const isRunning = computed(() =>
-  store.currentExecution?.status === 'running'
+  store.currentExecution?.status === 'running',
 )
 
 const executionStatusClass = computed(() => {
@@ -138,7 +197,7 @@ const executionStatusClass = computed(() => {
     'status-running': status === 'running',
     'status-completed': status === 'completed',
     'status-failed': status === 'failed',
-    'status-pending': status === 'pending'
+    'status-pending': status === 'pending',
   }
 })
 
@@ -148,7 +207,7 @@ const executionIcon = computed(() => {
     running: 'pi pi-spin pi-spinner',
     completed: 'pi pi-check-circle',
     failed: 'pi pi-times-circle',
-    pending: 'pi pi-clock'
+    pending: 'pi pi-clock',
   }
   return icons[status] || 'pi pi-info-circle'
 })
@@ -159,7 +218,7 @@ const executionTitle = computed(() => {
     running: 'CloudFox scan running...',
     completed: 'CloudFox scan completed',
     failed: 'CloudFox scan failed',
-    pending: 'CloudFox scan pending'
+    pending: 'CloudFox scan pending',
   }
   return titles[status] || 'CloudFox scan'
 })

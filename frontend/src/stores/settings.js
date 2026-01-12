@@ -10,7 +10,7 @@ export const useSettingsStore = defineStore('settings', () => {
     scans: {},
     data: {},
     notifications: {},
-    display: {}
+    display: {},
   })
   const loading = ref(false)
   const saving = ref(false)
@@ -19,50 +19,50 @@ export const useSettingsStore = defineStore('settings', () => {
 
   // Computed - Scan Settings
   const defaultScanProfile = computed(() =>
-    settingsByCategory.value.scans?.default_scan_profile || 'quick'
+    settingsByCategory.value.scans?.default_scan_profile || 'quick',
   )
 
   const defaultRegions = computed(() =>
-    settingsByCategory.value.scans?.default_regions || ['us-east-1', 'us-west-2']
+    settingsByCategory.value.scans?.default_regions || ['us-east-1', 'us-west-2'],
   )
 
   const defaultSeverityFilter = computed(() =>
-    settingsByCategory.value.scans?.default_severity_filter || ['critical', 'high']
+    settingsByCategory.value.scans?.default_severity_filter || ['critical', 'high'],
   )
 
   const maxConcurrentScans = computed(() =>
-    settingsByCategory.value.scans?.max_concurrent_scans || 3
+    settingsByCategory.value.scans?.max_concurrent_scans || 3,
   )
 
   // Computed - Data Settings
   const autoCleanupDays = computed(() =>
-    settingsByCategory.value.data?.auto_cleanup_days || 90
+    settingsByCategory.value.data?.auto_cleanup_days || 90,
   )
 
   const exportFormat = computed(() =>
-    settingsByCategory.value.data?.export_format || 'json'
+    settingsByCategory.value.data?.export_format || 'json',
   )
 
   // Computed - Notification Settings
   const notificationsEnabled = computed(() =>
-    settingsByCategory.value.notifications?.notifications_enabled || false
+    settingsByCategory.value.notifications?.notifications_enabled || false,
   )
 
   const webhookUrl = computed(() =>
-    settingsByCategory.value.notifications?.webhook_url || null
+    settingsByCategory.value.notifications?.webhook_url || null,
   )
 
   const emailAlertsEnabled = computed(() =>
-    settingsByCategory.value.notifications?.email_alerts_enabled || false
+    settingsByCategory.value.notifications?.email_alerts_enabled || false,
   )
 
   // Computed - Display Settings
   const theme = computed(() =>
-    settingsByCategory.value.display?.theme || 'dark'
+    settingsByCategory.value.display?.theme || 'dark',
   )
 
   const findingsPerPage = computed(() =>
-    settingsByCategory.value.display?.findings_per_page || 50
+    settingsByCategory.value.display?.findings_per_page || 50,
   )
 
   // Actions
@@ -82,7 +82,7 @@ export const useSettingsStore = defineStore('settings', () => {
         scans: {},
         data: {},
         notifications: {},
-        display: {}
+        display: {},
       }
 
       for (const setting of data.settings) {
@@ -142,7 +142,7 @@ export const useSettingsStore = defineStore('settings', () => {
       const response = await fetch(`${API_BASE}/settings/${key}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ value })
+        body: JSON.stringify({ value }),
       })
 
       if (!response.ok) {
@@ -208,7 +208,7 @@ export const useSettingsStore = defineStore('settings', () => {
     try {
       const params = category ? `?category=${category}` : ''
       const response = await fetch(`${API_BASE}/settings/reset${params}`, {
-        method: 'POST'
+        method: 'POST',
       })
 
       if (!response.ok) throw new Error('Failed to reset settings')
@@ -275,6 +275,6 @@ export const useSettingsStore = defineStore('settings', () => {
     updateSetting,
     updateMultipleSettings,
     resetSettings,
-    fetchSettingsByCategory
+    fetchSettingsByCategory,
   }
 })

@@ -9,29 +9,46 @@
       />
     </div>
 
-    <div v-if="findingsStore.loading" class="loading">
+    <div
+      v-if="findingsStore.loading"
+      class="loading"
+    >
       <ProgressSpinner />
       <span>Loading finding details...</span>
     </div>
 
-    <div v-else-if="findingsStore.error" class="error">
-      <i class="pi pi-exclamation-triangle"></i>
+    <div
+      v-else-if="findingsStore.error"
+      class="error"
+    >
+      <i class="pi pi-exclamation-triangle" />
       {{ findingsStore.error }}
     </div>
 
-    <div v-else-if="finding" class="detail-content">
+    <div
+      v-else-if="finding"
+      class="detail-content"
+    >
       <div class="finding-header-card card">
         <div class="finding-meta">
-          <span class="severity-badge" :class="finding.severity">
+          <span
+            class="severity-badge"
+            :class="finding.severity"
+          >
             {{ finding.severity }}
           </span>
-          <span class="status-badge" :class="finding.status">
+          <span
+            class="status-badge"
+            :class="finding.status"
+          >
             {{ finding.status }}
           </span>
           <span class="tool-badge">{{ finding.tool }}</span>
         </div>
         <h1>{{ finding.title }}</h1>
-        <p class="finding-id">{{ finding.finding_id }}</p>
+        <p class="finding-id">
+          {{ finding.finding_id }}
+        </p>
       </div>
 
       <div class="card">
@@ -39,8 +56,11 @@
       </div>
     </div>
 
-    <div v-else class="not-found">
-      <i class="pi pi-search"></i>
+    <div
+      v-else
+      class="not-found"
+    >
+      <i class="pi pi-search" />
       <h2>Finding Not Found</h2>
       <p>The requested finding could not be found.</p>
       <Button

@@ -1,5 +1,8 @@
 <template>
-  <div class="app-container" :class="{ 'sidebar-collapsed': sidebarStore.collapsed }">
+  <div
+    class="app-container"
+    :class="{ 'sidebar-collapsed': sidebarStore.collapsed }"
+  >
     <AppSidebar />
     <div class="app-main">
       <main class="main-content">

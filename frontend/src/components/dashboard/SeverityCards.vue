@@ -8,18 +8,37 @@
       @click="$emit('filter', card.severity)"
     >
       <div class="card-header">
-        <div class="card-icon" :style="{ background: card.bgColor }">
-          <i :class="card.icon" :style="{ color: card.color }"></i>
+        <div
+          class="card-icon"
+          :style="{ background: card.bgColor }"
+        >
+          <i
+            :class="card.icon"
+            :style="{ color: card.color }"
+          />
         </div>
-        <div class="card-trend" v-if="card.value > 0">
-          <i class="pi pi-arrow-right"></i>
+        <div
+          v-if="card.value > 0"
+          class="card-trend"
+        >
+          <i class="pi pi-arrow-right" />
         </div>
       </div>
       <div class="card-content">
-        <div class="card-value" :style="{ color: card.color }">{{ card.value }}</div>
-        <div class="card-label">{{ card.label }}</div>
+        <div
+          class="card-value"
+          :style="{ color: card.color }"
+        >
+          {{ card.value }}
+        </div>
+        <div class="card-label">
+          {{ card.label }}
+        </div>
       </div>
-      <div class="card-glow" :style="{ background: card.glowColor }"></div>
+      <div
+        class="card-glow"
+        :style="{ background: card.glowColor }"
+      />
     </div>
   </div>
 </template>
@@ -39,7 +58,7 @@ const cards = computed(() => [
     icon: 'pi pi-exclamation-triangle',
     color: 'var(--severity-critical)',
     bgColor: 'var(--severity-critical-bg)',
-    glowColor: 'rgba(239, 68, 68, 0.15)'
+    glowColor: 'rgba(239, 68, 68, 0.15)',
   },
   {
     severity: 'high',
@@ -48,7 +67,7 @@ const cards = computed(() => [
     icon: 'pi pi-exclamation-circle',
     color: 'var(--severity-high)',
     bgColor: 'var(--severity-high-bg)',
-    glowColor: 'rgba(249, 115, 22, 0.15)'
+    glowColor: 'rgba(249, 115, 22, 0.15)',
   },
   {
     severity: 'medium',
@@ -57,7 +76,7 @@ const cards = computed(() => [
     icon: 'pi pi-info-circle',
     color: 'var(--severity-medium)',
     bgColor: 'var(--severity-medium-bg)',
-    glowColor: 'rgba(234, 179, 8, 0.15)'
+    glowColor: 'rgba(234, 179, 8, 0.15)',
   },
   {
     severity: 'low',
@@ -66,8 +85,8 @@ const cards = computed(() => [
     icon: 'pi pi-check-circle',
     color: 'var(--severity-low)',
     bgColor: 'var(--severity-low-bg)',
-    glowColor: 'rgba(34, 197, 94, 0.15)'
-  }
+    glowColor: 'rgba(34, 197, 94, 0.15)',
+  },
 ])
 </script>
 

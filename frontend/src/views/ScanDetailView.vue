@@ -2,14 +2,27 @@
   <div class="scan-detail-view">
     <div class="page-header">
       <div class="header-content">
-        <Button icon="pi pi-arrow-left" text @click="$router.push('/scans')" class="back-btn" />
+        <Button
+          icon="pi pi-arrow-left"
+          text
+          class="back-btn"
+          @click="$router.push('/scans')"
+        />
         <div>
           <h1>Scan Details</h1>
-          <p class="subtitle">{{ scan?.scan_id || 'Loading...' }}</p>
+          <p class="subtitle">
+            {{ scan?.scan_id || 'Loading...' }}
+          </p>
         </div>
       </div>
-      <div class="header-actions" v-if="scan">
-        <Tag :severity="getStatusSeverity(scan.status)" :value="scan.status" />
+      <div
+        v-if="scan"
+        class="header-actions"
+      >
+        <Tag
+          :severity="getStatusSeverity(scan.status)"
+          :value="scan.status"
+        />
         <Button
           v-if="scan.status === 'running'"
           label="Cancel Scan"
@@ -20,7 +33,10 @@
       </div>
     </div>
 
-    <div v-if="loading" class="loading-container">
+    <div
+      v-if="loading"
+      class="loading-container"
+    >
       <ProgressSpinner />
       <span>Loading scan details...</span>
     </div>
@@ -30,43 +46,80 @@
       <section class="section">
         <div class="info-grid">
           <div class="info-card">
-            <div class="info-label">Profile</div>
-            <div class="info-value">{{ scan.scan_type || scan.tool || 'N/A' }}</div>
+            <div class="info-label">
+              Profile
+            </div>
+            <div class="info-value">
+              {{ scan.scan_type || scan.tool || 'N/A' }}
+            </div>
           </div>
           <div class="info-card">
-            <div class="info-label">Target</div>
-            <div class="info-value">{{ scan.target || 'All resources' }}</div>
+            <div class="info-label">
+              Target
+            </div>
+            <div class="info-value">
+              {{ scan.target || 'All resources' }}
+            </div>
           </div>
           <div class="info-card">
-            <div class="info-label">Started</div>
-            <div class="info-value">{{ formatDate(scan.started_at) }}</div>
+            <div class="info-label">
+              Started
+            </div>
+            <div class="info-value">
+              {{ formatDate(scan.started_at) }}
+            </div>
           </div>
           <div class="info-card">
-            <div class="info-label">Completed</div>
-            <div class="info-value">{{ scan.completed_at ? formatDate(scan.completed_at) : '-' }}</div>
+            <div class="info-label">
+              Completed
+            </div>
+            <div class="info-value">
+              {{ scan.completed_at ? formatDate(scan.completed_at) : '-' }}
+            </div>
           </div>
         </div>
       </section>
 
       <!-- Findings Summary -->
-      <section class="section" v-if="scan.status === 'completed'">
-        <h2 class="section-title">Findings Summary</h2>
+      <section
+        v-if="scan.status === 'completed'"
+        class="section"
+      >
+        <h2 class="section-title">
+          Findings Summary
+        </h2>
         <div class="findings-grid">
           <div class="finding-card critical">
-            <div class="finding-count">{{ scan.critical_findings || 0 }}</div>
-            <div class="finding-label">Critical</div>
+            <div class="finding-count">
+              {{ scan.critical_findings || 0 }}
+            </div>
+            <div class="finding-label">
+              Critical
+            </div>
           </div>
           <div class="finding-card high">
-            <div class="finding-count">{{ scan.high_findings || 0 }}</div>
-            <div class="finding-label">High</div>
+            <div class="finding-count">
+              {{ scan.high_findings || 0 }}
+            </div>
+            <div class="finding-label">
+              High
+            </div>
           </div>
           <div class="finding-card medium">
-            <div class="finding-count">{{ scan.medium_findings || 0 }}</div>
-            <div class="finding-label">Medium</div>
+            <div class="finding-count">
+              {{ scan.medium_findings || 0 }}
+            </div>
+            <div class="finding-label">
+              Medium
+            </div>
           </div>
           <div class="finding-card low">
-            <div class="finding-count">{{ scan.low_findings || 0 }}</div>
-            <div class="finding-label">Low</div>
+            <div class="finding-count">
+              {{ scan.low_findings || 0 }}
+            </div>
+            <div class="finding-label">
+              Low
+            </div>
           </div>
         </div>
 
@@ -80,8 +133,13 @@
       </section>
 
       <!-- Running Status -->
-      <section class="section" v-if="scan.status === 'running'">
-        <h2 class="section-title">Scan Progress</h2>
+      <section
+        v-if="scan.status === 'running'"
+        class="section"
+      >
+        <h2 class="section-title">
+          Scan Progress
+        </h2>
         <div class="progress-card">
           <ProgressBar mode="indeterminate" />
           <p>Scan is running. This may take several minutes depending on the profile.</p>
@@ -89,18 +147,29 @@
       </section>
 
       <!-- Execution Logs -->
-      <section class="section" v-if="logs">
-        <h2 class="section-title">Execution Logs</h2>
+      <section
+        v-if="logs"
+        class="section"
+      >
+        <h2 class="section-title">
+          Execution Logs
+        </h2>
         <div class="logs-container">
           <pre>{{ logs }}</pre>
         </div>
       </section>
     </template>
 
-    <div v-else class="empty-state">
-      <i class="pi pi-exclamation-circle"></i>
+    <div
+      v-else
+      class="empty-state"
+    >
+      <i class="pi pi-exclamation-circle" />
       <p>Scan not found</p>
-      <Button label="Back to Scans" @click="$router.push('/scans')" />
+      <Button
+        label="Back to Scans"
+        @click="$router.push('/scans')"
+      />
     </div>
   </div>
 </template>
@@ -117,8 +186,8 @@ import ProgressBar from 'primevue/progressbar'
 const props = defineProps({
   id: {
     type: String,
-    required: true
-  }
+    required: true,
+  },
 })
 
 const route = useRoute()
@@ -135,7 +204,7 @@ function getStatusSeverity(status) {
     completed: 'success',
     failed: 'danger',
     cancelled: 'warning',
-    pending: 'secondary'
+    pending: 'secondary',
   }
   return map[status] || 'secondary'
 }
@@ -174,7 +243,7 @@ async function cancelScan() {
 function viewFindings() {
   router.push({
     path: '/findings',
-    query: { scan_id: props.id }
+    query: { scan_id: props.id },
   })
 }
 

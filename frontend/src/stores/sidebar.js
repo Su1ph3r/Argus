@@ -31,6 +31,6 @@ export const useSidebarStore = defineStore('sidebar', () => {
     width,
     toggle,
     expand,
-    collapse
+    collapse,
   }
 })

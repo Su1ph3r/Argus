@@ -124,7 +124,7 @@ describe('Findings Store', () => {
         expect.objectContaining({
           severity: 'critical',
           status: 'open',
-        })
+        }),
       )
     })
 

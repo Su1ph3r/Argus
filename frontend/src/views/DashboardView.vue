@@ -3,21 +3,32 @@
     <div class="dashboard-header">
       <div class="header-content">
         <h2>Security Dashboard</h2>
-        <p class="subtitle">Overview of security findings across all tools and environments</p>
+        <p class="subtitle">
+          Overview of security findings across all tools and environments
+        </p>
       </div>
-      <div class="header-badge" v-if="!summaryStore.loading">
+      <div
+        v-if="!summaryStore.loading"
+        class="header-badge"
+      >
         <span class="badge-value">{{ summaryStore.totalFindings }}</span>
         <span class="badge-label">Total Findings</span>
       </div>
     </div>
 
-    <div v-if="summaryStore.loading" class="loading-container">
+    <div
+      v-if="summaryStore.loading"
+      class="loading-container"
+    >
       <ProgressSpinner />
       <span>Loading dashboard data...</span>
     </div>
 
-    <div v-else-if="summaryStore.error" class="error-container">
-      <i class="pi pi-exclamation-triangle"></i>
+    <div
+      v-else-if="summaryStore.error"
+      class="error-container"
+    >
+      <i class="pi pi-exclamation-triangle" />
       <span>{{ summaryStore.error }}</span>
     </div>
 
@@ -62,29 +73,41 @@
         <div class="stats-grid">
           <div class="stat-card">
             <div class="stat-icon">
-              <i class="pi pi-shield"></i>
+              <i class="pi pi-shield" />
             </div>
             <div class="stat-content">
-              <div class="stat-value">{{ summaryStore.totalFindings }}</div>
-              <div class="stat-label">Total Open Findings</div>
+              <div class="stat-value">
+                {{ summaryStore.totalFindings }}
+              </div>
+              <div class="stat-label">
+                Total Open Findings
+              </div>
             </div>
           </div>
           <div class="stat-card">
             <div class="stat-icon">
-              <i class="pi pi-cog"></i>
+              <i class="pi pi-cog" />
             </div>
             <div class="stat-content">
-              <div class="stat-value">{{ toolCount }}</div>
-              <div class="stat-label">Security Tools</div>
+              <div class="stat-value">
+                {{ toolCount }}
+              </div>
+              <div class="stat-label">
+                Security Tools
+              </div>
             </div>
           </div>
           <div class="stat-card">
             <div class="stat-icon">
-              <i class="pi pi-cloud"></i>
+              <i class="pi pi-cloud" />
             </div>
             <div class="stat-content">
-              <div class="stat-value">{{ providerCount }}</div>
-              <div class="stat-label">Cloud Providers</div>
+              <div class="stat-value">
+                {{ providerCount }}
+              </div>
+              <div class="stat-label">
+                Cloud Providers
+              </div>
             </div>
           </div>
         </div>
@@ -95,18 +118,23 @@
         <Button
           label="View All Findings"
           icon="pi pi-list"
-          @click="$router.push('/findings')"
           class="action-btn primary"
+          @click="$router.push('/findings')"
         />
         <Button
           label="Export Report"
           icon="pi pi-download"
           severity="secondary"
-          @click="exportReport"
           class="action-btn"
+          @click="exportReport"
         />
-        <a href="/reports/" target="_blank" rel="noopener" class="action-btn link-btn">
-          <i class="pi pi-folder"></i>
+        <a
+          href="/reports/"
+          target="_blank"
+          rel="noopener"
+          class="action-btn link-btn"
+        >
+          <i class="pi pi-folder" />
           <span>Browse Raw Reports</span>
         </a>
       </section>
@@ -135,15 +163,15 @@ const providerColors = ['#3b82f6', '#6366f1', '#8b5cf6', '#a855f7', '#d946ef', '
 const toolChartData = computed(() =>
   summaryStore.byTool.map((item, index) => ({
     ...item,
-    color: toolColors[index % toolColors.length]
-  }))
+    color: toolColors[index % toolColors.length],
+  })),
 )
 
 const providerChartData = computed(() =>
   summaryStore.byProvider.map((item, index) => ({
     ...item,
-    color: providerColors[index % providerColors.length]
-  }))
+    color: providerColors[index % providerColors.length],
+  })),
 )
 
 const toolCount = computed(() => summaryStore.byTool.length)

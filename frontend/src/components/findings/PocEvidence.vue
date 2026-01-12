@@ -1,7 +1,10 @@
 <template>
   <div class="poc-evidence">
     <!-- Evidence Text/JSON -->
-    <div v-if="parsedEvidence" class="evidence-block">
+    <div
+      v-if="parsedEvidence"
+      class="evidence-block"
+    >
       <div class="evidence-header">
         <span>Evidence</span>
         <Button
@@ -17,7 +20,10 @@
     </div>
 
     <!-- Verification Command -->
-    <div v-if="finding.poc_verification" class="evidence-block">
+    <div
+      v-if="finding.poc_verification"
+      class="evidence-block"
+    >
       <div class="evidence-header">
         <span>Verification Command</span>
         <Button
@@ -33,21 +39,35 @@
     </div>
 
     <!-- Screenshot -->
-    <div v-if="finding.poc_screenshot_path" class="evidence-block">
+    <div
+      v-if="finding.poc_screenshot_path"
+      class="evidence-block"
+    >
       <div class="evidence-header">
         <span>Screenshot</span>
-        <a :href="screenshotUrl" target="_blank" class="view-link">
-          <i class="pi pi-external-link"></i> View Full Size
+        <a
+          :href="screenshotUrl"
+          target="_blank"
+          class="view-link"
+        >
+          <i class="pi pi-external-link" /> View Full Size
         </a>
       </div>
       <div class="screenshot-container">
-        <img :src="screenshotUrl" :alt="'Evidence for ' + finding.title" @error="handleImageError" />
+        <img
+          :src="screenshotUrl"
+          :alt="'Evidence for ' + finding.title"
+          @error="handleImageError"
+        >
       </div>
     </div>
 
     <!-- No evidence -->
-    <div v-if="!hasAnyEvidence" class="no-evidence">
-      <i class="pi pi-info-circle"></i>
+    <div
+      v-if="!hasAnyEvidence"
+      class="no-evidence"
+    >
+      <i class="pi pi-info-circle" />
       No proof of concept evidence available for this finding.
     </div>
   </div>
@@ -60,8 +80,8 @@ import { useToast } from 'primevue/usetoast'
 const props = defineProps({
   finding: {
     type: Object,
-    required: true
-  }
+    required: true,
+  },
 })
 
 const toast = useToast()
@@ -109,14 +129,14 @@ const copyToClipboard = async (text) => {
       severity: 'success',
       summary: 'Copied',
       detail: 'Copied to clipboard',
-      life: 2000
+      life: 2000,
     })
   } catch (err) {
     toast.add({
       severity: 'error',
       summary: 'Error',
       detail: 'Failed to copy to clipboard',
-      life: 3000
+      life: 3000,
     })
   }
 }

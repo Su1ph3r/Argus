@@ -16,7 +16,7 @@ export const useCredentialsStore = defineStore('credentials', () => {
     aws: null,
     azure: null,
     gcp: null,
-    kubernetes: null
+    kubernetes: null,
   })
 
   // AWS Profiles from mounted credentials file
@@ -52,7 +52,7 @@ export const useCredentialsStore = defineStore('credentials', () => {
         if (tool.passed) {
           tools.push({
             ...tool,
-            provider: provider.provider
+            provider: provider.provider,
           })
         }
       }
@@ -68,7 +68,7 @@ export const useCredentialsStore = defineStore('credentials', () => {
         if (!tool.passed) {
           tools.push({
             ...tool,
-            provider: provider.provider
+            provider: provider.provider,
           })
         }
       }
@@ -112,7 +112,7 @@ export const useCredentialsStore = defineStore('credentials', () => {
       const response = await fetch(`${API_BASE}/credentials/verify`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(request)
+        body: JSON.stringify(request),
       })
 
       if (!response.ok) throw new Error('Failed to verify credentials')
@@ -130,7 +130,7 @@ export const useCredentialsStore = defineStore('credentials', () => {
   async function verifyProvider(provider, includeRemediation = false) {
     return await verifyCredentials({
       provider,
-      include_remediation: includeRemediation
+      include_remediation: includeRemediation,
     })
   }
 
@@ -142,7 +142,7 @@ export const useCredentialsStore = defineStore('credentials', () => {
       const response = await fetch(`${API_BASE}/credentials/verify-enhanced`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(request)
+        body: JSON.stringify(request),
       })
 
       if (!response.ok) throw new Error('Failed to verify credentials')
@@ -195,7 +195,7 @@ export const useCredentialsStore = defineStore('credentials', () => {
         aws: null,
         azure: null,
         gcp: null,
-        kubernetes: null
+        kubernetes: null,
       }
     }
   }
@@ -225,7 +225,7 @@ export const useCredentialsStore = defineStore('credentials', () => {
 
     try {
       const response = await fetch(`${API_BASE}/aws-profiles/${profileName}/verify`, {
-        method: 'POST'
+        method: 'POST',
       })
 
       if (!response.ok) throw new Error('Failed to verify profile')
@@ -257,7 +257,7 @@ export const useCredentialsStore = defineStore('credentials', () => {
             secret_access_key: creds.secret_access_key,
             session_token: creds.session_token,
             region: creds.region || 'us-east-1',
-            profile: profileName
+            profile: profileName,
           }
           // Persist the selected profile name in localStorage
           localStorage.setItem('selectedAwsProfile', profileName)
@@ -328,6 +328,6 @@ export const useCredentialsStore = defineStore('credentials', () => {
     verifyAwsProfile,
     selectAwsProfile,
     clearAwsProfile,
-    restoreAwsProfile
+    restoreAwsProfile,
   }
 })

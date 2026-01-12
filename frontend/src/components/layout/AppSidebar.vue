@@ -1,55 +1,124 @@
 <template>
-  <aside class="app-sidebar" :class="{ collapsed: sidebarStore.collapsed }">
+  <aside
+    class="app-sidebar"
+    :class="{ collapsed: sidebarStore.collapsed }"
+  >
     <!-- Logo Section -->
     <div class="sidebar-header">
       <div class="logo-icon">
-        <svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <rect width="32" height="32" rx="8" fill="url(#logo-gradient-sidebar)"/>
-          <path d="M8 16L12 12L16 16L20 12L24 16" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-          <path d="M8 20L12 16L16 20L20 16L24 20" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" opacity="0.6"/>
+        <svg
+          width="32"
+          height="32"
+          viewBox="0 0 32 32"
+          fill="none"
+          xmlns="http://www.w3.org/2000/svg"
+        >
+          <rect
+            width="32"
+            height="32"
+            rx="8"
+            fill="url(#logo-gradient-sidebar)"
+          />
+          <path
+            d="M8 16L12 12L16 16L20 12L24 16"
+            stroke="white"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          />
+          <path
+            d="M8 20L12 16L16 20L20 16L24 20"
+            stroke="white"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            opacity="0.6"
+          />
           <defs>
-            <linearGradient id="logo-gradient-sidebar" x1="0" y1="0" x2="32" y2="32" gradientUnits="userSpaceOnUse">
-              <stop stop-color="#6366f1"/>
-              <stop offset="1" stop-color="#8b5cf6"/>
+            <linearGradient
+              id="logo-gradient-sidebar"
+              x1="0"
+              y1="0"
+              x2="32"
+              y2="32"
+              gradientUnits="userSpaceOnUse"
+            >
+              <stop stop-color="#6366f1" />
+              <stop
+                offset="1"
+                stop-color="#8b5cf6"
+              />
             </linearGradient>
           </defs>
         </svg>
       </div>
-      <span v-if="!sidebarStore.collapsed" class="logo-text">Nubicustos</span>
-      <button class="collapse-btn" @click="sidebarStore.toggle" :title="sidebarStore.collapsed ? 'Expand' : 'Collapse'">
-        <i :class="sidebarStore.collapsed ? 'pi pi-angle-right' : 'pi pi-angle-left'"></i>
+      <span
+        v-if="!sidebarStore.collapsed"
+        class="logo-text"
+      >Nubicustos</span>
+      <button
+        class="collapse-btn"
+        :title="sidebarStore.collapsed ? 'Expand' : 'Collapse'"
+        @click="sidebarStore.toggle"
+      >
+        <i :class="sidebarStore.collapsed ? 'pi pi-angle-right' : 'pi pi-angle-left'" />
       </button>
     </div>
 
     <!-- Navigation Items -->
     <nav class="sidebar-nav">
       <!-- Primary: Scans -->
-      <router-link to="/scans" class="nav-item" :class="{ active: $route.path.startsWith('/scans') }" :title="sidebarStore.collapsed ? 'Scans' : ''">
-        <i class="pi pi-play"></i>
+      <router-link
+        to="/scans"
+        class="nav-item"
+        :class="{ active: $route.path.startsWith('/scans') }"
+        :title="sidebarStore.collapsed ? 'Scans' : ''"
+      >
+        <i class="pi pi-play" />
         <span v-if="!sidebarStore.collapsed">Scans</span>
       </router-link>
 
       <!-- Credentials -->
-      <router-link to="/credentials" class="nav-item" :class="{ active: $route.path === '/credentials' }" :title="sidebarStore.collapsed ? 'Credentials' : ''">
-        <i class="pi pi-key"></i>
+      <router-link
+        to="/credentials"
+        class="nav-item"
+        :class="{ active: $route.path === '/credentials' }"
+        :title="sidebarStore.collapsed ? 'Credentials' : ''"
+      >
+        <i class="pi pi-key" />
         <span v-if="!sidebarStore.collapsed">Credentials</span>
       </router-link>
 
       <!-- Dashboard -->
-      <router-link to="/" class="nav-item" :class="{ active: $route.path === '/' }" :title="sidebarStore.collapsed ? 'Dashboard' : ''">
-        <i class="pi pi-chart-bar"></i>
+      <router-link
+        to="/"
+        class="nav-item"
+        :class="{ active: $route.path === '/' }"
+        :title="sidebarStore.collapsed ? 'Dashboard' : ''"
+      >
+        <i class="pi pi-chart-bar" />
         <span v-if="!sidebarStore.collapsed">Dashboard</span>
       </router-link>
 
       <!-- Findings -->
-      <router-link to="/findings" class="nav-item" :class="{ active: $route.path.startsWith('/findings') }" :title="sidebarStore.collapsed ? 'Findings' : ''">
-        <i class="pi pi-list"></i>
+      <router-link
+        to="/findings"
+        class="nav-item"
+        :class="{ active: $route.path.startsWith('/findings') }"
+        :title="sidebarStore.collapsed ? 'Findings' : ''"
+      >
+        <i class="pi pi-list" />
         <span v-if="!sidebarStore.collapsed">Findings</span>
       </router-link>
 
       <!-- Attack Paths -->
-      <router-link to="/attack-paths" class="nav-item" :class="{ active: $route.path.startsWith('/attack-paths') }" :title="sidebarStore.collapsed ? 'Attack Paths' : ''">
-        <i class="pi pi-sitemap"></i>
+      <router-link
+        to="/attack-paths"
+        class="nav-item"
+        :class="{ active: $route.path.startsWith('/attack-paths') }"
+        :title="sidebarStore.collapsed ? 'Attack Paths' : ''"
+      >
+        <i class="pi pi-sitemap" />
         <span v-if="!sidebarStore.collapsed">Attack Paths</span>
       </router-link>
 
@@ -58,68 +127,124 @@
         <button
           class="nav-item nav-group-header"
           :class="{ active: isPentestRouteActive }"
-          @click="togglePentest"
           :title="sidebarStore.collapsed ? 'Pentest' : ''"
+          @click="togglePentest"
         >
-          <i class="pi pi-shield"></i>
+          <i class="pi pi-shield" />
           <span v-if="!sidebarStore.collapsed">Pentest</span>
-          <i v-if="!sidebarStore.collapsed" :class="pentestOpen ? 'pi pi-chevron-up' : 'pi pi-chevron-down'" class="chevron"></i>
+          <i
+            v-if="!sidebarStore.collapsed"
+            :class="pentestOpen ? 'pi pi-chevron-up' : 'pi pi-chevron-down'"
+            class="chevron"
+          />
         </button>
-        <div v-if="pentestOpen && !sidebarStore.collapsed" class="nav-submenu">
-          <router-link to="/public-exposures" class="nav-subitem">
-            <i class="pi pi-globe"></i> Public Exposures
+        <div
+          v-if="pentestOpen && !sidebarStore.collapsed"
+          class="nav-submenu"
+        >
+          <router-link
+            to="/public-exposures"
+            class="nav-subitem"
+          >
+            <i class="pi pi-globe" /> Public Exposures
           </router-link>
-          <router-link to="/exposed-credentials" class="nav-subitem">
-            <i class="pi pi-key"></i> Exposed Credentials
+          <router-link
+            to="/exposed-credentials"
+            class="nav-subitem"
+          >
+            <i class="pi pi-key" /> Exposed Credentials
           </router-link>
-          <router-link to="/severity-overrides" class="nav-subitem">
-            <i class="pi pi-sliders-h"></i> Severity Overrides
+          <router-link
+            to="/severity-overrides"
+            class="nav-subitem"
+          >
+            <i class="pi pi-sliders-h" /> Severity Overrides
           </router-link>
-          <router-link to="/privesc-paths" class="nav-subitem">
-            <i class="pi pi-arrow-up-right"></i> Privesc Paths
+          <router-link
+            to="/privesc-paths"
+            class="nav-subitem"
+          >
+            <i class="pi pi-arrow-up-right" /> Privesc Paths
           </router-link>
-          <router-link to="/imds-checks" class="nav-subitem">
-            <i class="pi pi-server"></i> IMDS Checks
+          <router-link
+            to="/imds-checks"
+            class="nav-subitem"
+          >
+            <i class="pi pi-server" /> IMDS Checks
           </router-link>
-          <router-link to="/cloudfox" class="nav-subitem">
-            <i class="pi pi-search"></i> CloudFox
+          <router-link
+            to="/cloudfox"
+            class="nav-subitem"
+          >
+            <i class="pi pi-search" /> CloudFox
           </router-link>
-          <router-link to="/pacu" class="nav-subitem">
-            <i class="pi pi-bolt"></i> Pacu
+          <router-link
+            to="/pacu"
+            class="nav-subitem"
+          >
+            <i class="pi pi-bolt" /> Pacu
           </router-link>
-          <router-link to="/enumerate-iam" class="nav-subitem">
-            <i class="pi pi-id-card"></i> enumerate-iam
+          <router-link
+            to="/enumerate-iam"
+            class="nav-subitem"
+          >
+            <i class="pi pi-id-card" /> enumerate-iam
           </router-link>
-          <router-link to="/assumed-roles" class="nav-subitem">
-            <i class="pi pi-share-alt"></i> Assumed Roles
+          <router-link
+            to="/assumed-roles"
+            class="nav-subitem"
+          >
+            <i class="pi pi-share-alt" /> Assumed Roles
           </router-link>
-          <router-link to="/lambda-analysis" class="nav-subitem">
-            <i class="pi pi-code"></i> Lambda Analysis
+          <router-link
+            to="/lambda-analysis"
+            class="nav-subitem"
+          >
+            <i class="pi pi-code" /> Lambda Analysis
           </router-link>
         </div>
       </div>
 
       <!-- Settings -->
-      <router-link to="/settings" class="nav-item" :class="{ active: $route.path === '/settings' }" :title="sidebarStore.collapsed ? 'Settings' : ''">
-        <i class="pi pi-cog"></i>
+      <router-link
+        to="/settings"
+        class="nav-item"
+        :class="{ active: $route.path === '/settings' }"
+        :title="sidebarStore.collapsed ? 'Settings' : ''"
+      >
+        <i class="pi pi-cog" />
         <span v-if="!sidebarStore.collapsed">Settings</span>
       </router-link>
 
       <!-- Reports (external) -->
-      <a href="/reports/" target="_blank" rel="noopener" class="nav-item" :title="sidebarStore.collapsed ? 'Reports' : ''">
-        <i class="pi pi-external-link"></i>
+      <a
+        href="/reports/"
+        target="_blank"
+        rel="noopener"
+        class="nav-item"
+        :title="sidebarStore.collapsed ? 'Reports' : ''"
+      >
+        <i class="pi pi-external-link" />
         <span v-if="!sidebarStore.collapsed">Reports</span>
       </a>
     </nav>
 
     <!-- Footer actions -->
     <div class="sidebar-footer">
-      <button class="nav-item" @click="toggleTheme" :title="themeLabel">
-        <i :class="themeIcon"></i>
+      <button
+        class="nav-item"
+        :title="themeLabel"
+        @click="toggleTheme"
+      >
+        <i :class="themeIcon" />
         <span v-if="!sidebarStore.collapsed">{{ themeLabel }}</span>
       </button>
-      <button class="nav-item" @click="exportFindings" :title="sidebarStore.collapsed ? 'Export' : ''">
-        <i class="pi pi-download"></i>
+      <button
+        class="nav-item"
+        :title="sidebarStore.collapsed ? 'Export' : ''"
+        @click="exportFindings"
+      >
+        <i class="pi pi-download" />
         <span v-if="!sidebarStore.collapsed">Export</span>
       </button>
     </div>
@@ -148,7 +273,7 @@ const pentestRoutes = [
   '/pacu',
   '/enumerate-iam',
   '/assumed-roles',
-  '/lambda-analysis'
+  '/lambda-analysis',
 ]
 
 const isPentestRouteActive = computed(() => {

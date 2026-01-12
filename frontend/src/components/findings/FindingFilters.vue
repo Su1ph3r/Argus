@@ -29,8 +29,8 @@
         <MultiSelect
           v-model="selectedSeverities"
           :options="severityOptions"
-          optionLabel="label"
-          optionValue="value"
+          option-label="label"
+          option-value="value"
           placeholder="All Severities"
           display="chip"
           @change="handleSeverityChange"
@@ -42,8 +42,8 @@
         <MultiSelect
           v-model="selectedStatuses"
           :options="statusOptions"
-          optionLabel="label"
-          optionValue="value"
+          option-label="label"
+          option-value="value"
           placeholder="All Statuses"
           display="chip"
           @change="handleStatusChange"
@@ -55,10 +55,10 @@
         <Dropdown
           v-model="selectedTool"
           :options="toolOptions"
-          optionLabel="label"
-          optionValue="value"
+          option-label="label"
+          option-value="value"
           placeholder="All Tools"
-          showClear
+          show-clear
           @change="handleToolChange"
         />
       </div>
@@ -68,10 +68,10 @@
         <Dropdown
           v-model="selectedProvider"
           :options="providerOptions"
-          optionLabel="label"
-          optionValue="value"
+          option-label="label"
+          option-value="value"
           placeholder="All Providers"
-          showClear
+          show-clear
           @change="handleProviderChange"
         />
       </div>
@@ -112,7 +112,7 @@ const severityQuickFilters = [
   { label: 'Critical', value: 'critical' },
   { label: 'High', value: 'high' },
   { label: 'Medium', value: 'medium' },
-  { label: 'Low', value: 'low' }
+  { label: 'Low', value: 'low' },
 ]
 
 // Options
@@ -121,22 +121,22 @@ const severityOptions = [
   { label: 'High', value: 'high' },
   { label: 'Medium', value: 'medium' },
   { label: 'Low', value: 'low' },
-  { label: 'Info', value: 'info' }
+  { label: 'Info', value: 'info' },
 ]
 
 const statusOptions = [
   { label: 'Open', value: 'open' },
   { label: 'Closed', value: 'closed' },
   { label: 'Mitigated', value: 'mitigated' },
-  { label: 'Accepted', value: 'accepted' }
+  { label: 'Accepted', value: 'accepted' },
 ]
 
 const toolOptions = computed(() =>
-  findingsStore.filterOptions.tools.map(t => ({ label: t, value: t }))
+  findingsStore.filterOptions.tools.map(t => ({ label: t, value: t })),
 )
 
 const providerOptions = computed(() =>
-  findingsStore.filterOptions.cloudProviders.map(p => ({ label: p, value: p }))
+  findingsStore.filterOptions.cloudProviders.map(p => ({ label: p, value: p })),
 )
 
 const hasFilters = computed(() => findingsStore.hasFilters)

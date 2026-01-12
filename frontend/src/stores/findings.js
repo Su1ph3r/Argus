@@ -23,7 +23,7 @@ export const useFindingsStore = defineStore('findings', () => {
     tool: null,
     cloud_provider: null,
     resource_type: null,
-    search: ''
+    search: '',
   })
 
   // Available filter options (populated from summary API)
@@ -32,7 +32,7 @@ export const useFindingsStore = defineStore('findings', () => {
     statuses: ['open', 'closed', 'mitigated', 'accepted'],
     tools: [],
     cloudProviders: [],
-    resourceTypes: []
+    resourceTypes: [],
   })
 
   // Summary data for quick filters
@@ -44,7 +44,7 @@ export const useFindingsStore = defineStore('findings', () => {
     low: 0,
     info: 0,
     by_tool: {},
-    by_provider: {}
+    by_provider: {},
   })
 
   // Computed
@@ -67,7 +67,7 @@ export const useFindingsStore = defineStore('findings', () => {
         page_size: pageSize.value,
         sort_by: sortBy.value,
         sort_order: sortOrder.value,
-        ...filters.value
+        ...filters.value,
       }
 
       // Remove null/empty filter values
@@ -177,7 +177,7 @@ export const useFindingsStore = defineStore('findings', () => {
       tool: null,
       cloud_provider: null,
       resource_type: null,
-      search: ''
+      search: '',
     }
     page.value = 1
   }
@@ -201,7 +201,7 @@ export const useFindingsStore = defineStore('findings', () => {
       'tool': 'tool',
       'resource_type': 'resource_type',
       'region': 'region',
-      'status': 'status'
+      'status': 'status',
     }
 
     const mappedField = fieldMapping[field] || 'risk_score'
@@ -238,6 +238,6 @@ export const useFindingsStore = defineStore('findings', () => {
     clearFilters,
     setPage,
     setPageSize,
-    setSort
+    setSort,
   }
 })

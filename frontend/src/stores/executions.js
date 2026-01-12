@@ -13,7 +13,7 @@ export const useExecutionsStore = defineStore('executions', () => {
   const pagination = ref({
     page: 1,
     pageSize: 50,
-    total: 0
+    total: 0,
   })
 
   // Actions
@@ -78,7 +78,7 @@ export const useExecutionsStore = defineStore('executions', () => {
   async function stopExecution(executionId) {
     try {
       const response = await fetch(`${API_BASE}/executions/${executionId}/stop`, {
-        method: 'POST'
+        method: 'POST',
       })
       if (!response.ok) throw new Error('Failed to stop execution')
 
@@ -95,7 +95,7 @@ export const useExecutionsStore = defineStore('executions', () => {
   async function deleteExecution(executionId) {
     try {
       const response = await fetch(`${API_BASE}/executions/${executionId}`, {
-        method: 'DELETE'
+        method: 'DELETE',
       })
       if (!response.ok) throw new Error('Failed to delete execution')
 
@@ -175,15 +175,15 @@ export const useExecutionsStore = defineStore('executions', () => {
 
   // Computed
   const runningExecutions = computed(() =>
-    executions.value.filter(e => e.status === 'running')
+    executions.value.filter(e => e.status === 'running'),
   )
 
   const completedExecutions = computed(() =>
-    executions.value.filter(e => e.status === 'completed')
+    executions.value.filter(e => e.status === 'completed'),
   )
 
   const failedExecutions = computed(() =>
-    executions.value.filter(e => e.status === 'failed')
+    executions.value.filter(e => e.status === 'failed'),
   )
 
   return {
@@ -203,6 +203,6 @@ export const useExecutionsStore = defineStore('executions', () => {
     checkDockerStatus,
     startPolling,
     stopPolling,
-    stopAllPolling
+    stopAllPolling,
   }
 })

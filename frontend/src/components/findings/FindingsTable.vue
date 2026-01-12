@@ -1,26 +1,26 @@
 <template>
   <div class="findings-table-container">
     <DataTable
+      v-model:expanded-rows="expandedRows"
       :value="findings"
       :loading="loading"
       :rows="pageSize"
-      :totalRecords="total"
+      :total-records="total"
       :lazy="true"
-      :sortField="sortField"
-      :sortOrder="sortOrder"
-      v-model:expandedRows="expandedRows"
-      dataKey="id"
+      :sort-field="sortField"
+      :sort-order="sortOrder"
+      data-key="id"
+      scrollable
+      scroll-height="flex"
+      striped-rows
+      show-gridlines
+      class="findings-table"
       @page="onPage"
       @sort="onSort"
-      scrollable
-      scrollHeight="flex"
-      stripedRows
-      showGridlines
-      class="findings-table"
     >
       <template #empty>
         <div class="empty-state">
-          <i class="pi pi-inbox"></i>
+          <i class="pi pi-inbox" />
           <p>No findings found</p>
           <span v-if="hasFilters">Try adjusting your filters</span>
         </div>
@@ -34,30 +34,54 @@
       </template>
 
       <!-- Expander Column -->
-      <Column expander style="width: 3rem" />
+      <Column
+        expander
+        style="width: 3rem"
+      />
 
       <!-- Severity -->
-      <Column field="severity" header="Severity" :sortable="true" style="width: 100px">
+      <Column
+        field="severity"
+        header="Severity"
+        :sortable="true"
+        style="width: 100px"
+      >
         <template #body="{ data }">
-          <span class="severity-badge" :class="data.severity">
+          <span
+            class="severity-badge"
+            :class="data.severity"
+          >
             {{ data.severity }}
           </span>
         </template>
       </Column>
 
       <!-- Tool -->
-      <Column field="tool" header="Tool" :sortable="true" style="width: 120px">
+      <Column
+        field="tool"
+        header="Tool"
+        :sortable="true"
+        style="width: 120px"
+      >
         <template #body="{ data }">
           <span class="tool-badge">{{ data.tool }}</span>
         </template>
       </Column>
 
       <!-- Title -->
-      <Column field="title" header="Finding" :sortable="true" style="min-width: 300px">
+      <Column
+        field="title"
+        header="Finding"
+        :sortable="true"
+        style="min-width: 300px"
+      >
         <template #body="{ data }">
           <div class="finding-title-cell">
             <span class="title">{{ data.title }}</span>
-            <span v-if="data.resource_name" class="resource-name">
+            <span
+              v-if="data.resource_name"
+              class="resource-name"
+            >
               {{ data.resource_name }}
             </span>
           </div>
@@ -65,22 +89,45 @@
       </Column>
 
       <!-- Resource Type -->
-      <Column field="resource_type" header="Resource Type" :sortable="true" style="width: 150px" />
+      <Column
+        field="resource_type"
+        header="Resource Type"
+        :sortable="true"
+        style="width: 150px"
+      />
 
       <!-- Region -->
-      <Column field="region" header="Region" :sortable="true" style="width: 120px" />
+      <Column
+        field="region"
+        header="Region"
+        :sortable="true"
+        style="width: 120px"
+      />
 
       <!-- Status -->
-      <Column field="status" header="Status" :sortable="true" style="width: 100px">
+      <Column
+        field="status"
+        header="Status"
+        :sortable="true"
+        style="width: 100px"
+      >
         <template #body="{ data }">
-          <span class="status-badge" :class="data.status">
+          <span
+            class="status-badge"
+            :class="data.status"
+          >
             {{ data.status }}
           </span>
         </template>
       </Column>
 
       <!-- Scan Date -->
-      <Column field="scan_date" header="Date" :sortable="true" style="width: 150px">
+      <Column
+        field="scan_date"
+        header="Date"
+        :sortable="true"
+        style="width: 150px"
+      >
         <template #body="{ data }">
           {{ formatDate(data.scan_date) }}
         </template>
@@ -99,9 +146,9 @@
       </div>
       <Paginator
         :rows="pageSize"
-        :totalRecords="total"
+        :total-records="total"
         :first="(page - 1) * pageSize"
-        :rowsPerPageOptions="[25, 50, 100]"
+        :rows-per-page-options="[25, 50, 100]"
         @page="onPageChange"
       />
     </div>
@@ -115,36 +162,36 @@ import FindingDetail from './FindingDetail.vue'
 const props = defineProps({
   findings: {
     type: Array,
-    default: () => []
+    default: () => [],
   },
   total: {
     type: Number,
-    default: 0
+    default: 0,
   },
   page: {
     type: Number,
-    default: 1
+    default: 1,
   },
   pageSize: {
     type: Number,
-    default: 50
+    default: 50,
   },
   loading: {
     type: Boolean,
-    default: false
+    default: false,
   },
   hasFilters: {
     type: Boolean,
-    default: false
+    default: false,
   },
   sortField: {
     type: String,
-    default: 'risk_score'
+    default: 'risk_score',
   },
   sortOrder: {
     type: Number,
-    default: -1  // -1 for descending, 1 for ascending
-  }
+    default: -1,  // -1 for descending, 1 for ascending
+  },
 })
 
 const emit = defineEmits(['page-change', 'sort-change'])
@@ -169,21 +216,21 @@ const formatDate = (dateStr) => {
 const onPage = (event) => {
   emit('page-change', {
     page: event.page + 1,
-    pageSize: event.rows
+    pageSize: event.rows,
   })
 }
 
 const onPageChange = (event) => {
   emit('page-change', {
     page: event.page + 1,
-    pageSize: event.rows
+    pageSize: event.rows,
   })
 }
 
 const onSort = (event) => {
   emit('sort-change', {
     field: event.sortField,
-    order: event.sortOrder
+    order: event.sortOrder,
   })
 }
 </script>

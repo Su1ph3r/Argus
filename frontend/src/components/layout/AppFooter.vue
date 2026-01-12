@@ -2,8 +2,11 @@
   <footer class="app-footer">
     <div class="footer-content">
       <div class="footer-left">
-        <span class="api-status" :class="apiStatus">
-          <i :class="statusIcon"></i>
+        <span
+          class="api-status"
+          :class="apiStatus"
+        >
+          <i :class="statusIcon" />
           API: {{ statusText }}
         </span>
       </div>
@@ -26,17 +29,17 @@ let healthCheckInterval = null
 
 const statusText = computed(() => {
   switch (apiStatus.value) {
-    case 'healthy': return 'Healthy'
-    case 'unhealthy': return 'Unhealthy'
-    default: return 'Checking...'
+  case 'healthy': return 'Healthy'
+  case 'unhealthy': return 'Unhealthy'
+  default: return 'Checking...'
   }
 })
 
 const statusIcon = computed(() => {
   switch (apiStatus.value) {
-    case 'healthy': return 'pi pi-check-circle'
-    case 'unhealthy': return 'pi pi-times-circle'
-    default: return 'pi pi-spin pi-spinner'
+  case 'healthy': return 'pi pi-check-circle'
+  case 'unhealthy': return 'pi pi-times-circle'
+  default: return 'pi pi-spin pi-spinner'
   }
 })
 
@@ -58,7 +61,7 @@ const formatTime = (date) => {
   return new Intl.DateTimeFormat('en-US', {
     hour: '2-digit',
     minute: '2-digit',
-    second: '2-digit'
+    second: '2-digit',
   }).format(date)
 }
 

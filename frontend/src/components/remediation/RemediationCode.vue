@@ -1,13 +1,16 @@
 <template>
   <div class="code-container">
-    <div class="code-header" v-if="showHeader">
+    <div
+      v-if="showHeader"
+      class="code-header"
+    >
       <span class="language-label">{{ displayLanguage }}</span>
       <Button
         icon="pi pi-copy"
         size="small"
         text
-        @click="copyCode"
         title="Copy to clipboard"
+        @click="copyCode"
       />
     </div>
     <div class="code-content">
@@ -23,16 +26,16 @@ import { useToast } from 'primevue/usetoast'
 const props = defineProps({
   code: {
     type: String,
-    required: true
+    required: true,
   },
   language: {
     type: String,
-    default: 'bash'
+    default: 'bash',
   },
   showHeader: {
     type: Boolean,
-    default: false
-  }
+    default: false,
+  },
 })
 
 const toast = useToast()
@@ -52,7 +55,7 @@ const displayLanguage = computed(() => {
     powershell: 'PowerShell',
     cli: 'CLI',
     json: 'JSON',
-    yaml: 'YAML'
+    yaml: 'YAML',
   }
   return langMap[props.language] || props.language
 })
@@ -64,14 +67,14 @@ const copyCode = async () => {
       severity: 'success',
       summary: 'Copied',
       detail: 'Code copied to clipboard',
-      life: 2000
+      life: 2000,
     })
   } catch (err) {
     toast.add({
       severity: 'error',
       summary: 'Error',
       detail: 'Failed to copy to clipboard',
-      life: 3000
+      life: 3000,
     })
   }
 }

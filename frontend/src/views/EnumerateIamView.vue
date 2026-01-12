@@ -3,17 +3,19 @@
     <div class="page-header">
       <div class="header-content">
         <h1>enumerate-iam</h1>
-        <p class="subtitle">IAM permission enumeration results</p>
+        <p class="subtitle">
+          IAM permission enumeration results
+        </p>
       </div>
       <div class="header-actions">
         <Button
           v-if="!isRunning"
+          v-tooltip.left="!hasAwsCredentials ? 'Select AWS profile in Credentials first' : ''"
           label="Run Enumeration"
           icon="pi pi-play"
-          @click="runEnumeration"
           :loading="store.loading"
           :disabled="!hasAwsCredentials"
-          v-tooltip.left="!hasAwsCredentials ? 'Select AWS profile in Credentials first' : ''"
+          @click="runEnumeration"
         />
         <Button
           v-else
@@ -26,46 +28,94 @@
     </div>
 
     <!-- Execution Status Panel -->
-    <div v-if="store.currentExecution" class="execution-panel" :class="executionStatusClass">
+    <div
+      v-if="store.currentExecution"
+      class="execution-panel"
+      :class="executionStatusClass"
+    >
       <div class="execution-header">
         <div class="execution-info">
-          <i :class="executionIcon" class="execution-icon"></i>
+          <i
+            :class="executionIcon"
+            class="execution-icon"
+          />
           <span class="execution-title">{{ executionTitle }}</span>
         </div>
         <div class="execution-meta">
-          <span v-if="store.currentExecution.execution_id" class="execution-id">
+          <span
+            v-if="store.currentExecution.execution_id"
+            class="execution-id"
+          >
             ID: {{ store.currentExecution.execution_id }}
           </span>
         </div>
       </div>
-      <div v-if="store.currentExecution.error" class="execution-error">
+      <div
+        v-if="store.currentExecution.error"
+        class="execution-error"
+      >
         {{ store.currentExecution.error }}
       </div>
-      <div v-if="executionLogs" class="execution-logs">
+      <div
+        v-if="executionLogs"
+        class="execution-logs"
+      >
         <pre>{{ executionLogs }}</pre>
       </div>
-      <div v-if="!isRunning" class="execution-actions">
-        <Button label="Dismiss" text size="small" @click="dismissExecution" />
-        <Button v-if="store.currentExecution.status === 'completed'" label="View Results" size="small" @click="store.fetchResults()" />
+      <div
+        v-if="!isRunning"
+        class="execution-actions"
+      >
+        <Button
+          label="Dismiss"
+          text
+          size="small"
+          @click="dismissExecution"
+        />
+        <Button
+          v-if="store.currentExecution.status === 'completed'"
+          label="View Results"
+          size="small"
+          @click="store.fetchResults()"
+        />
       </div>
     </div>
 
-    <div v-if="store.summary" class="summary-cards">
+    <div
+      v-if="store.summary"
+      class="summary-cards"
+    >
       <div class="summary-card info">
-        <div class="card-value">{{ store.summary.total_principals }}</div>
-        <div class="card-label">Total Principals</div>
+        <div class="card-value">
+          {{ store.summary.total_principals }}
+        </div>
+        <div class="card-label">
+          Total Principals
+        </div>
       </div>
       <div class="summary-card critical">
-        <div class="card-value">{{ store.summary.admin_capable }}</div>
-        <div class="card-label">Admin Capable</div>
+        <div class="card-value">
+          {{ store.summary.admin_capable }}
+        </div>
+        <div class="card-label">
+          Admin Capable
+        </div>
       </div>
       <div class="summary-card high">
-        <div class="card-value">{{ store.summary.privesc_capable }}</div>
-        <div class="card-label">Privesc Capable</div>
+        <div class="card-value">
+          {{ store.summary.privesc_capable }}
+        </div>
+        <div class="card-label">
+          Privesc Capable
+        </div>
       </div>
       <div class="summary-card medium">
-        <div class="card-value">{{ store.summary.data_access_capable }}</div>
-        <div class="card-label">Data Access</div>
+        <div class="card-value">
+          {{ store.summary.data_access_capable }}
+        </div>
+        <div class="card-label">
+          Data Access
+        </div>
       </div>
     </div>
 
@@ -80,30 +130,61 @@
     <DataTable
       :value="store.results"
       :loading="store.loading"
-      responsiveLayout="scroll"
+      responsive-layout="scroll"
       class="p-datatable-sm"
     >
-      <Column field="principal_name" header="Principal" />
-      <Column field="principal_type" header="Type" />
-      <Column field="permission_count" header="Permissions" />
-      <Column field="privesc_capable" header="Privesc">
+      <Column
+        field="principal_name"
+        header="Principal"
+      />
+      <Column
+        field="principal_type"
+        header="Type"
+      />
+      <Column
+        field="permission_count"
+        header="Permissions"
+      />
+      <Column
+        field="privesc_capable"
+        header="Privesc"
+      >
         <template #body="{ data }">
-          <Tag :severity="data.privesc_capable ? 'danger' : 'success'" :value="data.privesc_capable ? 'Yes' : 'No'" />
+          <Tag
+            :severity="data.privesc_capable ? 'danger' : 'success'"
+            :value="data.privesc_capable ? 'Yes' : 'No'"
+          />
         </template>
       </Column>
-      <Column field="admin_capable" header="Admin">
+      <Column
+        field="admin_capable"
+        header="Admin"
+      >
         <template #body="{ data }">
-          <Tag :severity="data.admin_capable ? 'danger' : 'success'" :value="data.admin_capable ? 'Yes' : 'No'" />
+          <Tag
+            :severity="data.admin_capable ? 'danger' : 'success'"
+            :value="data.admin_capable ? 'Yes' : 'No'"
+          />
         </template>
       </Column>
-      <Column field="data_access_capable" header="Data Access">
+      <Column
+        field="data_access_capable"
+        header="Data Access"
+      >
         <template #body="{ data }">
-          <Tag :severity="data.data_access_capable ? 'warning' : 'success'" :value="data.data_access_capable ? 'Yes' : 'No'" />
+          <Tag
+            :severity="data.data_access_capable ? 'warning' : 'success'"
+            :value="data.data_access_capable ? 'Yes' : 'No'"
+          />
         </template>
       </Column>
       <Column header="Actions">
         <template #body="{ data }">
-          <Button icon="pi pi-eye" text @click="viewPermissions(data.id)" />
+          <Button
+            icon="pi pi-eye"
+            text
+            @click="viewPermissions(data.id)"
+          />
         </template>
       </Column>
     </DataTable>
@@ -111,7 +192,7 @@
     <Paginator
       v-if="store.pagination.total > store.pagination.pageSize"
       :rows="store.pagination.pageSize"
-      :totalRecords="store.pagination.total"
+      :total-records="store.pagination.total"
       :first="(store.pagination.page - 1) * store.pagination.pageSize"
       @page="onPageChange"
     />
@@ -122,9 +203,12 @@
       :header="selectedPermissions?.principal_name || 'Permission Details'"
       :style="{ width: '800px', maxWidth: '95vw' }"
       :modal="true"
-      :dismissableMask="true"
+      :dismissable-mask="true"
     >
-      <div v-if="selectedPermissions" class="permissions-dialog">
+      <div
+        v-if="selectedPermissions"
+        class="permissions-dialog"
+      >
         <div class="principal-info">
           <div class="info-row">
             <span class="info-label">Principal ARN:</span>
@@ -132,7 +216,10 @@
           </div>
           <div class="info-row">
             <span class="info-label">Total Confirmed:</span>
-            <Tag :value="String(selectedPermissions.total_confirmed)" severity="info" />
+            <Tag
+              :value="String(selectedPermissions.total_confirmed)"
+              severity="info"
+            />
           </div>
         </div>
 
@@ -162,10 +249,13 @@
                 :key="perm"
                 class="permission-item confirmed"
               >
-                <i class="pi pi-check-circle"></i>
+                <i class="pi pi-check-circle" />
                 <code>{{ perm }}</code>
               </div>
-              <div v-if="!selectedPermissions.confirmed_permissions?.length" class="no-permissions">
+              <div
+                v-if="!selectedPermissions.confirmed_permissions?.length"
+                class="no-permissions"
+              >
                 No confirmed permissions found
               </div>
             </div>
@@ -177,10 +267,13 @@
                 :key="perm"
                 class="permission-item high-risk"
               >
-                <i class="pi pi-exclamation-triangle"></i>
+                <i class="pi pi-exclamation-triangle" />
                 <code>{{ perm }}</code>
               </div>
-              <div v-if="!selectedPermissions.high_risk_permissions?.length" class="no-permissions">
+              <div
+                v-if="!selectedPermissions.high_risk_permissions?.length"
+                class="no-permissions"
+              >
                 No high-risk permissions found
               </div>
             </div>
@@ -192,10 +285,13 @@
                 :key="perm"
                 class="permission-item denied"
               >
-                <i class="pi pi-times-circle"></i>
+                <i class="pi pi-times-circle" />
                 <code>{{ perm }}</code>
               </div>
-              <div v-if="!selectedPermissions.denied_permissions?.length" class="no-permissions">
+              <div
+                v-if="!selectedPermissions.denied_permissions?.length"
+                class="no-permissions"
+              >
                 No denied permissions recorded
               </div>
             </div>
@@ -207,18 +303,24 @@
                 :key="perm"
                 class="permission-item error"
               >
-                <i class="pi pi-info-circle"></i>
+                <i class="pi pi-info-circle" />
                 <code>{{ perm }}</code>
               </div>
-              <div v-if="!selectedPermissions.error_permissions?.length" class="no-permissions">
+              <div
+                v-if="!selectedPermissions.error_permissions?.length"
+                class="no-permissions"
+              >
                 No error permissions recorded
               </div>
             </div>
           </TabPanel>
         </TabView>
       </div>
-      <div v-else class="loading-permissions">
-        <i class="pi pi-spin pi-spinner"></i>
+      <div
+        v-else
+        class="loading-permissions"
+      >
+        <i class="pi pi-spin pi-spinner" />
         Loading permissions...
       </div>
     </Dialog>
@@ -254,7 +356,7 @@ const hasAwsCredentials = computed(() => {
 })
 
 const isRunning = computed(() =>
-  store.currentExecution?.status === 'running'
+  store.currentExecution?.status === 'running',
 )
 
 const executionStatusClass = computed(() => {
@@ -263,7 +365,7 @@ const executionStatusClass = computed(() => {
     'status-running': status === 'running',
     'status-completed': status === 'completed',
     'status-failed': status === 'failed',
-    'status-pending': status === 'pending'
+    'status-pending': status === 'pending',
   }
 })
 
@@ -273,7 +375,7 @@ const executionIcon = computed(() => {
     running: 'pi pi-spin pi-spinner',
     completed: 'pi pi-check-circle',
     failed: 'pi pi-times-circle',
-    pending: 'pi pi-clock'
+    pending: 'pi pi-clock',
   }
   return icons[status] || 'pi pi-info-circle'
 })
@@ -284,7 +386,7 @@ const executionTitle = computed(() => {
     running: 'IAM enumeration running...',
     completed: 'IAM enumeration completed',
     failed: 'IAM enumeration failed',
-    pending: 'IAM enumeration pending'
+    pending: 'IAM enumeration pending',
   }
   return titles[status] || 'IAM enumeration'
 })

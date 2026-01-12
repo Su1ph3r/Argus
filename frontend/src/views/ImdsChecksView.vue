@@ -3,15 +3,17 @@
     <div class="page-header">
       <div class="header-content">
         <h1>IMDS/Metadata Checks</h1>
-        <p class="subtitle">Instance metadata service vulnerability checks</p>
+        <p class="subtitle">
+          Instance metadata service vulnerability checks
+        </p>
       </div>
       <div class="header-actions">
         <Button
           v-if="!isRunning"
           label="Run Scan"
           icon="pi pi-play"
-          @click="runScan"
           :loading="store.loading"
+          @click="runScan"
         />
         <Button
           v-else
@@ -24,46 +26,94 @@
     </div>
 
     <!-- Execution Status Panel -->
-    <div v-if="store.currentExecution" class="execution-panel" :class="executionStatusClass">
+    <div
+      v-if="store.currentExecution"
+      class="execution-panel"
+      :class="executionStatusClass"
+    >
       <div class="execution-header">
         <div class="execution-info">
-          <i :class="executionIcon" class="execution-icon"></i>
+          <i
+            :class="executionIcon"
+            class="execution-icon"
+          />
           <span class="execution-title">{{ executionTitle }}</span>
         </div>
         <div class="execution-meta">
-          <span v-if="store.currentExecution.execution_id" class="execution-id">
+          <span
+            v-if="store.currentExecution.execution_id"
+            class="execution-id"
+          >
             ID: {{ store.currentExecution.execution_id }}
           </span>
         </div>
       </div>
-      <div v-if="store.currentExecution.error" class="execution-error">
+      <div
+        v-if="store.currentExecution.error"
+        class="execution-error"
+      >
         {{ store.currentExecution.error }}
       </div>
-      <div v-if="executionLogs" class="execution-logs">
+      <div
+        v-if="executionLogs"
+        class="execution-logs"
+      >
         <pre>{{ executionLogs }}</pre>
       </div>
-      <div v-if="!isRunning" class="execution-actions">
-        <Button label="Dismiss" text size="small" @click="dismissExecution" />
-        <Button v-if="store.currentExecution.status === 'completed'" label="View Results" size="small" @click="store.fetchChecks()" />
+      <div
+        v-if="!isRunning"
+        class="execution-actions"
+      >
+        <Button
+          label="Dismiss"
+          text
+          size="small"
+          @click="dismissExecution"
+        />
+        <Button
+          v-if="store.currentExecution.status === 'completed'"
+          label="View Results"
+          size="small"
+          @click="store.fetchChecks()"
+        />
       </div>
     </div>
 
-    <div v-if="store.summary" class="summary-cards">
+    <div
+      v-if="store.summary"
+      class="summary-cards"
+    >
       <div class="summary-card info">
-        <div class="card-value">{{ store.summary.total_instances }}</div>
-        <div class="card-label">Total Instances</div>
+        <div class="card-value">
+          {{ store.summary.total_instances }}
+        </div>
+        <div class="card-label">
+          Total Instances
+        </div>
       </div>
       <div class="summary-card critical">
-        <div class="card-value">{{ store.summary.imds_v1_enabled }}</div>
-        <div class="card-label">IMDSv1 Enabled</div>
+        <div class="card-value">
+          {{ store.summary.imds_v1_enabled }}
+        </div>
+        <div class="card-label">
+          IMDSv1 Enabled
+        </div>
       </div>
       <div class="summary-card high">
-        <div class="card-value">{{ store.summary.ssrf_vulnerable }}</div>
-        <div class="card-label">SSRF Vulnerable</div>
+        <div class="card-value">
+          {{ store.summary.ssrf_vulnerable }}
+        </div>
+        <div class="card-label">
+          SSRF Vulnerable
+        </div>
       </div>
       <div class="summary-card medium">
-        <div class="card-value">{{ store.summary.container_exposed }}</div>
-        <div class="card-label">Container Exposed</div>
+        <div class="card-value">
+          {{ store.summary.container_exposed }}
+        </div>
+        <div class="card-label">
+          Container Exposed
+        </div>
       </div>
     </div>
 
@@ -78,30 +128,60 @@
     <DataTable
       :value="store.checks"
       :loading="store.loading"
-      responsiveLayout="scroll"
+      responsive-layout="scroll"
       class="p-datatable-sm"
     >
-      <Column field="instance_id" header="Instance ID" />
-      <Column field="instance_name" header="Name" />
-      <Column field="region" header="Region" />
-      <Column field="imds_v1_enabled" header="IMDSv1">
+      <Column
+        field="instance_id"
+        header="Instance ID"
+      />
+      <Column
+        field="instance_name"
+        header="Name"
+      />
+      <Column
+        field="region"
+        header="Region"
+      />
+      <Column
+        field="imds_v1_enabled"
+        header="IMDSv1"
+      >
         <template #body="{ data }">
-          <Tag :severity="data.imds_v1_enabled ? 'danger' : 'success'" :value="data.imds_v1_enabled ? 'Enabled' : 'Disabled'" />
+          <Tag
+            :severity="data.imds_v1_enabled ? 'danger' : 'success'"
+            :value="data.imds_v1_enabled ? 'Enabled' : 'Disabled'"
+          />
         </template>
       </Column>
-      <Column field="http_tokens_required" header="Tokens Required">
+      <Column
+        field="http_tokens_required"
+        header="Tokens Required"
+      >
         <template #body="{ data }">
-          <Tag :severity="data.http_tokens_required ? 'success' : 'warning'" :value="data.http_tokens_required ? 'Yes' : 'No'" />
+          <Tag
+            :severity="data.http_tokens_required ? 'success' : 'warning'"
+            :value="data.http_tokens_required ? 'Yes' : 'No'"
+          />
         </template>
       </Column>
-      <Column field="ssrf_vulnerable" header="SSRF">
+      <Column
+        field="ssrf_vulnerable"
+        header="SSRF"
+      >
         <template #body="{ data }">
           <i :class="data.ssrf_vulnerable ? 'pi pi-exclamation-triangle text-danger' : 'pi pi-check text-success'" />
         </template>
       </Column>
-      <Column field="risk_level" header="Risk">
+      <Column
+        field="risk_level"
+        header="Risk"
+      >
         <template #body="{ data }">
-          <Tag :severity="getRiskSeverity(data.risk_level)" :value="data.risk_level" />
+          <Tag
+            :severity="getRiskSeverity(data.risk_level)"
+            :value="data.risk_level"
+          />
         </template>
       </Column>
     </DataTable>
@@ -109,7 +189,7 @@
     <Paginator
       v-if="store.pagination.total > store.pagination.pageSize"
       :rows="store.pagination.pageSize"
-      :totalRecords="store.pagination.total"
+      :total-records="store.pagination.total"
       :first="(store.pagination.page - 1) * store.pagination.pageSize"
       @page="onPageChange"
     />
@@ -132,7 +212,7 @@ const showVulnerableOnly = ref(false)
 const executionLogs = ref(null)
 
 const isRunning = computed(() =>
-  store.currentExecution?.status === 'running'
+  store.currentExecution?.status === 'running',
 )
 
 const executionStatusClass = computed(() => {
@@ -141,7 +221,7 @@ const executionStatusClass = computed(() => {
     'status-running': status === 'running',
     'status-completed': status === 'completed',
     'status-failed': status === 'failed',
-    'status-pending': status === 'pending'
+    'status-pending': status === 'pending',
   }
 })
 
@@ -151,7 +231,7 @@ const executionIcon = computed(() => {
     running: 'pi pi-spin pi-spinner',
     completed: 'pi pi-check-circle',
     failed: 'pi pi-times-circle',
-    pending: 'pi pi-clock'
+    pending: 'pi pi-clock',
   }
   return icons[status] || 'pi pi-info-circle'
 })
@@ -162,7 +242,7 @@ const executionTitle = computed(() => {
     running: 'IMDS scan running...',
     completed: 'IMDS scan completed',
     failed: 'IMDS scan failed',
-    pending: 'IMDS scan pending'
+    pending: 'IMDS scan pending',
   }
   return titles[status] || 'IMDS scan'
 })
