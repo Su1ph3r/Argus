@@ -253,6 +253,9 @@ jobs:
     name: Security Scan
     runs-on: ubuntu-latest
     needs: [test-python, build-frontend]
+    permissions:
+      contents: read
+      security-events: write
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
