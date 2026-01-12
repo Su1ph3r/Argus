@@ -480,7 +480,7 @@ services:
       - ./reports:/reports:rw
       - ./scripts:/app/scripts:ro
       - ./report-processor:/app/report-processor:ro
-      - ./credentials/aws:/app/credentials/aws:ro
+      - ./credentials/aws:/app/credentials/aws:rw
       - /var/run/docker.sock:/var/run/docker.sock:ro
     depends_on:
       postgresql:
