@@ -8,7 +8,10 @@ export const useComplianceStore = defineStore('compliance', () => {
   const controls = ref([])
   const summary = ref(null)
   const selectedFramework = ref(null)
+  const selectedControl = ref(null)
+  const controlDetail = ref(null)
   const loading = ref(false)
+  const controlLoading = ref(false)
   const error = ref(null)
 
   // Computed
@@ -78,6 +81,35 @@ export const useComplianceStore = defineStore('compliance', () => {
   function clearSelection() {
     selectedFramework.value = null
     controls.value = []
+    clearControlSelection()
+  }
+
+  async function fetchControlDetails(framework, controlId) {
+    controlLoading.value = true
+    error.value = null
+    try {
+      const response = await api.getComplianceControlDetails(framework, controlId)
+      controlDetail.value = response
+      selectedControl.value = controlId
+    } catch (err) {
+      error.value = err.message || `Failed to load control details for ${controlId}`
+      controlDetail.value = null
+    } finally {
+      controlLoading.value = false
+    }
+  }
+
+  function selectControl(controlId) {
+    if (controlId && selectedFramework.value) {
+      fetchControlDetails(selectedFramework.value, controlId)
+    } else {
+      clearControlSelection()
+    }
+  }
+
+  function clearControlSelection() {
+    selectedControl.value = null
+    controlDetail.value = null
   }
 
   return {
@@ -86,7 +118,10 @@ export const useComplianceStore = defineStore('compliance', () => {
     controls,
     summary,
     selectedFramework,
+    selectedControl,
+    controlDetail,
     loading,
+    controlLoading,
     error,
     // Computed
     hasData,
@@ -97,5 +132,8 @@ export const useComplianceStore = defineStore('compliance', () => {
     fetchFrameworkDetails,
     selectFramework,
     clearSelection,
+    fetchControlDetails,
+    selectControl,
+    clearControlSelection,
   }
 })

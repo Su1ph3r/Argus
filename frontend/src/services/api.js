@@ -128,6 +128,10 @@ export const api = {
     return request(`/compliance/frameworks/${encodeURIComponent(framework)}`)
   },
 
+  async getComplianceControlDetails(framework, controlId) {
+    return request(`/compliance/frameworks/${encodeURIComponent(framework)}/controls/${encodeURIComponent(controlId)}`)
+  },
+
   getComplianceExportUrl(framework = null) {
     const params = framework ? `?framework=${encodeURIComponent(framework)}` : ''
     return `${API_BASE}/compliance/export/csv${params}`

@@ -1,5 +1,6 @@
 """Tool Execution Management API endpoints."""
 
+import asyncio
 import logging
 import re
 import uuid
@@ -549,6 +550,116 @@ async def get_docker_status():
         }
 
 
+# Expected exit codes for different tools (non-zero codes that are still considered success)
+TOOL_EXPECTED_EXIT_CODES = {
+    "prowler": [0, 1, 3],  # 0=no findings, 1/3=findings found (not errors)
+    "scoutsuite": [0, 1],
+    "cloudfox": [0, 1],
+    "cloudsploit": [0, 1],
+    "cloud-custodian": [0, 1],
+    "pacu": [0],
+    "enumerate-iam": [0],
+    "kubescape": [0, 1],
+}
+
+
+async def _monitor_execution_completion(
+    execution_id: str,
+    container_id: str,
+    tool_name: str,
+    poll_interval: int = 5,
+    max_wait: int = 3600,
+):
+    """
+    Background task that monitors a container and updates the database when it completes.
+
+    This runs asynchronously after start_tool_execution returns, ensuring the database
+    is updated when the container finishes without requiring polling.
+    """
+    from models.database import get_db
+
+    logger.info(f"Starting execution monitor for {execution_id} (container: {container_id[:12]})")
+
+    executor = get_docker_executor()
+    elapsed = 0
+
+    # Get expected exit codes for this tool
+    expected_exit_codes = TOOL_EXPECTED_EXIT_CODES.get(tool_name, [0])
+
+    try:
+        while elapsed < max_wait:
+            await asyncio.sleep(poll_interval)
+            elapsed += poll_interval
+
+            try:
+                status_info = await executor.get_execution_status(container_id)
+                container_status = status_info.get("status")
+
+                # Check if container has exited (don't rely on execution_status which only checks exit_code == 0)
+                if container_status == "exited":
+                    exit_code = status_info.get("exit_code", -1)
+                    is_success = exit_code in expected_exit_codes
+
+                    # Container finished - update database
+                    db = next(get_db())
+                    try:
+                        execution = (
+                            db.query(ToolExecution)
+                            .filter(ToolExecution.execution_id == execution_id)
+                            .first()
+                        )
+
+                        if not execution:
+                            logger.warning(f"Execution {execution_id} not found in database")
+                            return
+
+                        # Skip if already updated
+                        if execution.status != "running":
+                            logger.info(f"Execution {execution_id} already has status: {execution.status}")
+                            return
+
+                        logs = status_info.get("logs", "")
+
+                        if is_success:
+                            execution.status = "completed"
+                            execution.completed_at = datetime.utcnow()
+                            execution.exit_code = exit_code
+                            logger.info(f"Execution {execution_id} completed successfully (exit code: {exit_code})")
+                        else:
+                            execution.status = "failed"
+                            execution.completed_at = datetime.utcnow()
+                            execution.exit_code = exit_code
+                            execution.error_message = logs[:2000] if logs else ""
+                            logger.info(f"Execution {execution_id} failed with exit code {exit_code}")
+
+                        db.commit()
+
+                        # Create tool-specific result records
+                        if tool_name == "pacu":
+                            _create_pacu_result(db, execution, logs)
+                        elif tool_name == "enumerate-iam":
+                            _create_enumerate_iam_result(db, execution, logs)
+
+                        logger.info(f"Execution monitor completed for {execution_id}")
+                        return
+
+                    except Exception as e:
+                        logger.error(f"Error updating execution {execution_id}: {e}")
+                        db.rollback()
+                    finally:
+                        db.close()
+
+            except Exception as e:
+                logger.warning(f"Error checking container status for {execution_id}: {e}")
+                # Continue polling - container might still be starting
+
+        # Timeout reached
+        logger.warning(f"Execution monitor timed out for {execution_id} after {max_wait}s")
+
+    except Exception as e:
+        logger.error(f"Execution monitor error for {execution_id}: {e}")
+
+
 async def start_tool_execution(
     tool_name: str,
     tool_type: ToolType,
@@ -617,6 +728,17 @@ async def start_tool_execution(
         execution.container_id = result.get("container_id")
         execution.started_at = datetime.utcnow()
         db.commit()
+
+        # Start background task to monitor execution completion
+        container_id = result.get("container_id")
+        if container_id:
+            asyncio.create_task(
+                _monitor_execution_completion(
+                    execution_id=execution_id,
+                    container_id=container_id,
+                    tool_name=tool_name,
+                )
+            )
 
         return ToolExecutionStartResponse(
             execution_id=execution_id,

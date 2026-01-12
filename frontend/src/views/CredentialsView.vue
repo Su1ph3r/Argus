@@ -49,6 +49,13 @@
                 v-if="selectedAwsProfile === profile.name"
                 class="pi pi-check-circle profile-check"
               />
+              <button
+                class="btn-delete-profile"
+                title="Delete profile"
+                @click.stop="deleteProfile(profile.name)"
+              >
+                <i class="pi pi-trash" />
+              </button>
             </div>
             <div class="profile-details">
               <span
@@ -359,16 +366,15 @@ clusters:
                 type="text"
                 placeholder="Profile name (e.g., default, production)"
                 class="profile-name-input"
-                :disabled="savingProfile || isCredentialStored"
+                :disabled="savingProfile"
               >
               <button
                 class="btn-use-credentials"
-                :class="{ active: isCredentialStored }"
-                :disabled="savingProfile || isCredentialStored || !profileNameToSave.trim()"
+                :disabled="savingProfile || !profileNameToSave.trim()"
                 @click="useForScans"
               >
-                <i :class="savingProfile ? 'pi pi-spin pi-spinner' : (isCredentialStored ? 'pi pi-check' : 'pi pi-save')" />
-                {{ savingProfile ? 'Saving...' : (isCredentialStored ? 'Saved & Ready' : 'Save & Use for Scans') }}
+                <i :class="savingProfile ? 'pi pi-spin pi-spinner' : 'pi pi-save'" />
+                {{ savingProfile ? 'Saving...' : 'Save as Profile' }}
               </button>
             </div>
           </div>
@@ -402,8 +408,56 @@ const error = ref(null)
 const result = ref(null)
 const showManualForm = ref(false)
 const profileVerified = ref(null)
-const profileNameToSave = ref('default')
+const profileNameToSave = ref('')
 const savingProfile = ref(false)
+
+// Generate a unique profile name based on identity or fallback to numbered names
+function generateUniqueProfileName(identity = null) {
+  const existingNames = awsProfiles.value.map(p => p.name)
+
+  // Try to extract a meaningful name from identity (e.g., "arn:aws:iam::123456:user/john" -> "john")
+  if (identity) {
+    let baseName = identity
+    // Extract username from ARN if present
+    if (identity.includes('/')) {
+      baseName = identity.split('/').pop()
+    } else if (identity.includes(':user/')) {
+      baseName = identity.split(':user/').pop()
+    } else if (identity.includes(':role/')) {
+      baseName = identity.split(':role/').pop()
+    }
+
+    // Clean up the name (remove special chars, make lowercase)
+    baseName = baseName.replace(/[^a-zA-Z0-9-_]/g, '-').toLowerCase()
+
+    // If this name doesn't exist, use it
+    if (!existingNames.includes(baseName)) {
+      return baseName
+    }
+
+    // Otherwise, add a number suffix
+    let counter = 2
+    while (existingNames.includes(`${baseName}-${counter}`)) {
+      counter++
+    }
+    return `${baseName}-${counter}`
+  }
+
+  // Fallback: If no identity, use generic naming
+  if (existingNames.length === 0) {
+    return 'default'
+  }
+
+  if (!existingNames.includes('default')) {
+    return 'default'
+  }
+
+  let counter = 2
+  while (existingNames.includes(`profile-${counter}`)) {
+    counter++
+  }
+  return `profile-${counter}`
+}
 
 // AWS Profiles from store
 const awsProfiles = computed(() => credentialsStore.awsProfiles)
@@ -461,6 +515,41 @@ function clearProfile() {
     detail: 'AWS profile selection cleared',
     life: 3000,
   })
+}
+
+async function deleteProfile(profileName) {
+  try {
+    const response = await fetch(`${API_BASE}/aws-profiles/${profileName}`, {
+      method: 'DELETE',
+    })
+    if (!response.ok) {
+      const errData = await response.json()
+      throw new Error(errData.detail || 'Failed to delete profile')
+    }
+
+    // Refresh the profiles list
+    await credentialsStore.fetchAwsProfiles()
+
+    // Clear selection if we deleted the selected profile
+    if (selectedAwsProfile.value === profileName) {
+      credentialsStore.clearAwsProfile()
+      profileVerified.value = null
+    }
+
+    toast.add({
+      severity: 'success',
+      summary: 'Profile Deleted',
+      detail: `AWS profile "${profileName}" deleted`,
+      life: 3000,
+    })
+  } catch (e) {
+    toast.add({
+      severity: 'error',
+      summary: 'Delete Failed',
+      detail: e.message,
+      life: 5000,
+    })
+  }
 }
 
 const providers = [
@@ -546,6 +635,7 @@ function clearForm() {
   }
   result.value = null
   error.value = null
+  profileNameToSave.value = ''
 }
 
 async function verifyCredentials() {
@@ -596,6 +686,14 @@ async function verifyCredentials() {
     }
 
     result.value = await response.json()
+
+    // Always generate a unique profile name when verification succeeds
+    // Use the identity (username/role) from the verification result
+    if (result.value.success) {
+      // Refresh profiles list to get latest data before generating name
+      await credentialsStore.fetchAwsProfiles()
+      profileNameToSave.value = generateUniqueProfileName(result.value.identity)
+    }
   } catch (e) {
     error.value = e.message
   } finally {
@@ -654,6 +752,12 @@ async function useForScans() {
         detail: `AWS profile "${profileNameToSave.value}" saved and ready for scans (Account: ${data.account})`,
         life: 5000,
       })
+
+      // Reset form to allow adding more profiles
+      awsForm.value = { access_key_id: '', secret_access_key: '', session_token: '', region: 'us-east-1' }
+      result.value = null
+      profileNameToSave.value = ''  // Will be set when next verification succeeds
+      showManualForm.value = false
     } catch (e) {
       toast.add({
         severity: 'error',
@@ -1146,6 +1250,26 @@ async function useForScans() {
 
 .profile-check {
   color: var(--green-500);
+}
+
+.btn-delete-profile {
+  padding: 0.25rem;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text-color-secondary);
+  cursor: pointer;
+  opacity: 0;
+  transition: all 0.15s;
+}
+
+.profile-card:hover .btn-delete-profile {
+  opacity: 1;
+}
+
+.btn-delete-profile:hover {
+  background: var(--red-100);
+  color: var(--red-600);
 }
 
 .profile-details {

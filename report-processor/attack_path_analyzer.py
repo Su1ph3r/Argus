@@ -649,7 +649,7 @@ class AttackPathAnalyzer:
                             path.target_description,
                             Json(path.nodes),
                             Json(path.edges),
-                            Json(path.finding_ids),  # Convert to JSON
+                            path.finding_ids,  # PostgreSQL integer[] - pass as list
                             path.risk_score,
                             path.exploitability,
                             path.impact,
@@ -658,8 +658,8 @@ class AttackPathAnalyzer:
                             path.requires_privileges,
                             path.poc_available,
                             Json(path.poc_steps),
-                            Json(path.mitre_tactics),  # Convert to JSON
-                            Json(path.aws_services),  # Convert to JSON
+                            path.mitre_tactics,  # PostgreSQL text[] - pass as list
+                            path.aws_services,  # PostgreSQL text[] - pass as list
                         ),
                     )
                     saved_count += 1

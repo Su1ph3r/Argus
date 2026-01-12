@@ -168,7 +168,7 @@
         :rows="20"
         :rows-per-page-options="[10, 20, 50, 100]"
         class="controls-table"
-        :row-class="(data) => data.finding_count > 0 ? 'clickable-row' : ''"
+        :row-class="() => 'clickable-row'"
         @row-click="handleControlClick"
       >
         <Column
@@ -243,6 +243,7 @@
       <ProgressSpinner />
       <p>Loading compliance data...</p>
     </div>
+
   </div>
 </template>
 
@@ -313,21 +314,11 @@ const getSeverityColor = (severity) => {
   return colors[severity?.toLowerCase()] || 'secondary'
 }
 
-// Handle control row click to show finding details
+// Handle control row click to navigate to control detail view
 const handleControlClick = (event) => {
   const control = event.data
-  if (control?.finding_id) {
-    // Navigate to finding detail if finding_id exists
-    router.push(`/findings/${control.finding_id}`)
-  } else if (control?.finding_count > 0) {
-    // Otherwise navigate to findings filtered by control
-    router.push({
-      path: '/findings',
-      query: {
-        control_id: control.control_id,
-        framework: complianceStore.selectedFramework,
-      },
-    })
+  if (control?.control_id && complianceStore.selectedFramework) {
+    router.push(`/compliance/${encodeURIComponent(complianceStore.selectedFramework)}/${encodeURIComponent(control.control_id)}`)
   }
 }
 
