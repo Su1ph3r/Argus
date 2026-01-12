@@ -6,12 +6,101 @@ This document provides a comprehensive overview of the Nubicustos repository str
 nubicustos/
 ├── README.md                      # Main documentation
 ├── INSTALL.md                     # Quick installation guide
+├── CHEATSHEET.md                  # Quick reference for common commands
+├── CHANGELOG.md                   # Version history and release notes
+├── CONTRIBUTING.md                # Contribution guidelines
 ├── LICENSE                        # MIT License
 ├── .gitignore                     # Git ignore rules
 ├── .env.example                   # Environment variables template
 ├── docker-compose.yml             # Main orchestration file
 ├── init.sql                       # PostgreSQL database schema
 ├── nginx.conf                     # Nginx web server configuration
+├── pyproject.toml                 # Python project configuration
+│
+├── api/                           # FastAPI Backend
+│   ├── main.py                   # API server entry point
+│   ├── config.py                 # Settings management
+│   ├── logging_config.py         # Structured logging
+│   ├── models/
+│   │   ├── database.py           # SQLAlchemy ORM models
+│   │   └── schemas.py            # Pydantic request/response schemas
+│   ├── routers/                  # API endpoint groups (18+ routers)
+│   │   ├── scans.py              # Scan orchestration
+│   │   ├── findings.py           # Finding queries
+│   │   ├── attack_paths.py       # Attack path API
+│   │   ├── compliance.py         # Compliance tracking
+│   │   ├── exports.py            # Report generation
+│   │   ├── pacu.py               # Pacu AWS exploitation
+│   │   ├── cloudfox.py           # CloudFox enumeration
+│   │   ├── enumerate_iam.py      # IAM permission mapping
+│   │   ├── imds_checks.py        # EC2 metadata vulnerabilities
+│   │   ├── lambda_analysis.py    # Serverless security
+│   │   ├── exposed_credentials.py # Credential leak detection
+│   │   ├── public_exposures.py   # Attack surface monitoring
+│   │   ├── privesc_paths.py      # Privilege escalation paths
+│   │   └── assumed_roles.py      # Role assumption analysis
+│   ├── services/
+│   │   ├── docker_executor.py    # Container orchestration
+│   │   └── neo4j_sync.py         # Database sync
+│   └── tests/                    # Unit & integration tests
+│
+├── frontend/                      # Vue.js 3 Web Interface
+│   ├── src/
+│   │   ├── main.js               # App entry point
+│   │   ├── App.vue               # Root component
+│   │   ├── views/                # 19 Vue view components
+│   │   │   ├── DashboardView.vue
+│   │   │   ├── FindingsView.vue
+│   │   │   ├── AttackPathsView.vue
+│   │   │   ├── ComplianceView.vue
+│   │   │   ├── ScansView.vue
+│   │   │   ├── PublicExposuresView.vue
+│   │   │   ├── CredentialsView.vue
+│   │   │   ├── PrivescPathsView.vue
+│   │   │   ├── ImdsChecksView.vue
+│   │   │   ├── LambdaAnalysisView.vue
+│   │   │   ├── CloudfoxView.vue
+│   │   │   ├── PacuView.vue
+│   │   │   ├── EnumerateIamView.vue
+│   │   │   └── SettingsView.vue
+│   │   ├── components/
+│   │   │   ├── layout/           # Navigation, header, sidebar
+│   │   │   ├── dashboard/        # Dashboard widgets
+│   │   │   ├── findings/         # Finding display components
+│   │   │   ├── attack-paths/     # Attack path visualization
+│   │   │   └── remediation/      # Remediation guidance
+│   │   ├── router/               # Vue Router configuration
+│   │   ├── stores/               # Pinia state management
+│   │   └── services/             # API client services
+│   └── package.json              # Frontend dependencies
+│
+├── nubicustos-mcp/                # MCP Server for LLM Integration
+│   ├── README.md                 # MCP server documentation
+│   └── src/nubicustos_mcp/
+│       ├── server.py             # FastMCP server instance
+│       ├── config.py             # Settings
+│       ├── client.py             # Async HTTP client
+│       ├── tools/                # MCP tool implementations
+│       │   ├── scans.py          # Scan management tools
+│       │   ├── findings.py       # Finding query tools
+│       │   ├── attack_paths.py   # Attack path tools
+│       │   ├── security.py       # Security analysis tools
+│       │   ├── cloud.py          # Cloud-specific tools
+│       │   ├── exports.py        # Export tools
+│       │   └── system.py         # System tools
+│       ├── resources/            # MCP resource definitions
+│       └── prompts/              # LLM prompt templates
+│
+├── report-processor/              # Post-Scan Analysis Engine
+│   ├── process_reports.py        # Main report processor
+│   ├── db_loader.py              # Database insertion
+│   ├── attack_path_analyzer.py   # Attack path discovery
+│   ├── attack_path_edges.py      # Graph edge definitions
+│   ├── remediation_kb.py         # Remediation knowledge base
+│   ├── severity_scoring.py       # Risk scoring
+│   ├── compare_scans.py          # Scan comparison with MTTR
+│   ├── generate_summary.py       # Report summaries
+│   └── send_notifications.py     # Alerting
 │
 ├── credentials/                   # Cloud provider credentials (gitignored)
 │   ├── aws/
@@ -56,6 +145,7 @@ nubicustos/
 │   │   └── scoutsuite-report/
 │   │       └── index.html
 │   ├── pacu/
+│   ├── cloudfox/
 │   ├── cloudsploit/
 │   │   └── output.json
 │   ├── custodian/
@@ -94,18 +184,28 @@ nubicustos/
 │
 ├── scripts/                       # Automation scripts
 │   ├── run-all-audits.sh         # Master audit execution script
+│   ├── check-permissions.py      # Pre-flight credential validation
 │   ├── export-findings.sh        # Export findings for clients
-│   ├── run-audit.sh              # Single provider audit (optional)
+│   ├── neo4j-sync.sh             # Database sync
+│   ├── update.sh                 # Version management
 │   └── cleanup-old-reports.sh    # Maintenance script (optional)
+│
+├── tools/                         # Custom tool builds
+│   └── enumerate-iam/
+│       └── Dockerfile
+│
+├── data/                          # Metadata and reference data
+│   └── versions.json             # Tool version tracking
 │
 ├── cloudmapper/                   # CloudMapper Docker build
 │   ├── Dockerfile
 │   └── entrypoint.sh
 │
-└── static/                        # Web interface static files
-    ├── index.html                 # Landing page
-    ├── css/
-    └── js/
+└── .github/                       # GitHub configuration
+    ├── workflows/                # CI/CD workflows
+    ├── ISSUE_TEMPLATE/
+    ├── PULL_REQUEST_TEMPLATE.md
+    └── SECURITY.md
 ```
 
 ## Directory Purposes
@@ -114,8 +214,74 @@ nubicustos/
 
 - **docker-compose.yml**: Defines all security scanning services, databases, and web interface
 - **init.sql**: PostgreSQL database schema for storing findings and compliance data
-- **nginx.conf**: Web server configuration for accessing reports
+- **nginx.conf**: Web server configuration for serving Vue.js frontend
+- **pyproject.toml**: Python project configuration with dependencies and tool settings
 - **.env**: Environment variables (passwords, ports, feature flags)
+
+### API Directory
+
+**Purpose**: FastAPI backend providing REST API access to all platform features
+
+**Key Components**:
+- **main.py**: API server entry point with middleware configuration
+- **routers/**: 18+ endpoint groups for scans, findings, attack paths, compliance, etc.
+- **models/**: SQLAlchemy ORM models and Pydantic schemas
+- **services/**: Docker SDK executor and Neo4j sync services
+
+**API Endpoint Groups**:
+- `/scans`: Scan orchestration and profiles
+- `/findings`: Vulnerability queries and filtering
+- `/attack-paths`: Attack chain analysis
+- `/compliance`: Framework compliance tracking
+- `/exports`: Report generation (CSV, JSON)
+- `/pacu`, `/cloudfox`, `/enumerate-iam`: AWS security tools
+- `/imds-checks`, `/lambda-analysis`: AWS-specific security
+- `/privesc-paths`, `/public-exposures`, `/exposed-credentials`: Threat hunting
+
+### Frontend Directory
+
+**Purpose**: Vue.js 3 web interface with 19 specialized security views
+
+**Stack**:
+- Vue 3 with Composition API
+- Vue Router for navigation
+- Pinia for state management
+- PrimeVue UI components
+- Chart.js for visualizations
+
+**Key Views**:
+- Dashboard, Findings, Attack Paths, Compliance
+- Scans, Public Exposures, Credentials
+- IMDS Checks, Lambda Analysis, CloudFox, Pacu
+- Privilege Escalation, Enumerate IAM, Settings
+
+### Nubicustos-MCP Directory
+
+**Purpose**: Model Context Protocol server for LLM integration
+
+**Capabilities**:
+- 27+ tools for querying and triggering security operations
+- 6 resource URIs for accessing security data
+- 8+ prompt templates for analysis workflows
+- Compatible with Claude Desktop, Ollama, LM Studio
+
+**Tool Categories**:
+- Scan management (list, trigger, status, cancel)
+- Finding queries (search, summary, details)
+- Attack path analysis
+- Cloud-specific tools (IMDS, Lambda, IAM)
+- Export and system operations
+
+### Report-Processor Directory
+
+**Purpose**: Post-scan analysis engine for findings processing
+
+**Key Modules**:
+- **attack_path_analyzer.py**: Graph-based attack chain discovery
+- **remediation_kb.py**: AWS CLI remediation commands
+- **severity_scoring.py**: Risk scoring with CVSS-inspired metrics
+- **compare_scans.py**: Scan comparison with MTTR tracking
+- **db_loader.py**: Findings insertion to PostgreSQL
 
 ### Credentials Directory
 
@@ -246,11 +412,12 @@ audit-{timestamp}.log
 Persistent data stored in named Docker volumes:
 
 ```
-postgres-data       # PostgreSQL database
-neo4j-data          # Neo4j graph database
+postgres-data       # PostgreSQL findings database
+neo4j-data          # Neo4j asset graph database
 neo4j-logs          # Neo4j logs
 neo4j-plugins       # Neo4j extensions
 pacu-data           # Pacu AWS testing data
+cloudfox-data       # CloudFox enumeration data
 trivy-cache         # Trivy vulnerability database
 grype-cache         # Grype vulnerability database
 ```
@@ -258,19 +425,23 @@ grype-cache         # Grype vulnerability database
 ## Data Flow
 
 ```
-1. Cloud APIs
+1. Cloud APIs / Kubernetes Clusters
    ↓
-2. Security Scanning Tools (Docker containers)
+2. Security Scanning Tools (Docker containers via Docker SDK)
    ↓
 3. Reports Directory (JSON/HTML/CSV)
    ↓
-4. PostgreSQL Database (structured findings)
+4. Report Processor (attack paths, severity scoring, remediation)
    ↓
-5. Neo4j Graph (asset relationships)
+5. PostgreSQL Database (structured findings, attack paths)
    ↓
-6. Nginx Web Interface
+6. Neo4j Graph (asset relationships via Cartography)
    ↓
-7. Export Scripts (client packages)
+7. FastAPI REST API (programmatic access)
+   ↓
+8. Vue.js Frontend / MCP Server (user interfaces)
+   ↓
+9. Export Scripts (client packages, CSV, JSON)
 ```
 
 ## Adding New Tools
