@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { useExecutionsStore } from './executions'
+import { useCredentialsStore } from './credentials'
 
 const API_BASE = '/api'
 
@@ -130,10 +131,24 @@ export const useImdsChecksStore = defineStore('imdsChecks', () => {
     error.value = null
 
     try {
+      // Get AWS credentials from session
+      const credentialsStore = useCredentialsStore()
+      const awsCreds = credentialsStore.getSessionCredentials('aws')
+
+      // Add credentials to request if available
+      const requestWithCreds = { ...request }
+      if (awsCreds) {
+        requestWithCreds.access_key = awsCreds.access_key_id
+        requestWithCreds.secret_key = awsCreds.secret_access_key
+        if (awsCreds.session_token) {
+          requestWithCreds.session_token = awsCreds.session_token
+        }
+      }
+
       const response = await fetch(`${API_BASE}/imds-checks/scan`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(request),
+        body: JSON.stringify(requestWithCreds),
       })
 
       if (!response.ok) throw new Error('Failed to run IMDS check')
