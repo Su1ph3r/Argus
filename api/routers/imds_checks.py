@@ -37,6 +37,9 @@ async def _run_imds_scan(
     execution_id: str,
     profile: str | None,
     regions: list[str] | None,
+    access_key: str | None,
+    secret_key: str | None,
+    session_token: str | None,
     db_url: str,
 ):
     """
@@ -62,9 +65,14 @@ async def _run_imds_scan(
             execution.started_at = datetime.utcnow()
             db.commit()
 
-        # Set up boto3 session
+        # Set up boto3 session with credentials
         session_kwargs = {}
-        if profile:
+        if access_key and secret_key:
+            session_kwargs["aws_access_key_id"] = access_key
+            session_kwargs["aws_secret_access_key"] = secret_key
+            if session_token:
+                session_kwargs["aws_session_token"] = session_token
+        elif profile:
             session_kwargs["profile_name"] = profile
 
         session = boto3.Session(**session_kwargs)
@@ -292,6 +300,7 @@ async def run_imds_scan(
         config={
             "profile": request.profile,
             "regions": request.regions,
+            "has_credentials": bool(request.access_key and request.secret_key),
         },
         created_at=datetime.utcnow(),
     )
@@ -306,6 +315,9 @@ async def run_imds_scan(
             execution_id=execution_id,
             profile=request.profile,
             regions=request.regions,
+            access_key=request.access_key,
+            secret_key=request.secret_key,
+            session_token=request.session_token,
             db_url=settings.database_url,
         )
     )

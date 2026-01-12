@@ -10,9 +10,11 @@
       <div class="header-actions">
         <Button
           v-if="!isRunning"
+          v-tooltip.left="!hasAwsCredentials ? 'Select AWS profile in Credentials first' : ''"
           label="Run Scan"
           icon="pi pi-play"
           :loading="store.loading"
+          :disabled="!hasAwsCredentials"
           @click="runScan"
         />
         <Button
@@ -61,6 +63,16 @@
         <pre>{{ executionLogs }}</pre>
       </div>
       <div
+        v-if="store.currentExecution.status === 'completed' && store.currentExecution.config"
+        class="execution-stats"
+      >
+        <span>Instances scanned: <strong>{{ store.currentExecution.config.instances_checked || 0 }}</strong></span>
+        <span>Vulnerabilities found: <strong>{{ store.currentExecution.config.vulnerabilities_found || 0 }}</strong></span>
+        <span v-if="store.currentExecution.config.regions_scanned">
+          Regions: <strong>{{ store.currentExecution.config.regions_scanned?.length || 0 }}</strong>
+        </span>
+      </div>
+      <div
         v-if="!isRunning"
         class="execution-actions"
       >
@@ -74,7 +86,7 @@
           v-if="store.currentExecution.status === 'completed'"
           label="View Results"
           size="small"
-          @click="store.fetchChecks()"
+          @click="refreshResults"
         />
       </div>
     </div>
@@ -131,6 +143,13 @@
       responsive-layout="scroll"
       class="p-datatable-sm"
     >
+      <template #empty>
+        <div class="empty-state">
+          <i class="pi pi-server" />
+          <p>No IMDS check results found</p>
+          <p class="empty-hint">Run a scan to check EC2 instances for IMDS vulnerabilities</p>
+        </div>
+      </template>
       <Column
         field="instance_id"
         header="Instance ID"
@@ -200,6 +219,7 @@
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useImdsChecksStore } from '../stores/imdsChecks'
 import { useExecutionsStore } from '../stores/executions'
+import { useCredentialsStore } from '../stores/credentials'
 import { useToast } from 'primevue/usetoast'
 import DataTable from 'primevue/datatable'
 import Column from 'primevue/column'
@@ -209,9 +229,14 @@ import Paginator from 'primevue/paginator'
 
 const store = useImdsChecksStore()
 const executionsStore = useExecutionsStore()
+const credentialsStore = useCredentialsStore()
 const toast = useToast()
 const showVulnerableOnly = ref(false)
 const executionLogs = ref(null)
+
+const hasAwsCredentials = computed(() => {
+  return credentialsStore.sessionCredentials?.aws !== null
+})
 
 const isRunning = computed(() =>
   store.currentExecution?.status === 'running',
@@ -263,7 +288,29 @@ function toggleVulnerable() {
   }
 }
 
+async function refreshResults() {
+  await Promise.all([
+    store.fetchChecks(),
+    store.fetchSummary(),
+  ])
+  toast.add({
+    severity: 'info',
+    summary: 'Results Loaded',
+    detail: `Found ${store.pagination.total} instance(s)`,
+    life: 3000,
+  })
+}
+
 async function runScan() {
+  if (!hasAwsCredentials.value) {
+    toast.add({
+      severity: 'warn',
+      summary: 'No Credentials',
+      detail: 'Select an AWS profile in Credentials first',
+      life: 3000,
+    })
+    return
+  }
   executionLogs.value = null
   try {
     await store.runScan({})
@@ -408,6 +455,37 @@ onUnmounted(() => {
   margin-top: 0.75rem;
   display: flex;
   gap: 0.5rem;
+}
+.execution-stats {
+  margin-top: 0.75rem;
+  display: flex;
+  gap: 1.5rem;
+  font-size: 0.9rem;
+  color: var(--text-color-secondary);
+}
+.execution-stats strong {
+  color: var(--text-color);
+}
+
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 3rem;
+  color: var(--text-color-secondary);
+}
+.empty-state i {
+  font-size: 3rem;
+  margin-bottom: 1rem;
+  opacity: 0.5;
+}
+.empty-state p {
+  margin: 0.25rem 0;
+}
+.empty-hint {
+  font-size: 0.85rem;
+  opacity: 0.7;
 }
 
 .summary-cards {
