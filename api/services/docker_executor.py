@@ -1,7 +1,9 @@
 """Docker container execution service for security tools."""
 
+import io
 import logging
 import os
+import tarfile
 import uuid
 from datetime import datetime
 from enum import Enum
@@ -38,6 +40,37 @@ class ToolType(str, Enum):
     ENUMERATE_IAM = "enumerate-iam"
     # Kubernetes Security Tools
     KUBESCAPE = "kubescape"
+
+
+# Build configurations for tools that use local images
+# Maps tool type to build context path relative to project root
+# container_context is the path inside the API container (mounted via docker-compose)
+LOCAL_BUILD_CONFIGS = {
+    ToolType.CLOUDFOX: {
+        "context": "docker/cloudfox",
+        "container_context": "/app/docker/cloudfox",
+        "dockerfile": "Dockerfile",
+        "image": "cloudfox:local",
+    },
+    ToolType.ENUMERATE_IAM: {
+        "context": "tools/enumerate-iam",
+        "container_context": "/app/tools/enumerate-iam",
+        "dockerfile": "Dockerfile",
+        "image": "enumerate-iam:local",
+    },
+    ToolType.CLOUDSPLOIT: {
+        "context": "docker/cloudsploit",
+        "container_context": "/app/docker/cloudsploit",
+        "dockerfile": "Dockerfile",
+        "image": "cloudsploit:local",
+    },
+    ToolType.CLOUDMAPPER: {
+        "context": "cloudmapper",
+        "container_context": "/app/cloudmapper",
+        "dockerfile": "Dockerfile",
+        "image": "cloudmapper:local",
+    },
+}
 
 
 # Tool configuration mapping - images match docker-compose.yml
@@ -341,6 +374,168 @@ class DockerExecutor:
             logger.info(f"Creating volume: {volume_name}")
             self.client.volumes.create(volume_name)
 
+    def _image_exists(self, image_name: str) -> bool:
+        """Check if a Docker image exists locally."""
+        try:
+            self.client.images.get(image_name)
+            return True
+        except docker.errors.ImageNotFound:
+            return False
+        except Exception as e:
+            logger.warning(f"Error checking for image {image_name}: {e}")
+            return False
+
+    def _create_build_context_tar(self, context_path: str, dockerfile: str = "Dockerfile") -> io.BytesIO:
+        """
+        Create a tar archive of the build context for streaming to Docker.
+
+        Args:
+            context_path: Path to the build context directory
+            dockerfile: Name of the Dockerfile
+
+        Returns:
+            BytesIO object containing the tar archive
+        """
+        tar_stream = io.BytesIO()
+
+        with tarfile.open(fileobj=tar_stream, mode="w") as tar:
+            # Walk the context directory and add all files
+            for root, dirs, files in os.walk(context_path):
+                # Skip common ignore patterns
+                dirs[:] = [d for d in dirs if d not in [".git", "__pycache__", "node_modules", ".venv"]]
+
+                for file in files:
+                    file_path = os.path.join(root, file)
+                    # Calculate archive name (relative to context)
+                    arcname = os.path.relpath(file_path, context_path)
+                    tar.add(file_path, arcname=arcname)
+
+        tar_stream.seek(0)
+        return tar_stream
+
+    def _build_image(self, tool_type: ToolType) -> tuple[bool, str]:
+        """
+        Build a Docker image for a tool that requires local build.
+
+        Uses the container-mounted path to access the build context and streams
+        it as a tar archive to Docker, avoiding host path translation issues.
+
+        Args:
+            tool_type: The type of tool to build
+
+        Returns:
+            Tuple of (success, message)
+        """
+        build_config = LOCAL_BUILD_CONFIGS.get(tool_type)
+        if not build_config:
+            return False, f"No build configuration for {tool_type}"
+
+        # Use the container-mounted path to access build context
+        # This is mounted via docker-compose: ./tools:/app/tools:ro, ./docker:/app/docker:ro
+        container_context = build_config.get("container_context")
+        if not container_context:
+            # Fallback to constructing path from context relative path
+            container_context = os.path.join("/app", build_config["context"])
+
+        dockerfile_name = build_config["dockerfile"]
+        image_tag = build_config["image"]
+
+        logger.info(f"Building image {image_tag} from container context {container_context}")
+
+        # Verify the context path exists
+        if not os.path.isdir(container_context):
+            error_msg = (
+                f"Build context not found at {container_context}. "
+                f"Ensure the tools directory is mounted in docker-compose.yml"
+            )
+            logger.error(error_msg)
+            return False, error_msg
+
+        # Verify Dockerfile exists
+        dockerfile_path = os.path.join(container_context, dockerfile_name)
+        if not os.path.isfile(dockerfile_path):
+            error_msg = f"Dockerfile not found at {dockerfile_path}"
+            logger.error(error_msg)
+            return False, error_msg
+
+        try:
+            # Create tar archive of the build context
+            logger.debug(f"Creating tar archive of build context: {container_context}")
+            tar_stream = self._create_build_context_tar(container_context, dockerfile_name)
+
+            # Build the image using the tar stream
+            # This avoids host path issues as Docker receives the context directly
+            logger.info(f"Starting Docker build for {image_tag}...")
+            image, build_logs = self.client.images.build(
+                fileobj=tar_stream,
+                custom_context=True,
+                dockerfile=dockerfile_name,
+                tag=image_tag,
+                rm=True,  # Remove intermediate containers
+                forcerm=True,  # Always remove intermediate containers
+            )
+
+            # Log build output
+            for log_entry in build_logs:
+                if "stream" in log_entry:
+                    log_line = log_entry["stream"].strip()
+                    if log_line:
+                        logger.debug(log_line)
+                elif "error" in log_entry:
+                    logger.error(f"Build error: {log_entry['error']}")
+                    return False, f"Build error: {log_entry['error']}"
+
+            logger.info(f"Successfully built image {image_tag}")
+            return True, f"Successfully built image {image_tag}"
+
+        except docker.errors.BuildError as e:
+            error_msg = f"Failed to build image {image_tag}: {e}"
+            logger.error(error_msg)
+            # Try to extract more details from build log
+            if hasattr(e, "build_log"):
+                for log_entry in e.build_log:
+                    if "error" in log_entry:
+                        error_msg += f"\nBuild log: {log_entry.get('error', '')}"
+            return False, error_msg
+        except Exception as e:
+            error_msg = f"Unexpected error building image {image_tag}: {e}"
+            logger.error(error_msg)
+            return False, error_msg
+
+    def _ensure_image_available(self, tool_type: ToolType) -> tuple[bool, str]:
+        """
+        Ensure the Docker image for a tool is available, building if necessary.
+
+        Args:
+            tool_type: The type of tool
+
+        Returns:
+            Tuple of (success, message)
+        """
+        config = TOOL_CONFIGS.get(tool_type)
+        if not config:
+            return False, f"Unknown tool type: {tool_type}"
+
+        image_name = config["image"]
+
+        # Check if image already exists
+        if self._image_exists(image_name):
+            logger.debug(f"Image {image_name} already exists")
+            return True, f"Image {image_name} is available"
+
+        # Check if this tool requires a local build
+        if tool_type in LOCAL_BUILD_CONFIGS:
+            logger.info(f"Image {image_name} not found, building...")
+            return self._build_image(tool_type)
+
+        # For images from registries, try to pull
+        try:
+            logger.info(f"Pulling image {image_name}...")
+            self.client.images.pull(image_name)
+            return True, f"Successfully pulled image {image_name}"
+        except Exception as e:
+            return False, f"Failed to pull image {image_name}: {e}"
+
     def _get_volumes(self, tool_type: ToolType) -> dict[str, dict[str, str]]:
         """Get volume mappings for a tool."""
         config = TOOL_CONFIGS.get(tool_type, {})
@@ -389,6 +584,16 @@ class DockerExecutor:
         container_name = f"{config['container_name_prefix']}-{execution_id}"
 
         try:
+            # Ensure image is available (build if necessary)
+            image_available, image_message = self._ensure_image_available(tool_type)
+            if not image_available:
+                logger.error(f"Image not available for {tool_type}: {image_message}")
+                return {
+                    "execution_id": execution_id,
+                    "status": ExecutionStatus.FAILED,
+                    "error": image_message,
+                }
+
             # Prepare volumes
             volumes = self._get_volumes(tool_type)
             if extra_volumes:

@@ -476,12 +476,17 @@ services:
       - LOG_FORMAT=${LOG_FORMAT:-json}
       - SHUTDOWN_TIMEOUT=${SHUTDOWN_TIMEOUT:-30}
       - HOST_REPORTS_PATH=${HOST_REPORTS_PATH:-}
+      - HOST_PROJECT_PATH=${HOST_PROJECT_PATH:-}
     volumes:
       - ./reports:/reports:rw
       - ./scripts:/app/scripts:ro
       - ./report-processor:/app/report-processor:ro
       - ./credentials/aws:/app/credentials/aws:rw
       - /var/run/docker.sock:/var/run/docker.sock:ro
+      # Tool build contexts for on-demand image building
+      - ./tools:/app/tools:ro
+      - ./docker:/app/docker:ro
+      - ./cloudmapper:/app/cloudmapper:ro
     depends_on:
       postgresql:
         condition: service_healthy
