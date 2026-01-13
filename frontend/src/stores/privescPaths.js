@@ -123,6 +123,41 @@ export const usePrivescPathsStore = defineStore('privescPaths', () => {
     fetchPaths()
   }
 
+  const analyzing = ref(false)
+  const analyzeResult = ref(null)
+
+  async function runAnalysis(scanId = null) {
+    analyzing.value = true
+    analyzeResult.value = null
+    error.value = null
+
+    try {
+      const response = await fetch(`${API_BASE}/privesc-paths/analyze`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ scan_id: scanId }),
+      })
+
+      if (!response.ok) {
+        const errData = await response.json().catch(() => ({}))
+        throw new Error(errData.detail || 'Analysis failed')
+      }
+
+      analyzeResult.value = await response.json()
+
+      // Refresh paths and summary after analysis
+      await Promise.all([fetchPaths(), fetchSummary()])
+
+      return analyzeResult.value
+    } catch (e) {
+      error.value = e.message
+      console.error('Error running privesc analysis:', e)
+      throw e
+    } finally {
+      analyzing.value = false
+    }
+  }
+
   return {
     paths,
     currentPath,
@@ -133,10 +168,13 @@ export const usePrivescPathsStore = defineStore('privescPaths', () => {
     filters,
     criticalPaths,
     highRiskPaths,
+    analyzing,
+    analyzeResult,
     fetchPaths,
     fetchPath,
     fetchSummary,
     exportPath,
     setFilters,
+    runAnalysis,
   }
 })

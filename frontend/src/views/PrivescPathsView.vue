@@ -7,6 +7,14 @@
           IAM misconfigurations enabling privilege escalation
         </p>
       </div>
+      <div class="header-actions">
+        <Button
+          label="Run Analysis"
+          icon="pi pi-search"
+          :loading="store.analyzing"
+          @click="runAnalysis"
+        />
+      </div>
     </div>
 
     <div
@@ -112,6 +120,7 @@
 
 <script setup>
 import { onMounted } from 'vue'
+import { useToast } from 'primevue/usetoast'
 import { usePrivescPathsStore } from '../stores/privescPaths'
 import DataTable from 'primevue/datatable'
 import Column from 'primevue/column'
@@ -121,6 +130,7 @@ import ProgressBar from 'primevue/progressbar'
 import Paginator from 'primevue/paginator'
 
 const store = usePrivescPathsStore()
+const toast = useToast()
 
 function getExploitSeverity(level) {
   const map = { confirmed: 'danger', likely: 'warning', theoretical: 'info' }
@@ -141,6 +151,25 @@ function onPageChange(event) {
   store.fetchPaths()
 }
 
+async function runAnalysis() {
+  try {
+    const result = await store.runAnalysis()
+    toast.add({
+      severity: 'success',
+      summary: 'Analysis Complete',
+      detail: `Discovered ${result.paths_discovered} privilege escalation paths in ${result.analysis_time_ms}ms`,
+      life: 5000,
+    })
+  } catch (e) {
+    toast.add({
+      severity: 'error',
+      summary: 'Analysis Failed',
+      detail: e.message,
+      life: 5000,
+    })
+  }
+}
+
 onMounted(() => {
   store.fetchPaths()
   store.fetchSummary()
@@ -149,9 +178,15 @@ onMounted(() => {
 
 <style scoped>
 .privesc-paths-view { padding: 1.5rem; }
-.page-header { margin-bottom: 1.5rem; }
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 1.5rem;
+}
 .page-header h1 { margin: 0; font-size: 1.75rem; }
 .subtitle { color: var(--text-color-secondary); margin-top: 0.25rem; }
+.header-actions { display: flex; gap: 0.5rem; }
 .summary-cards {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));

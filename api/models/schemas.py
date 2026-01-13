@@ -727,6 +727,20 @@ class PrivescPathSummary(BaseModel):
     by_target: dict[str, int] = {}
 
 
+class PrivescPathAnalyzeRequest(BaseModel):
+    """Request to trigger privilege escalation path analysis."""
+
+    scan_id: UUID | None = Field(default=None, description="Specific scan to analyze")
+
+
+class PrivescPathAnalyzeResponse(BaseModel):
+    """Response from privilege escalation path analysis."""
+
+    paths_discovered: int
+    analysis_time_ms: int
+    summary: PrivescPathSummary
+
+
 # ============================================================================
 # IMDS Check Schemas
 # ============================================================================

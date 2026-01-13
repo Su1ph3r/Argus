@@ -1,11 +1,16 @@
 """Privilege Escalation Paths API endpoints."""
 
+import sys
+import time
+
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import desc, func
 from sqlalchemy.orm import Session
 
 from models.database import PrivescPath, get_db
 from models.schemas import (
+    PrivescPathAnalyzeRequest,
+    PrivescPathAnalyzeResponse,
     PrivescPathEdge,
     PrivescPathListResponse,
     PrivescPathNode,
@@ -141,6 +146,93 @@ async def get_privesc_summary(db: Session = Depends(get_db)):
         by_method={k: v for k, v in method_counts.items() if k},
         by_target={k: v for k, v in target_counts.items() if k},
     )
+
+
+@router.post("/analyze", response_model=PrivescPathAnalyzeResponse)
+async def analyze_privesc_paths(
+    request: PrivescPathAnalyzeRequest,
+    db: Session = Depends(get_db),
+):
+    """
+    Trigger privilege escalation path analysis.
+
+    This runs the privilege escalation path analyzer to discover
+    IAM-based escalation paths from the current findings in the database.
+
+    Analyzes findings related to:
+    - IAM policies with dangerous permissions
+    - Role trust relationships
+    - Cross-account access configurations
+    - Service role abuse opportunities
+
+    Returns discovered paths with MITRE ATT&CK mappings and PoC commands.
+    """
+    start_time = time.time()
+
+    try:
+        # Import and run the analyzer
+        sys.path.insert(0, "/app/report-processor")
+        from privesc_path_analyzer import PrivescPathAnalyzer
+
+        analyzer = PrivescPathAnalyzer()
+        scan_id_str = str(request.scan_id) if request.scan_id else None
+        paths = analyzer.analyze(scan_id_str)
+
+        # Calculate time
+        elapsed_ms = int((time.time() - start_time) * 1000)
+
+        # Re-query for accurate counts
+        total = db.query(PrivescPath).filter(PrivescPath.status == "open").count()
+        critical = (
+            db.query(PrivescPath)
+            .filter(PrivescPath.status == "open", PrivescPath.risk_score >= 80)
+            .count()
+        )
+        high = (
+            db.query(PrivescPath)
+            .filter(
+                PrivescPath.status == "open",
+                PrivescPath.risk_score >= 60,
+                PrivescPath.risk_score < 80,
+            )
+            .count()
+        )
+
+        # Get method and target counts
+        method_counts = dict(
+            db.query(PrivescPath.escalation_method, func.count(PrivescPath.id))
+            .filter(PrivescPath.status == "open")
+            .group_by(PrivescPath.escalation_method)
+            .all()
+        )
+        target_counts = dict(
+            db.query(PrivescPath.target_principal_type, func.count(PrivescPath.id))
+            .filter(PrivescPath.status == "open")
+            .group_by(PrivescPath.target_principal_type)
+            .all()
+        )
+
+        summary = PrivescPathSummary(
+            total_paths=total,
+            critical_paths=critical,
+            high_risk_paths=high,
+            by_method={k: v for k, v in method_counts.items() if k},
+            by_target={k: v for k, v in target_counts.items() if k},
+        )
+
+        return PrivescPathAnalyzeResponse(
+            paths_discovered=len(paths),
+            analysis_time_ms=elapsed_ms,
+            summary=summary,
+        )
+
+    except ImportError as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Privilege escalation analyzer not available: {str(e)}",
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Analysis failed: {str(e)}")
 
 
 @router.get("/{path_id}", response_model=PrivescPathResponse)
