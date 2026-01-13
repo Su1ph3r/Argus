@@ -136,5 +136,9 @@ config/local/
 docker-compose.override.yml
 frontend/node_modules/
 
+# Claude Code local settings
+.claude/
+CLAUDE.md
+
 # Frontend build output
 static/
