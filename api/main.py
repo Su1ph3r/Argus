@@ -52,6 +52,7 @@ from routers import (
 from routers.aws_profiles import router as aws_profiles_router
 from routers.database import router as database_router
 from routers.health import set_startup_time
+from services.orphan_recovery import run_orphan_recovery
 
 
 # ============================================================================
@@ -197,6 +198,23 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     # Register signal handlers for graceful shutdown
     signal.signal(signal.SIGTERM, handle_sigterm)
     signal.signal(signal.SIGINT, handle_sigterm)
+
+    # Run orphan recovery to clean up any scans/executions left running from previous API instances
+    try:
+        recovery_results = await run_orphan_recovery(
+            db_url=settings.database_url,
+            orphan_timeout_hours=24,  # Consider scans orphaned after 24 hours
+        )
+        if recovery_results.get("scans", {}).get("scans_recovered", 0) > 0:
+            logger.info(
+                f"Orphan recovery: {recovery_results['scans']['scans_recovered']} scans recovered"
+            )
+        if recovery_results.get("executions", {}).get("executions_recovered", 0) > 0:
+            logger.info(
+                f"Orphan recovery: {recovery_results['executions']['executions_recovered']} executions recovered"
+            )
+    except Exception as e:
+        logger.warning(f"Orphan recovery failed (non-fatal): {e}")
 
     logger.info("Nubicustos API started successfully")
 
