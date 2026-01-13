@@ -99,6 +99,11 @@ venv.bak/
 *.sublime-project
 *.sublime-workspace
 
+# Claude Code (local settings)
+.claude/
+CLAUDE.md
+tmpclaude-*
+
 # Backup files
 *.bak
 *.backup
