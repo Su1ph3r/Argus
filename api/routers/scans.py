@@ -101,8 +101,18 @@ async def _process_scan_reports(
     logger.info(f"Running report processor for scan {scan_id} with tools: {tools}")
 
     try:
-        # Get host path for reports volume
-        host_reports_path = os.environ.get("HOST_REPORTS_PATH", os.getcwd())
+        # Get host paths for volume mounts
+        # HOST_REPORTS_PATH should be the direct path to reports directory
+        # HOST_PROJECT_PATH is the project root (fallback for processed dir)
+        host_reports_path = os.environ.get("HOST_REPORTS_PATH", "")
+        host_project_path = os.environ.get("HOST_PROJECT_PATH", "")
+
+        if not host_reports_path or not host_project_path:
+            logger.warning(
+                f"HOST_REPORTS_PATH or HOST_PROJECT_PATH not set, skipping container-based report processing"
+            )
+            await _process_reports_directly(scan_id, tools)
+            return
 
         # Run report processor container
         container = executor.client.containers.run(
@@ -110,8 +120,8 @@ async def _process_scan_reports(
             command=command,
             name=f"report-processor-{scan_id[:8]}",
             volumes={
-                f"{host_reports_path}/reports": {"bind": "/reports", "mode": "ro"},
-                f"{host_reports_path}/processed": {"bind": "/processed", "mode": "rw"},
+                host_reports_path: {"bind": "/reports", "mode": "ro"},
+                f"{host_project_path}/processed": {"bind": "/processed", "mode": "rw"},
             },
             environment={
                 "DB_HOST": os.environ.get("DB_HOST", "postgresql"),
