@@ -9,6 +9,13 @@
       </div>
       <div class="header-actions">
         <Button
+          label="Analyze Roles"
+          icon="pi pi-search"
+          :loading="analyzing"
+          class="mr-2"
+          @click="analyzeRoles"
+        />
+        <Button
           label="Sync to Neo4j"
           icon="pi pi-sync"
           :loading="store.loading"
@@ -140,6 +147,7 @@ import Paginator from 'primevue/paginator'
 
 const store = useAssumedRolesStore()
 const showCrossAccountOnly = ref(false)
+const analyzing = ref(false)
 
 function getRiskSeverity(level) {
   const map = { critical: 'danger', high: 'warning', medium: 'info', low: 'success' }
@@ -157,6 +165,18 @@ function toggleCrossAccount() {
 
 async function syncAll() {
   await store.syncToNeo4j(null, true)
+}
+
+async function analyzeRoles() {
+  analyzing.value = true
+  try {
+    await store.analyzeRoles()
+    // Refresh data after analysis
+    await store.fetchMappings()
+    await store.fetchSummary()
+  } finally {
+    analyzing.value = false
+  }
 }
 
 async function getCypher(id) {

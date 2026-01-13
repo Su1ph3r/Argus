@@ -1,5 +1,9 @@
 """Assumed Role Mapper API endpoints."""
 
+import sys
+import time
+from uuid import UUID
+
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import desc, func
 from sqlalchemy.orm import Session
@@ -261,3 +265,75 @@ RETURN source, r, target
 """
 
     return {"mapping_id": mapping_id, "cypher_query": cypher.strip()}
+
+
+@router.post("/analyze")
+async def analyze_assumed_roles(
+    scan_id: UUID | None = Query(None, description="Optional scan ID to analyze"),
+    db: Session = Depends(get_db),
+):
+    """
+    Trigger assumed role analysis.
+
+    This runs the assumed role analyzer to discover role assumption
+    relationships from IAM role findings in the database.
+
+    The analyzer parses trust policies to identify:
+    - Which principals can assume which roles
+    - Cross-account role assumptions
+    - External ID requirements
+    - Risk levels based on exposure
+
+    Args:
+        scan_id: Optional UUID to analyze findings from a specific scan only
+
+    Returns:
+        dict: Analysis results including mappings discovered and summary
+    """
+    start_time = time.time()
+
+    try:
+        # Import and run the analyzer
+        sys.path.insert(0, "/app/report-processor")
+        from assumed_role_analyzer import AssumedRoleAnalyzer
+
+        analyzer = AssumedRoleAnalyzer()
+        scan_id_str = str(scan_id) if scan_id else None
+        mappings = analyzer.analyze(scan_id_str)
+
+        # Get summary
+        summary_data = analyzer.get_summary()
+
+        # Calculate time
+        elapsed_ms = int((time.time() - start_time) * 1000)
+
+        # Re-query for accurate counts
+        total = db.query(AssumedRoleMapping).count()
+        cross_account = (
+            db.query(AssumedRoleMapping).filter(AssumedRoleMapping.is_cross_account == True).count()
+        )
+        external_id = (
+            db.query(AssumedRoleMapping)
+            .filter(AssumedRoleMapping.is_external_id_required == True)
+            .count()
+        )
+
+        return {
+            "status": "completed",
+            "mappings_discovered": len(mappings),
+            "analysis_time_ms": elapsed_ms,
+            "summary": {
+                "total_mappings": total,
+                "cross_account": cross_account,
+                "external_id_required": external_id,
+                "by_source_type": summary_data.get("by_source_type", {}),
+                "by_risk": summary_data.get("by_risk", {}),
+            },
+        }
+
+    except ImportError as e:
+        raise HTTPException(
+            status_code=500, detail=f"Assumed role analyzer not available: {str(e)}"
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Analysis failed: {str(e)}")

@@ -153,6 +153,32 @@ export const useAssumedRolesStore = defineStore('assumedRoles', () => {
     }
   }
 
+  async function analyzeRoles(scanId = null) {
+    loading.value = true
+    error.value = null
+
+    try {
+      const params = new URLSearchParams()
+      if (scanId) {
+        params.append('scan_id', scanId)
+      }
+
+      const response = await fetch(`${API_BASE}/assumed-roles/analyze?${params}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+      })
+
+      if (!response.ok) throw new Error('Failed to analyze assumed roles')
+
+      return await response.json()
+    } catch (e) {
+      error.value = e.message
+      throw e
+    } finally {
+      loading.value = false
+    }
+  }
+
   function setFilters(newFilters) {
     filters.value = { ...filters.value, ...newFilters }
     pagination.value.page = 1
@@ -174,6 +200,7 @@ export const useAssumedRolesStore = defineStore('assumedRoles', () => {
     fetchSummary,
     syncToNeo4j,
     getNeo4jQuery,
+    analyzeRoles,
     setFilters,
   }
 })
