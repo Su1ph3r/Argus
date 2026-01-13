@@ -108,7 +108,7 @@ ToolType.PROWLER: {
         "/app/reports/prowler": {"bind": "/reports", "mode": "rw"},
         "/app/credentials/aws": {"bind": "/home/prowler/.aws", "mode": "ro"},
     },
-    "network": "cloud-stack_security-net",
+    "network": "nubicustos_security-net",
     "environment": {
         "AWS_SHARED_CREDENTIALS_FILE": "/home/prowler/.aws/credentials",
         "AWS_CONFIG_FILE": "/home/prowler/.aws/config",
@@ -302,7 +302,7 @@ Path resolution handles the mapping from API container paths (`/app/...`) to hos
 
 ### Network Isolation
 
-All security tools run on the `cloud-stack_security-net` bridge network, enabling:
+All security tools run on the `nubicustos_security-net` bridge network, enabling:
 - Communication with the database for direct writes
 - Access to Neo4j for Cartography asset mapping
 - Isolation from external networks

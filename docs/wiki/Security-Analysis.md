@@ -192,7 +192,7 @@ TOOL_CONFIGS = {
 ### Docker Network Isolation
 
 **Current Configuration**:
-- All services on `cloud-stack_security-net` bridge network
+- All services on `nubicustos_security-net` bridge network
 - Database ports not exposed externally by default
 - API exposed on port 8000
 

@@ -89,7 +89,7 @@ TOOL_CONFIGS = {
             "/app/reports/prowler": {"bind": "/reports", "mode": "rw"},
             "/app/credentials/aws": {"bind": "/home/prowler/.aws", "mode": "ro"},
         },
-        "network": "cloud-stack_security-net",
+        "network": "nubicustos_security-net",
         "environment": {
             "AWS_SHARED_CREDENTIALS_FILE": "/home/prowler/.aws/credentials",
             "AWS_CONFIG_FILE": "/home/prowler/.aws/config",
@@ -116,7 +116,7 @@ TOOL_CONFIGS = {
             "/app/reports/scoutsuite": {"bind": "/reports", "mode": "rw"},
             "/app/credentials/aws": {"bind": "/root/.aws", "mode": "ro"},
         },
-        "network": "cloud-stack_security-net",
+        "network": "nubicustos_security-net",
         "environment": {
             "AWS_SHARED_CREDENTIALS_FILE": "/root/.aws/credentials",
             "AWS_CONFIG_FILE": "/root/.aws/config",
@@ -145,7 +145,7 @@ TOOL_CONFIGS = {
         "named_volumes": {
             "cloud-stack_cloudfox-data": {"bind": "/root/.cloudfox", "mode": "rw"},
         },
-        "network": "cloud-stack_security-net",
+        "network": "nubicustos_security-net",
         "environment": {
             "AWS_SHARED_CREDENTIALS_FILE": "/root/.aws/credentials",
             "AWS_CONFIG_FILE": "/root/.aws/config",
@@ -162,7 +162,7 @@ TOOL_CONFIGS = {
             "/app/reports/cloudsploit": {"bind": "/reports", "mode": "rw"},
             "/app/credentials/aws": {"bind": "/root/.aws", "mode": "ro"},
         },
-        "network": "cloud-stack_security-net",
+        "network": "nubicustos_security-net",
         "environment": {
             "HOME": "/root",
             "AWS_DEFAULT_REGION": "us-east-1",
@@ -192,7 +192,7 @@ TOOL_CONFIGS = {
             "/app/reports/custodian": {"bind": "/output", "mode": "rw"},
             "/app/credentials/aws": {"bind": "/root/.aws", "mode": "ro"},
         },
-        "network": "cloud-stack_security-net",
+        "network": "nubicustos_security-net",
         "environment": {
             "AWS_SHARED_CREDENTIALS_FILE": "/root/.aws/credentials",
             "AWS_CONFIG_FILE": "/root/.aws/config",
@@ -209,7 +209,7 @@ TOOL_CONFIGS = {
             "/app/credentials/aws": {"bind": "/root/.aws", "mode": "ro"},
             "/app/config/cloudmapper": {"bind": "/config", "mode": "ro"},
         },
-        "network": "cloud-stack_security-net",
+        "network": "nubicustos_security-net",
         "environment": {
             "AWS_SHARED_CREDENTIALS_FILE": "/root/.aws/credentials",
             "AWS_CONFIG_FILE": "/root/.aws/config",
@@ -224,7 +224,7 @@ TOOL_CONFIGS = {
         "volumes": {
             "/app/credentials/aws": {"bind": "/root/.aws", "mode": "ro"},
         },
-        "network": "cloud-stack_security-net",
+        "network": "nubicustos_security-net",
         "environment": {
             "NEO4J_URI": "bolt://neo4j:7687",
             "NEO4J_USER": "neo4j",
@@ -253,7 +253,7 @@ TOOL_CONFIGS = {
         "named_volumes": {
             "cloud-stack_pacu-data": {"bind": "/root/.local/share/pacu", "mode": "rw"},
         },
-        "network": "cloud-stack_security-net",
+        "network": "nubicustos_security-net",
         "environment": {
             "AWS_SHARED_CREDENTIALS_FILE": "/root/.aws/credentials",
             "AWS_CONFIG_FILE": "/root/.aws/config",
@@ -269,7 +269,7 @@ TOOL_CONFIGS = {
             "/app/reports/enumerate-iam": {"bind": "/reports", "mode": "rw"},
             "/app/credentials/aws": {"bind": "/root/.aws", "mode": "ro"},
         },
-        "network": "cloud-stack_security-net",
+        "network": "nubicustos_security-net",
         "environment": {
             "AWS_SHARED_CREDENTIALS_FILE": "/root/.aws/credentials",
             "AWS_CONFIG_FILE": "/root/.aws/config",
@@ -288,7 +288,7 @@ TOOL_CONFIGS = {
             "/app/kubeconfigs": {"bind": "/root/.kube", "mode": "ro"},
             "/app/reports/kubescape": {"bind": "/reports", "mode": "rw"},
         },
-        "network": "cloud-stack_security-net",
+        "network": "nubicustos_security-net",
         "environment": {},
         "default_command": [
             "scan",

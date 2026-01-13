@@ -309,7 +309,7 @@ All tools use consistent volume mounting patterns:
 
 ## Network Configuration
 
-All security tools run on the `cloud-stack_security-net` Docker network, providing:
+All security tools run on the `nubicustos_security-net` Docker network, providing:
 - Database connectivity (PostgreSQL, Neo4j)
 - Inter-container communication
 - Isolation from external networks
