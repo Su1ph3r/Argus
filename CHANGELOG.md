@@ -7,7 +7,52 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+---
+
+## [1.0.2] - 2025-01-14
+
+### Security
+- Fixed path traversal vulnerability with `os.path.realpath()` validation
+- Added zip slip prevention in archive creation with arcname validation
+- Fixed ReDoS vulnerability with input length limits
+- Added log sanitization to redact credentials, tokens, and IP addresses
+- Limited validation error details to prevent schema disclosure
+- Added specific SQLAlchemyError handling to prevent information leakage
+- Added security analysis documenting known considerations for Docker socket access and credential handling
+- Input validation maintained for scan profiles and target parameters
+
 ### Added
+
+#### Bulk Operations
+- Bulk scan operations: multi-select, bulk delete, and bulk archive
+- New `scan_files` database table tracking report files per scan
+- Archive service for creating downloadable zip files of scan reports
+- API endpoints: `DELETE /scans/bulk`, `POST /scans/bulk/archive`, `GET /scans/archives`
+
+#### Error Handling & Observability
+- Per-tool error tracking with detailed error breakdown
+- New endpoint: `GET /scans/{scan_id}/errors` for error analysis
+- Centralized toast notification service in frontend
+- Error dialog in ScansView with per-tool status display
+- Safe error message extraction to prevent information leakage
+
+#### Operational Features
+- Orphan scan recovery on API startup
+- Dynamic AWS profile support with `aws_profile` field in scan creation
+- Assumed role analysis endpoint (`POST /api/assumed-roles/analyze`) and UI
+- Expected exit codes handling: security tools returning 1 or 3 no longer incorrectly marked as failed
+- On-demand Docker image building for security tools
+- IMDS scan credentials support for EC2/ECS environments
+
+#### Security Analysis Features
+- Privilege escalation path analyzer for IAM policy analysis
+- Attack path analysis feature for penetration testing
+- MCP server for LLM integration and enhanced scan/compliance features
+
+#### UI Enhancements
+- Compliance detail view with framework breakdown
+- Tool execution monitoring in scan details
+- Vue.js frontend with enhanced findings display and PoC evidence
 
 #### Enhanced Scan Orchestration System
 - **Docker SDK Integration**: Replaced subprocess-based shell script orchestration with direct Docker SDK calls for reliable container management
@@ -19,7 +64,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Cloud Custodian (v0.9.34) - Policy-as-code enforcement
   - CloudMapper - AWS account visualization
   - Cartography (v0.94.0) - Asset relationship graphing to Neo4j
-- **Expected Exit Codes**: Security tools now properly handle non-zero exit codes (1, 3) that indicate findings detected, not failures
 - **Profile-Specific Options**: Scan profiles now support tool-specific command options:
   - Quick: Prowler with critical/high severity filter
   - Comprehensive: All 7 AWS tools with full scanning
@@ -27,18 +71,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Dynamic Profile Endpoint**: `/api/scans/profiles/list` now returns tool lists dynamically from configuration
 - **Entrypoint Override Support**: Tools like CloudSploit that require custom entrypoints are now supported
 
-### Changed
-- **Tool Images Updated**: All Docker images now pinned to specific versions matching docker-compose.yml
-- **Scan Orchestration Flow**: Sequential tool execution with proper completion detection and report processing
-- **Profiles Endpoint**: Now returns comprehensive profile metadata including tools list and duration estimates
+#### Build & Testing
+- Multi-stage Docker build for frontend (no manual build required)
+- Integration tests for scan pipeline (`api/tests/test_report_processing.py`)
+- Smoke test script (`scripts/smoke_test.sh`)
 
 ### Fixed
-- **Exit Code Handling**: Security tools returning exit code 3 (Prowler with findings) no longer incorrectly marked as failed
-- **Container Name Conflicts**: Unique execution IDs prevent container naming conflicts during concurrent scans
+- Docker network detection now works with any project directory name
+- HOST_PROJECT_PATH defaulting to empty string issue
+- Docker network name mismatch preventing scan launches
+- Report processing for findings population
+- Button spacing in Assumed Role Mapper view
+- Prowler compliance framework (corrected to `pci_3.2.1_aws`)
+- Removed broken ScoutSuite ruleset option
+- Exit code handling: security tools returning exit code 3 (Prowler with findings) no longer incorrectly marked as failed
+- Container name conflicts: unique execution IDs prevent container naming conflicts during concurrent scans
+- Credentials mount to allow saving profiles
+- Docker Compose profiles for improved startup reliability
+- ESLint configuration for Vue/PrimeVue patterns
 
-### Security
-- Added security analysis documenting known considerations for Docker socket access and credential handling
-- Input validation maintained for scan profiles and target parameters
+### Changed
+- Improved error handling with meaningful user-facing messages
+- Frontend build moved to Docker container (multi-stage build)
+- Report processor dependencies added to API container
+- CloudMapper Dockerfile updated to Python 3.9
+- Tool images updated: All Docker images now pinned to specific versions matching docker-compose.yml
+- Scan orchestration flow: Sequential tool execution with proper completion detection and report processing
+- Profiles endpoint: Now returns comprehensive profile metadata including tools list and duration estimates
+- Comprehensive documentation added for new features
 
 ---
 
@@ -125,12 +185,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 | Version | Date | Description |
 |---------|------|-------------|
+| 1.0.2 | 2025-01-14 | Security fixes, bulk operations, error handling improvements |
 | 1.0.1 | 2026-01-09 | Bug fixes from beta testing |
 | 1.0.0 | 2026-01-08 | Initial release |
 
 ---
 
 ## Upgrade Notes
+
+### Upgrading to 1.0.2
+No breaking changes. Run:
+```bash
+git pull origin main
+docker compose build api
+docker compose up -d
+```
 
 ### Upgrading to 1.0.1
 No breaking changes. Simply run:
@@ -142,6 +211,7 @@ docker-compose up -d
 
 ---
 
-[Unreleased]: https://github.com/Su1ph3r/Nubicustos/compare/v1.0.1...HEAD
+[Unreleased]: https://github.com/Su1ph3r/Nubicustos/compare/v1.0.2...HEAD
+[1.0.2]: https://github.com/Su1ph3r/Nubicustos/compare/v1.0.1...v1.0.2
 [1.0.1]: https://github.com/Su1ph3r/Nubicustos/compare/v1.0.0...v1.0.1
 [1.0.0]: https://github.com/Su1ph3r/Nubicustos/releases/tag/v1.0.0
