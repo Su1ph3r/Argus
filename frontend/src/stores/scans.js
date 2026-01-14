@@ -426,6 +426,7 @@ export const useScansStore = defineStore('scans', () => {
       return data.archives
     } catch (e) {
       console.error('Error fetching archives:', e)
+      toast.apiError(e, 'Failed to load archives')
       return []
     }
   }

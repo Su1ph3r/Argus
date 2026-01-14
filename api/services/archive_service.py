@@ -39,20 +39,37 @@ class ArchiveService:
         Returns:
             Tuple of (archive_path, archive_size_bytes)
         """
+        import re
+
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        # Sanitize profile name for filename
-        safe_profile = scan_profile.replace("-", "_").replace(" ", "_")
+        # Sanitize profile name for filename - strict whitelist to prevent path traversal
+        safe_profile = re.sub(r"[^a-zA-Z0-9_\-]", "_", scan_profile)[:64]
         archive_name = f"{timestamp}_{safe_profile}.zip"
         archive_path = self.archives_dir / archive_name
+
+        # Resolve the base path once for consistent comparison
+        real_base = os.path.realpath(str(self.reports_base))
 
         files_added = 0
         with zipfile.ZipFile(archive_path, "w", zipfile.ZIP_DEFLATED) as zf:
             for file_path in file_paths:
                 if os.path.exists(file_path):
                     try:
+                        # Security: resolve symlinks and validate path is within reports directory
+                        real_path = os.path.realpath(file_path)
+                        if not real_path.startswith(real_base + os.sep):
+                            logger.warning(f"Skipping file outside reports directory: {file_path}")
+                            continue
+
                         # Preserve directory structure relative to reports_base
-                        arcname = os.path.relpath(file_path, self.reports_base)
-                        zf.write(file_path, arcname)
+                        arcname = os.path.relpath(real_path, real_base)
+
+                        # Security: prevent zip slip - validate arcname doesn't escape
+                        if arcname.startswith("..") or os.path.isabs(arcname):
+                            logger.warning(f"Skipping suspicious archive path: {file_path} -> {arcname}")
+                            continue
+
+                        zf.write(real_path, arcname)
                         files_added += 1
                     except (OSError, ValueError) as e:
                         logger.warning(f"Could not add file to archive: {file_path} - {e}")
@@ -104,30 +121,34 @@ class ArchiveService:
         deleted = 0
         errors = []
 
+        # Resolve the base path once for consistent comparison
+        real_base = os.path.realpath(str(self.reports_base))
+
         for path in file_paths:
             try:
                 if os.path.exists(path):
-                    # Security check: ensure path is within reports directory
-                    abs_path = os.path.abspath(path)
-                    if not abs_path.startswith(str(self.reports_base)):
+                    # Security check: resolve symlinks and ensure path is within reports directory
+                    real_path = os.path.realpath(path)
+                    if not real_path.startswith(real_base + os.sep):
                         errors.append(f"{path}: path outside reports directory")
                         continue
 
-                    os.remove(path)
+                    # Delete using the validated real path, not the original
+                    os.remove(real_path)
                     deleted += 1
-                    logger.debug(f"Deleted file: {path}")
+                    logger.debug(f"Deleted file: {real_path}")
 
                     # Try to remove empty parent directories
-                    parent = os.path.dirname(path)
+                    parent = os.path.dirname(real_path)
                     try:
-                        while parent and parent != str(self.reports_base):
+                        while parent and parent != real_base:
                             if os.path.isdir(parent) and not os.listdir(parent):
                                 os.rmdir(parent)
                                 parent = os.path.dirname(parent)
                             else:
                                 break
-                    except OSError:
-                        pass  # Directory not empty, that's fine
+                    except OSError as e:
+                        logger.debug(f"Could not remove parent directory {parent}: {e}")
             except OSError as e:
                 errors.append(f"{path}: {str(e)}")
                 logger.warning(f"Failed to delete file: {path} - {e}")

@@ -519,6 +519,7 @@ import { useRouter } from 'vue-router'
 import { useScansStore } from '../stores/scans'
 import { onCredentialStatusChange } from '../stores/credentials'
 import { api } from '../services/api'
+import { toast } from '../services/toast'
 import DataTable from 'primevue/datatable'
 import Column from 'primevue/column'
 import Tag from 'primevue/tag'
@@ -632,6 +633,7 @@ async function showScanErrors(scanId) {
     scanErrorDetails.value = await api.getScanErrors(scanId)
   } catch (e) {
     console.error('Failed to fetch scan errors:', e)
+    toast.apiError(e, 'Failed to load error details')
     scanErrorDetails.value = { error: 'Failed to load error details' }
   }
 }
@@ -666,6 +668,7 @@ async function startQuickScan(profileId) {
     await store.createScan({ profile: profileId })
   } catch (e) {
     console.error('Failed to start scan:', e)
+    toast.apiError(e, 'Failed to start scan')
   } finally {
     selectedProfile.value = null
   }
@@ -696,6 +699,7 @@ async function startScan() {
     toolOptions.value = []
   } catch (e) {
     console.error('Failed to start scan:', e)
+    toast.apiError(e, 'Failed to start scan')
   }
 }
 
@@ -704,6 +708,7 @@ async function cancelScan(scanId) {
     await store.cancelScan(scanId)
   } catch (e) {
     console.error('Failed to cancel scan:', e)
+    toast.apiError(e, 'Failed to cancel scan')
   }
 }
 

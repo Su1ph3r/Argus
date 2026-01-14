@@ -24,10 +24,12 @@ import asyncio
 import logging
 import re
 from datetime import datetime
+from pathlib import Path
 from uuid import UUID, uuid4
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import desc
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from config import get_settings
@@ -100,33 +102,47 @@ def _sanitize_log_snippet(log_text: str) -> str:
     if not log_text:
         return ""
 
+    # Truncate to prevent ReDoS with malicious input
+    max_len = 1000
+    if len(log_text) > max_len:
+        log_text = log_text[:max_len] + "...[truncated]"
+
     # Redact AWS access keys (AKIA...)
     log_text = re.sub(r"AKIA[0-9A-Z]{16}", "[REDACTED_AWS_KEY]", log_text)
 
-    # Redact AWS secret keys and session tokens in various formats
+    # Redact AWS secret keys and session tokens - simpler pattern to avoid ReDoS
     log_text = re.sub(
-        r"(aws_secret_access_key|secret_access_key|aws_session_token)[:\s=]+[^\s]+",
+        r"(aws_secret_access_key|secret_access_key|aws_session_token)\s*[:=]\s*\S+",
         r"\1=[REDACTED]",
         log_text,
         flags=re.IGNORECASE,
     )
 
-    # Redact generic secret/token patterns
+    # Redact generic secret/token patterns - simpler pattern
     log_text = re.sub(
-        r"(secret|token|password|api_key|apikey)[:\s=]+[^\s]+",
+        r"(secret|token|password|api_key|apikey)\s*[:=]\s*\S+",
         r"\1=[REDACTED]",
         log_text,
         flags=re.IGNORECASE,
     )
+
+    # Redact JWT tokens (eyJ...)
+    log_text = re.sub(r"eyJ[a-zA-Z0-9_-]+\.[a-zA-Z0-9_-]+\.[a-zA-Z0-9_-]+", "[JWT]", log_text)
 
     # Redact IP addresses
     log_text = re.sub(r"\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b", "[IP]", log_text)
 
-    # Redact potential tokens/keys (long alphanumeric strings 40+ chars)
-    log_text = re.sub(r"[a-zA-Z0-9+/]{40,}", "[TOKEN]", log_text)
+    # Redact potential tokens/keys (long base64-like strings 32+ chars with optional padding)
+    log_text = re.sub(r"\b[a-zA-Z0-9+/]{32,}={0,2}\b", "[TOKEN]", log_text)
 
-    # Redact file paths that might expose system info (keep basename for context)
-    log_text = re.sub(r"/(?:[a-zA-Z0-9_\-\.]+/){2,}([a-zA-Z0-9_\-\.]+)", r"/...//\1", log_text)
+    # Redact hex-encoded secrets (32+ hex chars)
+    log_text = re.sub(r"\b[a-fA-F0-9]{32,}\b", "[HEX_TOKEN]", log_text)
+
+    # Redact Unix file paths (simpler pattern to avoid ReDoS)
+    log_text = re.sub(r"/[a-zA-Z0-9_.\-]+(?:/[a-zA-Z0-9_.\-]+){2,}", "/...[PATH]", log_text)
+
+    # Redact Windows file paths
+    log_text = re.sub(r"[A-Za-z]:\\(?:[^\s\\]+\\)+[^\s\\]+", "[WIN_PATH]", log_text)
 
     return log_text
 
@@ -839,9 +855,10 @@ async def bulk_delete_scans(
             db.delete(scan)
             db.commit()
             deleted_scans += 1
-        except Exception as e:
+        except SQLAlchemyError as e:
             db.rollback()
-            errors.append(f"{scan_id}: Failed to delete - {str(e)}")
+            logger.error(f"Database error deleting scan {scan_id}: {e}")
+            errors.append(f"{scan_id}: Database error during deletion")
 
     return BulkDeleteResponse(
         success=len(errors) == 0 and len(skipped_scans) == 0,
@@ -922,22 +939,35 @@ async def bulk_archive_scans(
         logger.error(f"Archive creation failed: {e}")
         raise HTTPException(status_code=500, detail="Failed to create archive")
 
-    # Delete original files
-    if all_file_paths:
-        archive_service.delete_files(all_file_paths)
-
-    # Delete scans from database (cascade handles ScanFile records)
-    for scan_id in valid_scan_ids:
-        scan = db.query(Scan).filter(Scan.scan_id == scan_id).first()
-        if scan:
-            db.delete(scan)
-
-    db.commit()
-
     archive_name = archive_path.split("/")[-1]
 
+    # Delete scans from database FIRST (before file deletion)
+    # This ensures we can rollback if DB fails, before files are deleted
+    try:
+        for scan_id in valid_scan_ids:
+            scan = db.query(Scan).filter(Scan.scan_id == scan_id).first()
+            if scan:
+                db.delete(scan)
+        db.commit()
+    except SQLAlchemyError as e:
+        db.rollback()
+        logger.error(f"Database error during bulk archive: {e}")
+        # Try to clean up the archive we just created
+        try:
+            Path(archive_path).unlink(missing_ok=True)
+        except OSError:
+            logger.warning(f"Could not clean up archive after DB failure: {archive_path}")
+        raise HTTPException(status_code=500, detail="Database error during archive operation")
+
+    # Delete original files AFTER successful DB commit
+    file_deletion_errors = []
+    if all_file_paths:
+        deleted_count, file_deletion_errors = archive_service.delete_files(all_file_paths)
+        if file_deletion_errors:
+            logger.warning(f"Some files could not be deleted during archive: {file_deletion_errors}")
+
     return BulkArchiveResponse(
-        success=True,
+        success=len(file_deletion_errors) == 0,
         archive_path=archive_path,
         archive_name=archive_name,
         archived_scans=len(valid_scan_ids),

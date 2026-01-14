@@ -194,10 +194,9 @@ def _get_safe_error_message(exc: Exception) -> str:
     if isinstance(exc, TimeoutError):
         return "Request timeout: Operation took too long"
 
-    # Validation errors (Pydantic)
+    # Validation errors (Pydantic) - provide generic message to avoid schema disclosure
     if "validation" in error_type.lower():
-        # Truncate but keep useful validation info
-        return f"Validation error: {str(exc)[:200]}"
+        return "Invalid request format. Please check your input and try again."
 
     # Value errors often contain useful info
     if isinstance(exc, ValueError):

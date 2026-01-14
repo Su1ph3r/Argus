@@ -71,11 +71,18 @@ export const toast = {
   /**
    * Show error from API response.
    * Extracts meaningful message from ApiError or uses fallback.
-   * @param {Error|ApiError} error - Error object
+   * @param {Error|ApiError|string} error - Error object or string
    * @param {string} fallbackMessage - Default message if error has no detail
    */
   apiError(error, fallbackMessage = 'An error occurred') {
-    const message = error?.message || error?.data?.detail || fallbackMessage
+    let message = fallbackMessage
+    if (typeof error === 'string') {
+      message = error
+    } else if (error?.message) {
+      message = error.message
+    } else if (error?.data?.detail) {
+      message = error.data.detail
+    }
     showToast('error', 'Error', message, 5000)
   },
 }
