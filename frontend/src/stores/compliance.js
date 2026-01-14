@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import api from '../services/api'
+import { toast } from '../services/toast'
 
 export const useComplianceStore = defineStore('compliance', () => {
   // State
@@ -33,6 +34,7 @@ export const useComplianceStore = defineStore('compliance', () => {
       frameworks.value = response.frameworks || []
     } catch (err) {
       error.value = err.message || 'Failed to load compliance frameworks'
+      toast.apiError(err, 'Failed to load compliance frameworks')
       frameworks.value = []
     } finally {
       loading.value = false
@@ -48,6 +50,7 @@ export const useComplianceStore = defineStore('compliance', () => {
       frameworks.value = response.by_framework || []
     } catch (err) {
       error.value = err.message || 'Failed to load compliance summary'
+      toast.apiError(err, 'Failed to load compliance summary')
       summary.value = null
     } finally {
       loading.value = false
@@ -63,6 +66,7 @@ export const useComplianceStore = defineStore('compliance', () => {
       selectedFramework.value = framework
     } catch (err) {
       error.value = err.message || `Failed to load details for ${framework}`
+      toast.apiError(err, `Failed to load ${framework} details`)
       controls.value = []
     } finally {
       loading.value = false
@@ -93,6 +97,7 @@ export const useComplianceStore = defineStore('compliance', () => {
       selectedControl.value = controlId
     } catch (err) {
       error.value = err.message || `Failed to load control details for ${controlId}`
+      toast.apiError(err, 'Failed to load control details')
       controlDetail.value = null
     } finally {
       controlLoading.value = false

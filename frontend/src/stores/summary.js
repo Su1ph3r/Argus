@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import api from '../services/api'
+import { toast } from '../services/toast'
 
 export const useSummaryStore = defineStore('summary', () => {
   // State
@@ -54,6 +55,7 @@ export const useSummaryStore = defineStore('summary', () => {
       lastUpdated.value = new Date()
     } catch (err) {
       error.value = err.message
+      toast.apiError(err, 'Failed to load summary')
       summary.value = null
     } finally {
       loading.value = false

@@ -147,7 +147,9 @@
         <div class="empty-state">
           <i class="pi pi-server" />
           <p>No IMDS check results found</p>
-          <p class="empty-hint">Run a scan to check EC2 instances for IMDS vulnerabilities</p>
+          <p class="empty-hint">
+            Run a scan to check EC2 instances for IMDS vulnerabilities
+          </p>
         </div>
       </template>
       <Column

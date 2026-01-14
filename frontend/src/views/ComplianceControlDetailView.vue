@@ -109,14 +109,18 @@
                 class="affected-resource-item"
               >
                 <div class="resource-header">
-                  <div class="resource-type-badge">{{ resource.resource_type || 'Resource' }}</div>
+                  <div class="resource-type-badge">
+                    {{ resource.resource_type || 'Resource' }}
+                  </div>
                   <Tag
                     :severity="resource.status === 'fail' ? 'danger' : 'warn'"
                     :value="resource.status.toUpperCase()"
                     size="small"
                   />
                 </div>
-                <div class="resource-id">{{ resource.resource_id }}</div>
+                <div class="resource-id">
+                  {{ resource.resource_id }}
+                </div>
                 <div
                   v-if="resource.resource_name"
                   class="resource-name"
@@ -164,7 +168,9 @@
               <i class="pi pi-wrench" />
               Remediation Guidance
             </h4>
-            <p class="remediation-text">{{ control.remediation_guidance }}</p>
+            <p class="remediation-text">
+              {{ control.remediation_guidance }}
+            </p>
 
             <!-- CLI Command -->
             <div

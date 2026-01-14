@@ -243,7 +243,6 @@
       <ProgressSpinner />
       <p>Loading compliance data...</p>
     </div>
-
   </div>
 </template>
 

@@ -22,6 +22,7 @@ Endpoints:
 
 import asyncio
 import logging
+import re
 from datetime import datetime
 from uuid import UUID, uuid4
 
@@ -88,6 +89,46 @@ PROVIDER_TOOLS: dict[str, list[str]] = {
     ],
     "iac": ["checkov", "terrascan", "tfsec"],
 }
+
+
+def _sanitize_log_snippet(log_text: str) -> str:
+    """Remove sensitive information from log snippets before storage.
+
+    Redacts credentials, tokens, file paths, and IP addresses to prevent
+    information leakage through error messages exposed via the API.
+    """
+    if not log_text:
+        return ""
+
+    # Redact AWS access keys (AKIA...)
+    log_text = re.sub(r"AKIA[0-9A-Z]{16}", "[REDACTED_AWS_KEY]", log_text)
+
+    # Redact AWS secret keys and session tokens in various formats
+    log_text = re.sub(
+        r"(aws_secret_access_key|secret_access_key|aws_session_token)[:\s=]+[^\s]+",
+        r"\1=[REDACTED]",
+        log_text,
+        flags=re.IGNORECASE,
+    )
+
+    # Redact generic secret/token patterns
+    log_text = re.sub(
+        r"(secret|token|password|api_key|apikey)[:\s=]+[^\s]+",
+        r"\1=[REDACTED]",
+        log_text,
+        flags=re.IGNORECASE,
+    )
+
+    # Redact IP addresses
+    log_text = re.sub(r"\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b", "[IP]", log_text)
+
+    # Redact potential tokens/keys (long alphanumeric strings 40+ chars)
+    log_text = re.sub(r"[a-zA-Z0-9+/]{40,}", "[TOKEN]", log_text)
+
+    # Redact file paths that might expose system info (keep basename for context)
+    log_text = re.sub(r"/(?:[a-zA-Z0-9_\-\.]+/){2,}([a-zA-Z0-9_\-\.]+)", r"/...//\1", log_text)
+
+    return log_text
 
 
 async def _process_scan_reports(
@@ -216,6 +257,8 @@ async def run_scan_orchestration(
     tools: list[ToolType] = profile_config["tools"]
     execution_ids = []
     container_ids = []
+    tool_errors: dict[str, str] = {}  # Track per-tool errors
+    completed_tools: list[str] = []  # Track successfully completed tools
 
     logger.info(
         f"Starting scan {scan_id} with profile '{profile}', tools: {[t.value for t in tools]}"
@@ -277,8 +320,14 @@ async def run_scan_orchestration(
 
             if result.get("status") == ExecutionStatus.FAILED:
                 error_msg = result.get("error", "Unknown error")
+                tool_errors[tool.value] = f"Failed to start: {error_msg}"
                 logger.error(f"Scan {scan_id}: Tool {tool.value} failed to start: {error_msg}")
-                _update_scan_status(db, scan_id, "failed", error=f"{tool.value}: {error_msg}")
+                _update_scan_status(
+                    db, scan_id, "failed",
+                    error=f"{tool.value}: {error_msg}",
+                    tool_errors=tool_errors,
+                    completed_tools=completed_tools,
+                )
                 return
 
             execution_id = result.get("execution_id")
@@ -299,6 +348,7 @@ async def run_scan_orchestration(
                 exec_status = status.get("execution_status")
 
                 if exec_status == ExecutionStatus.COMPLETED:
+                    completed_tools.append(tool.value)
                     logger.info(f"Scan {scan_id}: Tool {tool.value} completed successfully")
                     break
                 elif exec_status == ExecutionStatus.FAILED:
@@ -307,11 +357,15 @@ async def run_scan_orchestration(
                     # Check the tool's expected exit codes from config
                     expected_exit_codes = tool_config.get("expected_exit_codes", [0])
                     if exit_code in expected_exit_codes:
+                        completed_tools.append(tool.value)
                         logger.info(
                             f"Scan {scan_id}: Tool {tool.value} completed with findings (exit {exit_code})"
                         )
                         break
                     logs = status.get("logs", "")[-500:]  # Last 500 chars
+                    # Extract meaningful error from logs (last 200 chars)
+                    log_snippet = _sanitize_log_snippet(logs[-200:].strip()) if logs else ""
+                    tool_errors[tool.value] = f"Exit code {exit_code}: {log_snippet}" if log_snippet else f"Exit code {exit_code}"
                     logger.error(f"Scan {scan_id}: Tool {tool.value} failed (exit {exit_code})")
                     _update_scan_status(
                         db,
@@ -319,12 +373,15 @@ async def run_scan_orchestration(
                         "failed",
                         error=f"{tool.value} failed (exit {exit_code})",
                         execution_ids=execution_ids,
+                        tool_errors=tool_errors,
+                        completed_tools=completed_tools,
                     )
                     return
                 elif exec_status == ExecutionStatus.PENDING:
                     # Container in unexpected state (paused, dead, created, etc.)
                     container_status = status.get("status", "unknown")
                     if container_status in ("paused", "dead", "removing"):
+                        tool_errors[tool.value] = f"Container {container_status}"
                         logger.error(
                             f"Scan {scan_id}: Tool {tool.value} container in bad state: {container_status}"
                         )
@@ -334,6 +391,8 @@ async def run_scan_orchestration(
                             "failed",
                             error=f"{tool.value} container {container_status}",
                             execution_ids=execution_ids,
+                            tool_errors=tool_errors,
+                            completed_tools=completed_tools,
                         )
                         return
                     # "created" or other states - continue polling but log warning
@@ -345,6 +404,8 @@ async def run_scan_orchestration(
                 # RUNNING status - continue polling
             else:
                 # Loop completed without break - timeout reached
+                timeout_hours = MAX_TOOL_TIMEOUT_SECONDS // 3600
+                tool_errors[tool.value] = f"Timed out after {timeout_hours}h"
                 logger.error(
                     f"Scan {scan_id}: Tool {tool.value} timed out after {MAX_TOOL_TIMEOUT_SECONDS}s"
                 )
@@ -352,8 +413,10 @@ async def run_scan_orchestration(
                     db,
                     scan_id,
                     "failed",
-                    error=f"{tool.value} timed out after {MAX_TOOL_TIMEOUT_SECONDS // 3600}h",
+                    error=f"{tool.value} timed out after {timeout_hours}h",
                     execution_ids=execution_ids,
+                    tool_errors=tool_errors,
+                    completed_tools=completed_tools,
                 )
                 return
 
@@ -369,11 +432,22 @@ async def run_scan_orchestration(
             # Still mark scan as completed - reports can be reprocessed
 
         logger.info(f"Scan {scan_id}: All tools completed successfully")
-        _update_scan_status(db, scan_id, "completed", execution_ids=execution_ids)
+        _update_scan_status(
+            db, scan_id, "completed",
+            execution_ids=execution_ids,
+            tool_errors=tool_errors,  # Empty dict if all succeeded
+            completed_tools=completed_tools,
+        )
 
     except Exception as e:
         logger.error(f"Scan {scan_id} orchestration error: {str(e)}")
-        _update_scan_status(db, scan_id, "failed", error=str(e), execution_ids=execution_ids)
+        _update_scan_status(
+            db, scan_id, "failed",
+            error=str(e),
+            execution_ids=execution_ids,
+            tool_errors=tool_errors,
+            completed_tools=completed_tools,
+        )
     finally:
         db.close()
 
@@ -384,8 +458,10 @@ def _update_scan_status(
     status: str,
     error: str | None = None,
     execution_ids: list[str] | None = None,
+    tool_errors: dict[str, str] | None = None,
+    completed_tools: list[str] | None = None,
 ) -> None:
-    """Update scan status in the database."""
+    """Update scan status in the database with per-tool error tracking."""
     try:
         scan = db.query(Scan).filter(Scan.scan_id == scan_id).first()
         if scan:
@@ -398,6 +474,10 @@ def _update_scan_status(
                 current_metadata["error"] = error
             if execution_ids:
                 current_metadata["execution_ids"] = execution_ids
+            if tool_errors is not None:
+                current_metadata["tool_errors"] = tool_errors
+            if completed_tools is not None:
+                current_metadata["completed_tools"] = completed_tools
             scan.scan_metadata = current_metadata
             db.commit()
             logger.info(f"Updated scan {scan_id} status to {status}")
@@ -929,6 +1009,41 @@ async def get_scan_status(scan_id: UUID, db: Session = Depends(get_db)):
             "medium": scan.medium_findings,
             "low": scan.low_findings,
         },
+    }
+
+
+@router.get("/{scan_id}/errors")
+async def get_scan_errors(scan_id: UUID, db: Session = Depends(get_db)):
+    """
+    Get detailed error information for a scan.
+
+    Returns per-tool error details including which tools succeeded,
+    which failed, and specific error messages for debugging.
+
+    Args:
+        scan_id: UUID of the scan
+
+    Returns:
+        dict: Error breakdown with per-tool status
+
+    Raises:
+        HTTPException 404: If scan is not found
+    """
+    scan = db.query(Scan).filter(Scan.scan_id == scan_id).first()
+
+    if not scan:
+        raise HTTPException(status_code=404, detail="Scan not found")
+
+    metadata = scan.scan_metadata or {}
+
+    return {
+        "scan_id": str(scan.scan_id),
+        "status": scan.status,
+        "error": metadata.get("error"),
+        "tool_errors": metadata.get("tool_errors", {}),
+        "completed_tools": metadata.get("completed_tools", []),
+        "profile": metadata.get("profile"),
+        "tools_planned": metadata.get("tools", []),
     }
 
 

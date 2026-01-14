@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
+import { toast } from '../services/toast'
 
 const API_BASE = '/api'
 
@@ -133,9 +134,11 @@ export const useCredentialsStore = defineStore('credentials', () => {
       if (!response.ok) throw new Error('Failed to verify credentials')
 
       verificationResult.value = await response.json()
+      toast.success('Verification Complete', 'Credentials verified successfully')
       return verificationResult.value
     } catch (e) {
       error.value = e.message
+      toast.apiError(e, 'Credential verification failed')
       throw e
     } finally {
       loading.value = false
@@ -163,9 +166,11 @@ export const useCredentialsStore = defineStore('credentials', () => {
       if (!response.ok) throw new Error('Failed to verify credentials')
 
       verificationResult.value = await response.json()
+      toast.success('Verification Complete', 'Enhanced verification completed')
       return verificationResult.value
     } catch (e) {
       error.value = e.message
+      toast.apiError(e, 'Enhanced verification failed')
       throw e
     } finally {
       loading.value = false
@@ -280,13 +285,16 @@ export const useCredentialsStore = defineStore('credentials', () => {
           localStorage.setItem('selectedAwsProfile', profileName)
           // Notify listeners that credential status has changed
           notifyCredentialStatusChange()
+          toast.success('Profile Selected', `Using AWS profile: ${profileName}`)
         }
       } catch (e) {
         console.error('Error fetching profile credentials:', e)
+        toast.error('Profile Error', 'Failed to fetch profile credentials')
       }
 
       return { success: true, ...result }
     } else {
+      toast.error('Profile Invalid', result.error || 'Profile verification failed')
       return { success: false, ...result }
     }
   }

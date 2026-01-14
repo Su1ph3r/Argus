@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import api from '../services/api'
+import { toast } from '../services/toast'
 
 export const useFindingsStore = defineStore('findings', () => {
   // State
@@ -85,6 +86,7 @@ export const useFindingsStore = defineStore('findings', () => {
       updateFilterOptions(findings.value)
     } catch (err) {
       error.value = err.message
+      toast.apiError(err, 'Failed to load findings')
       findings.value = []
       total.value = 0
     } finally {
@@ -100,6 +102,7 @@ export const useFindingsStore = defineStore('findings', () => {
       currentFinding.value = await api.getFinding(id)
     } catch (err) {
       error.value = err.message
+      toast.apiError(err, 'Failed to load finding details')
       currentFinding.value = null
     } finally {
       loading.value = false
@@ -121,9 +124,11 @@ export const useFindingsStore = defineStore('findings', () => {
         currentFinding.value = { ...currentFinding.value, ...updated }
       }
 
+      toast.success('Finding Updated', 'Status changed successfully')
       return updated
     } catch (err) {
       error.value = err.message
+      toast.apiError(err, 'Failed to update finding')
       throw err
     }
   }

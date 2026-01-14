@@ -244,8 +244,11 @@
         >
           <template #body="{ data }">
             <Tag
+              v-tooltip.top="getStatusTooltip(data)"
               :severity="getStatusSeverity(data.status)"
               :value="data.status"
+              :class="{ 'cursor-pointer': data.status === 'failed' }"
+              @click="data.status === 'failed' && showScanErrors(data.scan_id)"
             />
           </template>
         </Column>
@@ -295,7 +298,9 @@
       :style="{ width: '400px' }"
     >
       <p>Are you sure you want to delete {{ store.selectedScans.length }} scan(s)?</p>
-      <p class="confirm-warning">This will also delete all associated report files.</p>
+      <p class="confirm-warning">
+        This will also delete all associated report files.
+      </p>
       <template #footer>
         <Button
           label="Cancel"
@@ -320,7 +325,9 @@
       :style="{ width: '400px' }"
     >
       <p>Are you sure you want to archive {{ store.selectedScans.length }} scan(s)?</p>
-      <p class="confirm-info">A zip archive will be created and original files will be deleted.</p>
+      <p class="confirm-info">
+        A zip archive will be created and original files will be deleted.
+      </p>
       <template #footer>
         <Button
           label="Cancel"
@@ -431,6 +438,78 @@
         />
       </template>
     </Dialog>
+
+    <!-- Scan Error Details Dialog -->
+    <Dialog
+      v-model:visible="showErrorDialog"
+      modal
+      header="Scan Error Details"
+      :style="{ width: '600px' }"
+    >
+      <div
+        v-if="scanErrorDetails"
+        class="error-details"
+      >
+        <div
+          v-if="scanErrorDetails.error"
+          class="error-summary"
+        >
+          <i class="pi pi-exclamation-triangle error-icon" />
+          <span>{{ scanErrorDetails.error }}</span>
+        </div>
+
+        <div
+          v-if="Object.keys(scanErrorDetails.tool_errors || {}).length > 0 || (scanErrorDetails.completed_tools || []).length > 0"
+          class="tool-status-list"
+        >
+          <h4>Tool Status</h4>
+          <div
+            v-for="tool in scanErrorDetails.tools_planned"
+            :key="tool"
+            class="tool-status-item"
+          >
+            <Tag
+              :severity="getToolStatusSeverity(tool, scanErrorDetails)"
+              :value="getToolStatusLabel(tool, scanErrorDetails)"
+              class="tool-status-tag"
+            />
+            <span class="tool-name">{{ formatToolName(tool) }}</span>
+            <span
+              v-if="scanErrorDetails.tool_errors && scanErrorDetails.tool_errors[tool]"
+              class="tool-error-msg"
+            >
+              {{ scanErrorDetails.tool_errors[tool] }}
+            </span>
+          </div>
+        </div>
+
+        <div
+          v-if="!scanErrorDetails.error && Object.keys(scanErrorDetails.tool_errors || {}).length === 0"
+          class="no-error-info"
+        >
+          <i class="pi pi-info-circle" />
+          <span>No detailed error information available</span>
+        </div>
+      </div>
+      <div
+        v-else
+        class="loading-errors"
+      >
+        <ProgressSpinner
+          style="width: 40px; height: 40px"
+          stroke-width="4"
+        />
+        <span>Loading error details...</span>
+      </div>
+      <template #footer>
+        <Button
+          label="Close"
+          icon="pi pi-times"
+          text
+          @click="showErrorDialog = false"
+        />
+      </template>
+    </Dialog>
   </div>
 </template>
 
@@ -438,8 +517,8 @@
 import { ref, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useScansStore } from '../stores/scans'
-import { useToast } from 'primevue/usetoast'
 import { onCredentialStatusChange } from '../stores/credentials'
+import { api } from '../services/api'
 import DataTable from 'primevue/datatable'
 import Column from 'primevue/column'
 import Tag from 'primevue/tag'
@@ -453,12 +532,10 @@ import ProgressSpinner from 'primevue/progressspinner'
 
 const router = useRouter()
 const store = useScansStore()
-const toast = useToast()
-
-// Initialize toast in store for notifications
-store.setToast(toast)
 
 const showNewScanDialog = ref(false)
+const showErrorDialog = ref(false)
+const scanErrorDetails = ref(null)
 const showDeleteConfirm = ref(false)
 const showArchiveConfirm = ref(false)
 const selectedProfile = ref(null)
@@ -539,6 +616,36 @@ function getStatusSeverity(status) {
     pending: 'secondary',
   }
   return map[status] || 'secondary'
+}
+
+function getStatusTooltip(scan) {
+  if (scan.status === 'failed' && scan.scan_metadata?.error) {
+    return `Error: ${scan.scan_metadata.error} (click for details)`
+  }
+  return null
+}
+
+async function showScanErrors(scanId) {
+  showErrorDialog.value = true
+  scanErrorDetails.value = null
+  try {
+    scanErrorDetails.value = await api.getScanErrors(scanId)
+  } catch (e) {
+    console.error('Failed to fetch scan errors:', e)
+    scanErrorDetails.value = { error: 'Failed to load error details' }
+  }
+}
+
+function getToolStatusSeverity(tool, details) {
+  if (details.tool_errors && details.tool_errors[tool]) return 'danger'
+  if (details.completed_tools && details.completed_tools.includes(tool)) return 'success'
+  return 'secondary'
+}
+
+function getToolStatusLabel(tool, details) {
+  if (details.tool_errors && details.tool_errors[tool]) return 'Failed'
+  if (details.completed_tools && details.completed_tools.includes(tool)) return 'OK'
+  return 'Not Run'
 }
 
 function formatDate(dateStr) {
@@ -960,5 +1067,89 @@ onUnmounted(() => {
 
 .w-full {
   width: 100%;
+}
+
+/* Error Details Dialog */
+.error-details {
+  padding: var(--spacing-sm);
+}
+
+.error-summary {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--spacing-sm);
+  padding: var(--spacing-md);
+  background: var(--red-50);
+  border: 1px solid var(--red-200);
+  border-radius: var(--radius-md);
+  color: var(--red-700);
+  margin-bottom: var(--spacing-md);
+}
+
+.error-icon {
+  color: var(--red-500);
+  font-size: 1.25rem;
+  flex-shrink: 0;
+}
+
+.tool-status-list {
+  margin-top: var(--spacing-md);
+}
+
+.tool-status-list h4 {
+  margin: 0 0 var(--spacing-sm) 0;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.tool-status-item {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  padding: var(--spacing-sm) 0;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.tool-status-item:last-child {
+  border-bottom: none;
+}
+
+.tool-status-tag {
+  min-width: 60px;
+  text-align: center;
+}
+
+.tool-name {
+  font-weight: 500;
+  min-width: 100px;
+}
+
+.tool-error-msg {
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+  flex: 1;
+  word-break: break-word;
+}
+
+.no-error-info {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  color: var(--text-secondary);
+  padding: var(--spacing-md);
+}
+
+.loading-errors {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--spacing-md);
+  padding: var(--spacing-xl);
+  color: var(--text-secondary);
+}
+
+.cursor-pointer {
+  cursor: pointer;
 }
 </style>

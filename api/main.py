@@ -20,7 +20,7 @@ from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 from types import FrameType
 
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from logging_config import get_logger, get_request_id, set_request_id, setup_logging
@@ -153,6 +153,62 @@ logger = get_logger(__name__)
 _shutdown_event = asyncio.Event()
 _in_flight_requests = 0
 _shutdown_lock = asyncio.Lock()
+
+
+def _get_safe_error_message(exc: Exception) -> str:
+    """Extract a safe, user-friendly error message from an exception.
+
+    Hides stack traces, file paths, and sensitive data while providing
+    meaningful context about what went wrong.
+    """
+    error_type = type(exc).__name__
+    exc_str = str(exc).lower()
+
+    # Docker-related errors
+    if "docker" in error_type.lower() or "docker" in exc_str:
+        if "connection" in exc_str or "timeout" in exc_str:
+            return "Docker connection failed: Unable to connect to Docker daemon"
+        if "not found" in exc_str:
+            return "Docker resource not found: Container or image unavailable"
+        return "Docker operation failed"
+
+    # Database errors (SQLAlchemy/psycopg2)
+    if "psycopg" in error_type.lower() or "sqlalchemy" in error_type.lower():
+        if "connect" in exc_str:
+            return "Database connection failed"
+        if "constraint" in exc_str:
+            return "Database constraint violation"
+        return "Database operation failed"
+
+    # File/IO errors
+    if isinstance(exc, FileNotFoundError):
+        return "File not found"
+    if isinstance(exc, PermissionError):
+        return "Permission denied"
+    if isinstance(exc, IOError):
+        return "File operation failed"
+
+    # Network/connection errors
+    if isinstance(exc, ConnectionError):
+        return "Connection failed: Service temporarily unavailable"
+    if isinstance(exc, TimeoutError):
+        return "Request timeout: Operation took too long"
+
+    # Validation errors (Pydantic)
+    if "validation" in error_type.lower():
+        # Truncate but keep useful validation info
+        return f"Validation error: {str(exc)[:200]}"
+
+    # Value errors often contain useful info
+    if isinstance(exc, ValueError):
+        msg = str(exc)
+        # Don't expose paths or sensitive patterns
+        if "/" not in msg and "\\" not in msg and len(msg) < 200:
+            return f"Invalid value: {msg}"
+        return "Invalid input provided"
+
+    # Generic fallback - don't expose internal details
+    return "An unexpected error occurred"
 
 
 async def increment_in_flight() -> None:
@@ -492,10 +548,52 @@ async def api_root():
 
 
 # Exception handlers
+@app.exception_handler(HTTPException)
+async def http_exception_handler(request: Request, exc: HTTPException):
+    """Handle FastAPI HTTP exceptions with proper status codes.
+
+    This ensures 404s stay 404s, 400s stay 400s, etc., rather than
+    being converted to 500s by the generic exception handler.
+    """
+    request_id = get_request_id()
+
+    # Log client errors (4xx) at warning level, server errors (5xx) at error level
+    if 400 <= exc.status_code < 500:
+        logger.warning(
+            f"Client error: {exc.status_code} - {exc.detail}",
+            extra={
+                "request_id": request_id,
+                "path": request.url.path,
+                "method": request.method,
+                "status_code": exc.status_code,
+            },
+        )
+    else:
+        logger.error(
+            f"HTTP error: {exc.status_code} - {exc.detail}",
+            extra={
+                "request_id": request_id,
+                "path": request.url.path,
+                "method": request.method,
+                "status_code": exc.status_code,
+            },
+        )
+
+    return JSONResponse(
+        status_code=exc.status_code,
+        content={
+            "detail": exc.detail,
+            "request_id": request_id,
+        },
+    )
+
+
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):
-    """Global exception handler with structured logging."""
+    """Global exception handler with structured logging and safe error messages."""
     request_id = get_request_id()
+
+    # Log full details server-side for debugging
     logger.error(
         f"Unhandled exception: {exc}",
         exc_info=True,
@@ -503,12 +601,17 @@ async def global_exception_handler(request: Request, exc: Exception):
             "request_id": request_id,
             "path": request.url.path,
             "method": request.method,
+            "error_type": type(exc).__name__,
         },
     )
+
+    # Return safe, meaningful error message to client
+    safe_message = _get_safe_error_message(exc)
+
     return JSONResponse(
         status_code=500,
         content={
-            "detail": "Internal server error",
+            "detail": safe_message,
             "request_id": request_id,
         },
     )

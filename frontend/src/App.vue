@@ -16,17 +16,23 @@
 
 <script setup>
 import { onMounted } from 'vue'
+import { useToast } from 'primevue/usetoast'
 import AppSidebar from './components/layout/AppSidebar.vue'
 import AppFooter from './components/layout/AppFooter.vue'
 import { useThemeStore } from './stores/theme'
 import { useSidebarStore } from './stores/sidebar'
 import { useCredentialsStore } from './stores/credentials'
+import { setToastInstance } from './services/toast'
 
 const themeStore = useThemeStore()
 const sidebarStore = useSidebarStore()
 const credentialsStore = useCredentialsStore()
+const primeToast = useToast()
 
 onMounted(() => {
+  // Initialize centralized toast service
+  setToastInstance(primeToast)
+
   themeStore.init()
   // Restore previously selected AWS profile
   credentialsStore.restoreAwsProfile()

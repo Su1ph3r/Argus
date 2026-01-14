@@ -93,6 +93,10 @@ export const api = {
     return request(`/scans/${id}`)
   },
 
+  async getScanErrors(id) {
+    return request(`/scans/${id}/errors`)
+  },
+
   // Exports
   getExportUrl(format, params = {}) {
     const searchParams = new URLSearchParams()

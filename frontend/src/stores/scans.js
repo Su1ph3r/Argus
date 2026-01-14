@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { useCredentialsStore } from './credentials'
+import { toast } from '../services/toast'
 
 const API_BASE = '/api'
 
@@ -20,19 +21,6 @@ export const useScansStore = defineStore('scans', () => {
   const selectedScans = ref([]) // For bulk operations
   const bulkOperationLoading = ref(false)
   const archives = ref([]) // List of archives
-
-  // Toast instance (set from component)
-  let toastInstance = null
-
-  function setToast(toast) {
-    toastInstance = toast
-  }
-
-  function notify(severity, summary, detail, life = 4000) {
-    if (toastInstance) {
-      toastInstance.add({ severity, summary, detail, life })
-    }
-  }
   const pagination = ref({
     page: 1,
     pageSize: 20,
@@ -191,7 +179,7 @@ export const useScansStore = defineStore('scans', () => {
 
       // Show notification
       const profileName = profiles.value.find(p => p.id === config.profile)?.name || config.profile
-      notify('info', 'Scan Started', `${profileName} scan has been initiated`, 4000)
+      toast.info('Scan Started', `${profileName} scan has been initiated`, 4000)
 
       // Start polling for status updates
       if (data.scan_id) {
@@ -296,11 +284,13 @@ export const useScansStore = defineStore('scans', () => {
         const previousStatus = scanPreviousStatus.value[scanId]
         if (previousStatus && previousStatus !== scan.status) {
           if (scan.status === 'completed') {
-            notify('success', 'Scan Completed', `Found ${scan.total_findings || 0} findings`, 5000)
+            toast.success('Scan Completed', `Found ${scan.total_findings || 0} findings`, 5000)
           } else if (scan.status === 'failed') {
-            notify('error', 'Scan Failed', 'Check scan details for error information', 5000)
+            // Show specific error message if available in metadata
+            const errorMsg = scan.scan_metadata?.error || 'Check scan details for error information'
+            toast.error('Scan Failed', errorMsg, 5000)
           } else if (scan.status === 'cancelled') {
-            notify('warn', 'Scan Cancelled', 'The scan was cancelled', 4000)
+            toast.warn('Scan Cancelled', 'The scan was cancelled', 4000)
           }
         }
         scanPreviousStatus.value[scanId] = scan.status
@@ -366,18 +356,18 @@ export const useScansStore = defineStore('scans', () => {
 
       // Notify user
       if (result.success) {
-        notify('success', 'Scans Deleted', `Deleted ${result.deleted_scans} scans and ${result.deleted_files} files`, 5000)
+        toast.success('Scans Deleted', `Deleted ${result.deleted_scans} scans and ${result.deleted_files} files`, 5000)
       } else {
         const msg = result.skipped_scans.length > 0
           ? `Deleted ${result.deleted_scans} scans. Skipped ${result.skipped_scans.length} running scans.`
           : `Deleted ${result.deleted_scans} scans with ${result.errors.length} errors.`
-        notify('warn', 'Partial Success', msg, 5000)
+        toast.warn('Partial Success', msg, 5000)
       }
 
       return result
     } catch (e) {
       error.value = e.message
-      notify('error', 'Delete Failed', e.message, 5000)
+      toast.error('Delete Failed', e.message, 5000)
       throw e
     } finally {
       bulkOperationLoading.value = false
@@ -414,12 +404,12 @@ export const useScansStore = defineStore('scans', () => {
       selectedScans.value = []
 
       // Notify user
-      notify('success', 'Scans Archived', `Archived ${result.archived_scans} scans to ${result.archive_name}`, 5000)
+      toast.success('Scans Archived', `Archived ${result.archived_scans} scans to ${result.archive_name}`, 5000)
 
       return result
     } catch (e) {
       error.value = e.message
-      notify('error', 'Archive Failed', e.message, 5000)
+      toast.error('Archive Failed', e.message, 5000)
       throw e
     } finally {
       bulkOperationLoading.value = false
@@ -480,7 +470,6 @@ export const useScansStore = defineStore('scans', () => {
     startPolling,
     stopPolling,
     stopAllPolling,
-    setToast,
     bulkDeleteScans,
     bulkArchiveScans,
     fetchArchives,
