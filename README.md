@@ -4,7 +4,7 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
 [![Docker](https://img.shields.io/badge/Docker-Required-2496ED?logo=docker&logoColor=white)](https://docker.com)
-[![Version](https://img.shields.io/badge/Version-1.0.1-green.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/Version-1.0.2-green.svg)](CHANGELOG.md)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](CONTRIBUTING.md)
 [![Cloud Support](https://img.shields.io/badge/Cloud-AWS%20%7C%20Azure%20%7C%20GCP%20%7C%20OCI-orange.svg)](#multi-cloud-support)
 
@@ -24,13 +24,22 @@ Nubicustos is a comprehensive Docker Compose-based platform that orchestrates **
 - **Container Security** - Image vulnerability scanning with Trivy and Grype
 - **Attack Path Analysis** - Graph-based attack chain discovery with MITRE ATT&CK mapping
 - **AWS Security Deep-Dive** - IMDS checks, Lambda analysis, privilege escalation paths, exposed credentials
-- **Web Frontend** - Vue.js 3 dashboard with 19 specialized views for findings, attack paths, and compliance
+- **Web Frontend** - Vue.js 3 dashboard with 22+ specialized views for findings, attack paths, and compliance
 - **MCP Server Integration** - LLM integration via Model Context Protocol for AI-assisted security analysis
 - **Centralized Findings Database** - PostgreSQL for historical tracking and trend analysis
 - **Asset Relationship Mapping** - Neo4j graph database via Cartography
 - **REST API** - 20+ endpoint groups for comprehensive programmatic access
 - **Remediation Knowledge Base** - AWS CLI commands and step-by-step guidance
 - **Scan Profiles** - Quick, comprehensive, and compliance-only presets with Docker SDK orchestration
+
+#### New in v1.0.2
+
+- **Bulk Scan Operations** - Multi-select, bulk delete, and archive functionality from UI and API
+- **Per-Tool Error Tracking** - Detailed error breakdown and `/scans/{id}/errors` analysis endpoint
+- **Archive Service** - Create and download zip archives of scan reports
+- **Orphan Scan Recovery** - Automatic scan recovery on API restart
+- **Dynamic AWS Profiles** - Per-scan AWS credential profile selection via `aws_profile` field
+- **Enhanced Security** - Path traversal protection, zip slip prevention, log sanitization
 
 ---
 
@@ -66,9 +75,9 @@ cp ~/.aws/config credentials/aws/
 
 # 7. Run scans via UI or API
 # Use the Scans page in the web interface, or:
-curl -X POST http://localhost:8080/api/scans/orchestrate \
+curl -X POST http://localhost:8000/api/scans \
   -H "Content-Type: application/json" \
-  -d '{"profile": "quick", "provider": "aws"}'
+  -d '{"profile": "quick", "aws_profile": "default"}'
 ```
 
 > **Note:** Security scanning tools run on-demand via the API/UI rather than as persistent containers.
@@ -79,7 +88,7 @@ curl -X POST http://localhost:8080/api/scans/orchestrate \
 ## Architecture
 
 ```
-                              NUBICUSTOS
+                              NUBICUSTOS v1.0.2
     ================================================================
 
     CLOUD SECURITY TOOLS              KUBERNETES SECURITY
@@ -90,17 +99,25 @@ curl -X POST http://localhost:8080/api/scans/orchestrate \
     CloudFox        Enumerate-IAM     kube-linter   Polaris
     CloudMapper                       Falco
 
-    IAC SCANNERS                      DATA LAYER
-    ============                      ==========
-    Checkov                           PostgreSQL (Findings DB)
-    Terrascan                         Neo4j (Asset Graph)
-    tfsec                             Report Processor (Analysis)
+    IAC SCANNERS                      ORCHESTRATION
+    ============                      =============
+    Checkov                           Docker SDK Integration
+    Terrascan                         On-demand Tool Launching
+    tfsec                             Per-Tool Error Tracking
+                                      Orphan Scan Recovery
 
-    ACCESS LAYER                      INTEGRATIONS
-    ============                      ============
-    REST API (FastAPI :8000)          MCP Server (LLM Integration)
-    Vue.js Frontend (:8080)           Grafana Dashboards (:3000)
-    Neo4j Browser (:7474)             Attack Path Analyzer
+    DATA LAYER                        INTEGRATIONS
+    ==========                        ============
+    PostgreSQL (Findings DB)          MCP Server (LLM Integration)
+    Neo4j (Asset Graph)               Grafana Dashboards (:3000)
+    Archive Service (ZIP)             Attack Path Analyzer
+    Report Processor                  Assumed Role Analyzer
+
+    ACCESS LAYER
+    ============
+    REST API (FastAPI :8000)          Bulk Operations API
+    Vue.js Frontend (:8080)           Error Analysis Endpoint
+    Neo4j Browser (:7474)             Archive Management API
 ```
 
 ---
@@ -157,7 +174,7 @@ curl -X POST http://localhost:8080/api/scans/orchestrate \
 
 ## Web Frontend
 
-Nubicustos includes a modern Vue.js 3 web interface with 19 specialized views:
+Nubicustos includes a modern Vue.js 3 web interface with 22+ specialized views:
 
 | View | Description |
 |------|-------------|
@@ -165,15 +182,19 @@ Nubicustos includes a modern Vue.js 3 web interface with 19 specialized views:
 | **Findings** | Searchable list with severity filtering and export |
 | **Attack Paths** | Graph visualization of discovered attack chains |
 | **Compliance** | Framework compliance status (CIS, SOC2, PCI-DSS) |
-| **Scans** | Scan history, orchestration, and monitoring |
+| **Compliance Detail** | Framework-specific control breakdown |
+| **Scans** | Scan history, orchestration, bulk operations, and monitoring |
 | **Public Exposures** | Exposed resources and attack surface |
 | **Exposed Credentials** | Leaked credential detection |
 | **Privilege Escalation** | IAM lateral movement paths |
+| **Privesc Paths** | Detailed privilege escalation path explorer |
+| **Assumed Roles** | IAM role assumption analysis |
 | **IMDS Checks** | EC2 metadata service vulnerabilities |
 | **Lambda Analysis** | Serverless security assessment |
 | **CloudFox** | AWS enumeration results |
 | **Pacu** | AWS exploitation findings |
 | **Enumerate IAM** | IAM permission mapping |
+| **Credentials** | Cloud credential profile management |
 | **Settings** | Configuration management |
 
 Access the frontend at `http://localhost:8080` after starting the stack.
@@ -238,6 +259,10 @@ Add to `~/.config/claude/config.json`:
 | **Attack Paths** | list_attack_paths, analyze_attack_paths, list_privesc_paths |
 | **AWS Security** | get_imds_checks, get_lambda_analysis, run_cloudfox |
 | **Exports** | export_findings, get_export_summary |
+| **Bulk Operations** | bulk_delete_scans, bulk_archive_scans |
+| **Error Analysis** | get_scan_errors, get_tool_status |
+| **Archives** | list_archives, download_archive |
+| **Assumed Roles** | analyze_assumed_roles, list_role_chains |
 
 See [MCP Server Guide](nubicustos-mcp/README.md) for complete documentation.
 
@@ -306,6 +331,38 @@ python3 report-processor/compare_scans.py \
   --include-mttr
 ```
 
+### Bulk Operations (v1.0.2)
+
+```bash
+# Delete multiple scans
+curl -X DELETE http://localhost:8000/api/scans/bulk \
+  -H "Content-Type: application/json" \
+  -d '{"scan_ids": ["id1", "id2", "id3"]}'
+
+# Archive scans to downloadable ZIP
+curl -X POST http://localhost:8000/api/scans/bulk/archive \
+  -H "Content-Type: application/json" \
+  -d '{"scan_ids": ["id1", "id2"]}'
+
+# List available archives
+curl http://localhost:8000/api/scans/archives
+
+# Get per-tool error breakdown for a scan
+curl http://localhost:8000/api/scans/{scan_id}/errors
+```
+
+### Dynamic AWS Profiles (v1.0.2)
+
+```bash
+# Scan with specific AWS credential profile
+curl -X POST http://localhost:8000/api/scans \
+  -H "Content-Type: application/json" \
+  -d '{"profile": "comprehensive", "aws_profile": "prod-audit"}'
+
+# List available AWS profiles
+curl http://localhost:8000/api/credentials/aws/profiles
+```
+
 ---
 
 ## System Requirements
@@ -346,6 +403,15 @@ We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md) f
 ## Security
 
 If you discover a security vulnerability, please do NOT open a public issue. Instead, please email the maintainers directly or use GitHub's private vulnerability reporting feature.
+
+### Security Improvements (v1.0.2)
+
+- **Path Traversal Protection** - All file operations validated with `os.path.realpath()` to prevent directory escape
+- **Zip Slip Prevention** - Archive extraction secured against path manipulation attacks
+- **ReDoS Mitigation** - Input length limits on regex patterns to prevent denial of service
+- **Log Sanitization** - Credentials, tokens, and IP addresses automatically redacted from logs
+- **Error Information Control** - Limited validation error details to prevent schema disclosure
+- **SQLAlchemy Error Handling** - Specific exception handling to prevent information leakage
 
 ---
 
