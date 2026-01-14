@@ -18,6 +18,64 @@ logger = logging.getLogger(__name__)
 # When aws_profile is passed to start_execution, it will override this default
 DEFAULT_AWS_PROFILE = os.environ.get("DEFAULT_AWS_PROFILE", "nubicustos-audit")
 
+# Docker network name for security tools
+# This is dynamically detected at runtime since Docker Compose prefixes
+# network names with the project directory name (e.g., nubi_security-net)
+_SECURITY_NETWORK_NAME: str | None = None
+
+
+def _detect_security_network() -> str:
+    """
+    Detect the Docker network name for security tools.
+
+    Docker Compose creates networks with names prefixed by the project directory
+    (e.g., 'nubi_security-net' or 'nubicustos_security-net'). This function
+    queries Docker to find the correct network name.
+
+    Returns:
+        The detected network name, or falls back to DOCKER_NETWORK env var.
+
+    Raises:
+        RuntimeError: If no suitable network is found.
+    """
+    global _SECURITY_NETWORK_NAME
+
+    # Return cached value if already detected
+    if _SECURITY_NETWORK_NAME is not None:
+        return _SECURITY_NETWORK_NAME
+
+    # Check for explicit configuration first
+    explicit_network = os.environ.get("DOCKER_NETWORK", "").strip()
+    if explicit_network:
+        _SECURITY_NETWORK_NAME = explicit_network
+        logger.info(f"Using explicitly configured Docker network: {explicit_network}")
+        return _SECURITY_NETWORK_NAME
+
+    # Try to detect the network dynamically
+    try:
+        client = docker.from_env()
+        networks = client.networks.list()
+
+        # Look for a network ending with '_security-net'
+        for network in networks:
+            if network.name.endswith("_security-net"):
+                _SECURITY_NETWORK_NAME = network.name
+                logger.info(f"Detected Docker security network: {_SECURITY_NETWORK_NAME}")
+                return _SECURITY_NETWORK_NAME
+
+        # No matching network found
+        raise RuntimeError(
+            "No Docker network ending with '_security-net' found. "
+            "Ensure docker-compose is running, or set DOCKER_NETWORK explicitly."
+        )
+    except docker.errors.DockerException as e:
+        raise RuntimeError(f"Failed to connect to Docker to detect network: {e}")
+
+
+def get_security_network() -> str:
+    """Get the Docker network name for security tools."""
+    return _detect_security_network()
+
 
 class ExecutionStatus(str, Enum):
     """Tool execution status."""
@@ -89,7 +147,7 @@ TOOL_CONFIGS = {
             "/app/reports/prowler": {"bind": "/reports", "mode": "rw"},
             "/app/credentials/aws": {"bind": "/home/prowler/.aws", "mode": "ro"},
         },
-        "network": "nubicustos_security-net",
+        "network": None,  # Resolved dynamically via get_security_network()
         "environment": {
             "AWS_SHARED_CREDENTIALS_FILE": "/home/prowler/.aws/credentials",
             "AWS_CONFIG_FILE": "/home/prowler/.aws/config",
@@ -116,7 +174,7 @@ TOOL_CONFIGS = {
             "/app/reports/scoutsuite": {"bind": "/reports", "mode": "rw"},
             "/app/credentials/aws": {"bind": "/root/.aws", "mode": "ro"},
         },
-        "network": "nubicustos_security-net",
+        "network": None,  # Resolved dynamically via get_security_network()
         "environment": {
             "AWS_SHARED_CREDENTIALS_FILE": "/root/.aws/credentials",
             "AWS_CONFIG_FILE": "/root/.aws/config",
@@ -145,7 +203,7 @@ TOOL_CONFIGS = {
         "named_volumes": {
             "cloud-stack_cloudfox-data": {"bind": "/root/.cloudfox", "mode": "rw"},
         },
-        "network": "nubicustos_security-net",
+        "network": None,  # Resolved dynamically via get_security_network()
         "environment": {
             "AWS_SHARED_CREDENTIALS_FILE": "/root/.aws/credentials",
             "AWS_CONFIG_FILE": "/root/.aws/config",
@@ -162,7 +220,7 @@ TOOL_CONFIGS = {
             "/app/reports/cloudsploit": {"bind": "/reports", "mode": "rw"},
             "/app/credentials/aws": {"bind": "/root/.aws", "mode": "ro"},
         },
-        "network": "nubicustos_security-net",
+        "network": None,  # Resolved dynamically via get_security_network()
         "environment": {
             "HOME": "/root",
             "AWS_DEFAULT_REGION": "us-east-1",
@@ -192,7 +250,7 @@ TOOL_CONFIGS = {
             "/app/reports/custodian": {"bind": "/output", "mode": "rw"},
             "/app/credentials/aws": {"bind": "/root/.aws", "mode": "ro"},
         },
-        "network": "nubicustos_security-net",
+        "network": None,  # Resolved dynamically via get_security_network()
         "environment": {
             "AWS_SHARED_CREDENTIALS_FILE": "/root/.aws/credentials",
             "AWS_CONFIG_FILE": "/root/.aws/config",
@@ -209,7 +267,7 @@ TOOL_CONFIGS = {
             "/app/credentials/aws": {"bind": "/root/.aws", "mode": "ro"},
             "/app/config/cloudmapper": {"bind": "/config", "mode": "ro"},
         },
-        "network": "nubicustos_security-net",
+        "network": None,  # Resolved dynamically via get_security_network()
         "environment": {
             "AWS_SHARED_CREDENTIALS_FILE": "/root/.aws/credentials",
             "AWS_CONFIG_FILE": "/root/.aws/config",
@@ -224,7 +282,7 @@ TOOL_CONFIGS = {
         "volumes": {
             "/app/credentials/aws": {"bind": "/root/.aws", "mode": "ro"},
         },
-        "network": "nubicustos_security-net",
+        "network": None,  # Resolved dynamically via get_security_network()
         "environment": {
             "NEO4J_URI": "bolt://neo4j:7687",
             "NEO4J_USER": "neo4j",
@@ -253,7 +311,7 @@ TOOL_CONFIGS = {
         "named_volumes": {
             "cloud-stack_pacu-data": {"bind": "/root/.local/share/pacu", "mode": "rw"},
         },
-        "network": "nubicustos_security-net",
+        "network": None,  # Resolved dynamically via get_security_network()
         "environment": {
             "AWS_SHARED_CREDENTIALS_FILE": "/root/.aws/credentials",
             "AWS_CONFIG_FILE": "/root/.aws/config",
@@ -269,7 +327,7 @@ TOOL_CONFIGS = {
             "/app/reports/enumerate-iam": {"bind": "/reports", "mode": "rw"},
             "/app/credentials/aws": {"bind": "/root/.aws", "mode": "ro"},
         },
-        "network": "nubicustos_security-net",
+        "network": None,  # Resolved dynamically via get_security_network()
         "environment": {
             "AWS_SHARED_CREDENTIALS_FILE": "/root/.aws/credentials",
             "AWS_CONFIG_FILE": "/root/.aws/config",
@@ -288,7 +346,7 @@ TOOL_CONFIGS = {
             "/app/kubeconfigs": {"bind": "/root/.kube", "mode": "ro"},
             "/app/reports/kubescape": {"bind": "/reports", "mode": "rw"},
         },
-        "network": "nubicustos_security-net",
+        "network": None,  # Resolved dynamically via get_security_network()
         "environment": {},
         "default_command": [
             "scan",
@@ -651,6 +709,11 @@ class DockerExecutor:
             logger.info(f"Starting {tool_type} execution: {execution_id}")
             logger.debug(f"Image: {config['image']}, Command: {cmd}")
 
+            # Resolve network - use config value if set, otherwise detect dynamically
+            network = config.get("network")
+            if network is None:
+                network = get_security_network()
+
             # Run container in detached mode
             run_kwargs = {
                 "image": config["image"],
@@ -658,7 +721,7 @@ class DockerExecutor:
                 "command": cmd if cmd else None,
                 "environment": env,
                 "volumes": volumes,
-                "network": config.get("network"),
+                "network": network,
                 "detach": True,
                 "remove": False,  # Keep container for log retrieval
                 "auto_remove": False,
