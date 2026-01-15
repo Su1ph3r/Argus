@@ -116,11 +116,19 @@ Trigger a new security scan.
 ```json
 {
   "profile": "quick",
+  "aws_profile": "default",
   "target": "all",
   "severity_filter": "critical,high",
   "dry_run": false
 }
 ```
+
+**Parameters:**
+- `profile` - Scan profile: `quick`, `comprehensive`, or `compliance-only`
+- `aws_profile` - AWS credential profile name (v1.0.2)
+- `target` - Scan target (default: "all")
+- `severity_filter` - Filter by severity levels
+- `dry_run` - Preview mode without execution
 
 **Profiles:**
 - `quick` - Fast scan (5-10 min), critical/high issues only
@@ -165,6 +173,98 @@ Cancel a running or pending scan.
 ### GET /scans/profiles/list
 
 List available scan profiles with descriptions.
+
+### GET /scans/{scan_id}/errors
+
+Get per-tool error breakdown for a scan. (v1.0.2)
+
+**Response:**
+```json
+{
+  "scan_id": "550e8400-e29b-41d4-a716-446655440000",
+  "tool_errors": {
+    "prowler": null,
+    "scoutsuite": "Connection timeout after 300s",
+    "cloudfox": null
+  },
+  "total_tools": 3,
+  "failed_tools": 1
+}
+```
+
+---
+
+## Bulk Operations (v1.0.2)
+
+### DELETE /scans/bulk
+
+Delete multiple scans at once.
+
+**Request Body:**
+```json
+{
+  "scan_ids": ["id1", "id2", "id3"]
+}
+```
+
+**Response:**
+```json
+{
+  "deleted": 3,
+  "failed": [],
+  "message": "Successfully deleted 3 scans"
+}
+```
+
+### POST /scans/bulk/archive
+
+Create a downloadable zip archive of scan reports.
+
+**Request Body:**
+```json
+{
+  "scan_ids": ["id1", "id2"]
+}
+```
+
+**Response:**
+```json
+{
+  "archive_id": "archive-uuid",
+  "filename": "scans_2024-01-15_143022.zip",
+  "size_bytes": 1048576,
+  "download_url": "/api/scans/archives/archive-uuid/download"
+}
+```
+
+### GET /scans/archives
+
+List available scan archives.
+
+**Response:**
+```json
+{
+  "archives": [
+    {
+      "id": "archive-uuid",
+      "filename": "scans_2024-01-15_143022.zip",
+      "created_at": "2024-01-15T14:30:22Z",
+      "size_bytes": 1048576,
+      "scan_count": 2
+    }
+  ]
+}
+```
+
+### GET /scans/archives/{archive_id}/download
+
+Download an archive file.
+
+**Response:** Binary file download (application/zip)
+
+### DELETE /scans/archives/{archive_id}
+
+Delete an archive.
 
 ---
 

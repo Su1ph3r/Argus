@@ -12,24 +12,20 @@ Welcome to the Nubicustos documentation wiki. This wiki provides comprehensive d
 ### Core Features
 - [[Scan Orchestration|Scan-Orchestration]] - How the scan system works
 - [[Security Tools Reference|Security-Tools-Reference]] - All supported scanning tools
-- [[Scan Profiles|Scan-Profiles]] - Quick, Comprehensive, and Compliance profiles
+- [[Bulk Operations|Bulk-Operations]] - Multi-select, bulk delete, and archive (v1.0.2)
+- [[Error Tracking|Error-Tracking]] - Per-tool error analysis (v1.0.2)
 - [[Attack Path Analysis|Attack-Path-Analysis]] - Graph-based attack chain discovery
 - [[AWS Security Analysis|AWS-Security-Analysis]] - IMDS checks, Lambda analysis, privilege escalation
 
 ### User Interfaces
-- [[Web Frontend|Web-Frontend]] - Vue.js 3 dashboard with 19 views
+- [[Web Frontend|Web-Frontend]] - Vue.js 3 dashboard with 22+ views
 - [[MCP Server Integration|MCP-Server-Integration]] - LLM integration via Model Context Protocol
 
 ### API Reference
-- [[REST API Overview|API]] - Complete API documentation
-- [[Scans API|API-Scans-Endpoint]] - Detailed scans endpoint reference
-- [[Findings API|API-Findings-Endpoint]] - Query and filter findings
-- [[Attack Paths API|API-Attack-Paths-Endpoint]] - Attack chain queries
+- [[REST API Overview|API]] - Complete API documentation (scans, findings, attack paths, bulk operations)
 
 ### Architecture
 - [[System Architecture|ARCHITECTURE]] - Technical architecture overview
-- [[Data Flow|Data-Flow]] - How data moves through the system
-- [[Database Schema|Database-Schema]] - PostgreSQL and Neo4j schemas
 
 ### Security
 - [[Security Analysis|Security-Analysis]] - Security considerations and best practices
@@ -45,7 +41,7 @@ Welcome to the Nubicustos documentation wiki. This wiki provides comprehensive d
 
 Nubicustos is a Docker Compose-based platform for automated cloud security auditing across AWS, Azure, GCP, and Kubernetes environments. It orchestrates 20+ security scanning tools and provides:
 
-- **Vue.js 3 Web Frontend** with 19 specialized views for findings, attack paths, and compliance
+- **Vue.js 3 Web Frontend** with 22+ specialized views for findings, attack paths, and compliance
 - **MCP Server** for LLM integration via Model Context Protocol (Claude Desktop, Ollama)
 - **Attack Path Analysis** with graph-based discovery and MITRE ATT&CK mapping
 - **REST API** with 20+ endpoint groups for programmatic access
@@ -90,17 +86,16 @@ The scan orchestration system uses direct Docker SDK calls for reliable containe
 git clone https://github.com/Su1ph3r/Nubicustos.git
 cd Nubicustos
 
-# Configure environment
-cp .env.example .env
-# Edit .env with your settings
-
 # Start the stack
-docker-compose up -d
+docker compose up -d
 
-# Trigger a quick scan
+# Access the web interface
+open http://localhost:8080
+
+# Or trigger a scan via API
 curl -X POST http://localhost:8000/api/scans \
   -H "Content-Type: application/json" \
-  -d '{"profile": "quick"}'
+  -d '{"profile": "quick", "aws_profile": "default"}'
 ```
 
 ## Service Ports
@@ -109,7 +104,6 @@ curl -X POST http://localhost:8000/api/scans \
 |------|---------|-------------|
 | 8080 | Nginx | Vue.js web frontend |
 | 8000 | FastAPI | REST API (20+ endpoint groups) |
-| 3000 | Grafana | Security dashboards (optional) |
 | 5432 | PostgreSQL | Findings database |
 | 7474/7687 | Neo4j | Asset graph database |
 

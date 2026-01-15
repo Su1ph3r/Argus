@@ -2,6 +2,8 @@
 
 This guide covers deploying Nubicustos in development and production environments.
 
+> **v1.0.2 Note**: This guide has been updated to reflect new features including IMDS credential support, orphan scan recovery, and on-demand Docker image building.
+
 ## Prerequisites
 
 ### Required Software
@@ -93,6 +95,35 @@ cp /path/to/service-account.json credentials/gcp/credentials.json
 cp ~/.kube/config kubeconfigs/config
 ```
 
+### IMDS Credential Support (v1.0.2)
+
+When running Nubicustos on EC2 or ECS, you can use IMDS (Instance Metadata Service) credentials instead of static access keys. The system automatically detects and uses instance role credentials.
+
+**EC2 Instance Role Setup:**
+
+1. Create an IAM role with SecurityAudit policy
+2. Attach the role to your EC2 instance
+3. Skip the AWS credentials file setup - IMDS is used automatically
+
+**ECS Task Role Setup:**
+
+1. Create a task role with SecurityAudit policy
+2. Reference it in your task definition
+3. The containers inherit task role credentials via IMDS
+
+```yaml
+# ECS task definition example
+{
+  "taskRoleArn": "arn:aws:iam::123456789012:role/NubicustosAuditRole",
+  "containerDefinitions": [...]
+}
+```
+
+**Benefits:**
+- No static credentials to manage or rotate
+- Automatic credential refresh
+- Better security posture for cloud deployments
+
 ### 4. Start the Stack
 
 ```bash
@@ -113,9 +144,9 @@ docker-compose logs -f
 curl http://localhost:8000/health
 
 # Access web interfaces
-# Reports: http://localhost:8080
+# Frontend: http://localhost:8080
 # API Docs: http://localhost:8000/docs
-# Grafana: http://localhost:3000 (admin/admin)
+# Neo4j: http://localhost:7474
 ```
 
 ### 6. Run Your First Scan
@@ -413,7 +444,7 @@ tar -czvf config-backup.tar.gz \
   docker-compose.yml \
   docker-compose.override.yml \
   profiles/ \
-  grafana/
+  credentials/
 ```
 
 ## Scaling Considerations
@@ -501,26 +532,33 @@ services:
       - ENABLE_METRICS=true
 ```
 
-### Grafana Dashboards
-
-Pre-configured dashboards are available:
-
-1. **Security Overview** - Finding trends, severity breakdown
-2. **Scan Performance** - Execution times, success rates
-3. **Resource Coverage** - Asset types, regions scanned
-
-Access at: http://localhost:3000 (default: admin/admin)
-
-### Alerting
-
-Configure Grafana alerts for:
-
-- New critical findings
-- Failed scans
-- API errors
-- Database connection issues
-
 ## Updating the Stack
+
+### On-Demand Docker Image Building (v1.0.2)
+
+Some security tools (CloudSploit, CloudMapper, enumerate-iam) require local image builds. The system now handles this automatically:
+
+**Automatic Build Detection:**
+- When a scan requests a tool with a `:local` image tag, the system checks if the image exists
+- If missing, it triggers an automatic build before starting the scan
+- Build logs are captured and errors are reported in the scan status
+
+**Manual Build Trigger:**
+
+```bash
+# Build all local images
+./scripts/build-local-images.sh
+
+# Build specific tool
+./scripts/build-local-images.sh cloudsploit
+```
+
+**Local Image Tags:**
+| Tool | Image Tag |
+|------|-----------|
+| CloudSploit | `cloudsploit:local` |
+| CloudMapper | `cloudmapper:local` |
+| enumerate-iam | `enumerate-iam:local` |
 
 ### Update Tool Images
 
@@ -565,6 +603,31 @@ docker-compose up -d
 ```
 
 ## Troubleshooting
+
+### Orphan Scan Recovery (v1.0.2)
+
+If the API restarts while scans are running, the system automatically handles orphan scans on startup:
+
+1. **Automatic Detection**: Queries database for scans with `status = 'running'`
+2. **Container Check**: Verifies if scan containers are still running
+3. **Recovery**:
+   - If container running: Resumes scan monitoring
+   - If container gone: Marks scan as `failed` with descriptive message
+
+**Manual Cleanup:**
+
+If needed, manually mark orphan scans as failed:
+
+```bash
+# Via API (recommended)
+curl -X PATCH "http://localhost:8000/api/scans/{scan_id}" \
+  -H "Content-Type: application/json" \
+  -d '{"status": "failed", "error": "Manually marked as failed"}'
+
+# Via direct database (if API unavailable)
+docker-compose exec postgresql psql -U auditor -d security_audits -c \
+  "UPDATE scans SET status = 'failed', error_message = 'Manual cleanup' WHERE status = 'running'"
+```
 
 ### Common Issues
 

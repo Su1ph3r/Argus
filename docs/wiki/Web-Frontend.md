@@ -1,6 +1,6 @@
 # Web Frontend
 
-Nubicustos includes a modern Vue.js 3 web interface providing 19 specialized views for security findings, attack paths, compliance status, and more.
+Nubicustos includes a modern Vue.js 3 web interface providing 22+ specialized views for security findings, attack paths, compliance status, and more.
 
 ## Overview
 
@@ -69,6 +69,16 @@ Framework compliance tracking:
 - Gap analysis
 - Export compliance reports
 
+### Compliance Detail (v1.0.2)
+**Path**: `/compliance/:framework`
+
+Framework-specific breakdown:
+- Individual control status
+- Evidence for each control
+- Remediation guidance
+- Historical compliance trends
+- Export framework report
+
 ### Scans
 **Path**: `/scans`
 
@@ -79,6 +89,11 @@ Scan management:
 - Profile selection
 - Cancel running scans
 - View scan details
+- **Bulk Operations (v1.0.2)**:
+  - Multi-select scans with checkboxes
+  - Bulk delete selected scans
+  - Bulk archive to downloadable ZIP
+  - Confirmation dialogs for destructive actions
 
 ### Scan Detail
 **Path**: `/scans/:id`
@@ -87,7 +102,8 @@ Individual scan results:
 - Tool execution status
 - Finding counts by severity
 - Duration and timestamps
-- Error logs if failed
+- **Per-Tool Error Dialog (v1.0.2)**: Shows which tools failed and why
+- Error breakdown by tool
 - Rerun option
 
 ### Public Exposures
@@ -277,9 +293,11 @@ export const useFindingsStore = defineStore('findings', {
 
 Available stores:
 - `findings` - Finding data and filters
-- `scans` - Scan management
+- `scans` - Scan management, bulk operations, archives (v1.0.2)
 - `attackPaths` - Attack path data
 - `compliance` - Compliance status
+- `assumedRoles` - Role assumption analysis (v1.0.2)
+- `toast` - Centralized notifications (v1.0.2)
 - `settings` - User preferences
 
 ## API Integration

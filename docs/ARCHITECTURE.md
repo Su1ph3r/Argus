@@ -15,8 +15,8 @@ Nubicustos is a Docker Compose-based platform that orchestrates 20+ security sca
               |                              |                              |
               v                              v                              v
     +------------------+          +------------------+          +------------------+
-    |  Nginx (:8080)   |          |  REST API (:8000)|          | Grafana (:3000)  |
-    |  Reports WebUI   |          |  FastAPI + Uvicorn|         |  Dashboards      |
+    |  Nginx (:8080)   |          |  REST API (:8000)|          |  Neo4j (:7474)   |
+    |  Vue.js Frontend |          |  FastAPI + Uvicorn|         |  Asset Graph     |
     +--------+---------+          +--------+---------+          +--------+---------+
              |                             |                             |
              |                             v                             |
@@ -86,8 +86,7 @@ docker-compose.yml
 |
 +-- Web Services
 |   +-- api                  (FastAPI REST service)
-|   +-- nginx                (Static report hosting)
-|   +-- grafana              (Visualization dashboards)
+|   +-- nginx                (Vue.js frontend hosting)
 |
 +-- Report Processing
     +-- report-processor     (Python parsing/loading scripts)
@@ -476,9 +475,8 @@ The attack path analyzer discovers chains of vulnerabilities:
 
 | Service | Port | Protocol | Description |
 |---------|------|----------|-------------|
-| Nginx | 8080 | HTTP | Report web interface |
+| Nginx | 8080 | HTTP | Vue.js web frontend |
 | FastAPI | 8000 | HTTP | REST API |
-| Grafana | 3000 | HTTP | Dashboards |
 | PostgreSQL | 5432 | TCP | Findings database |
 | Neo4j HTTP | 7474 | HTTP | Neo4j browser |
 | Neo4j Bolt | 7687 | TCP | Neo4j driver protocol |
@@ -545,12 +543,6 @@ def parse_new_tool_report(report_path):
 ```
 
 6. Register parser in `process_reports.py`
-
-### Adding Custom Dashboards
-
-1. Create dashboard JSON in `grafana/dashboards/`
-2. Dashboard auto-provisioned on container start
-3. Connect to PostgreSQL datasource
 
 ### Extending the API
 

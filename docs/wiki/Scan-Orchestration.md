@@ -262,10 +262,33 @@ Content-Type: application/json
 
 {
     "profile": "comprehensive",
+    "aws_profile": "default",
     "severity_filter": "critical,high,medium",
     "dry_run": false
 }
 ```
+
+**Parameters:**
+- `profile` - Scan profile to use (required)
+- `aws_profile` - AWS credentials profile name (v1.0.2, default: "default")
+- `severity_filter` - Comma-separated severity levels to include
+- `dry_run` - Preview scan without executing tools
+
+### AWS Profile Selection (v1.0.2)
+
+The `aws_profile` parameter allows selecting which AWS credentials profile to use for the scan. This enables:
+- Multi-account scanning from a single deployment
+- Role-based access for different environments
+- Separation of audit and production credentials
+
+```bash
+# Scan using a specific AWS profile
+curl -X POST http://localhost:8000/api/scans \
+  -H "Content-Type: application/json" \
+  -d '{"profile": "quick", "aws_profile": "production-audit"}'
+```
+
+The profile must exist in the mounted AWS credentials directory (`/app/credentials/aws/credentials`).
 
 ### Get Scan Status
 
@@ -337,6 +360,88 @@ The DockerExecutor tries multiple connection methods:
 1. Unix socket (`/var/run/docker.sock`)
 2. Environment-based configuration
 3. TCP connection to `localhost:2375`
+
+## Per-Tool Error Tracking (v1.0.2)
+
+When a scan runs multiple tools, each tool's success or failure is tracked independently. This provides granular visibility into which tools succeeded and which failed.
+
+### Get Tool Errors
+
+```bash
+GET /api/scans/{scan_id}/errors
+```
+
+Response:
+```json
+{
+    "scan_id": "550e8400-e29b-41d4-a716-446655440000",
+    "tool_errors": {
+        "prowler": null,
+        "scoutsuite": "Connection timeout after 300s",
+        "cloudfox": null
+    },
+    "total_tools": 3,
+    "failed_tools": 1,
+    "success_tools": 2
+}
+```
+
+A `null` value indicates the tool succeeded. String values contain the error message.
+
+For detailed information about error tracking, exit code handling, and troubleshooting failed tools, see [[Error Tracking|Error-Tracking]].
+
+## Orphan Scan Recovery (v1.0.2)
+
+On API startup, the system automatically detects and recovers orphan scans - scans that were running when the API was previously shut down or restarted.
+
+### Recovery Process
+
+1. **Detection**: On startup, queries database for scans with `status = 'running'`
+2. **Container Check**: Verifies if scan containers are still running via Docker SDK
+3. **Recovery Action**:
+   - If container is running: Resumes monitoring the scan
+   - If container is gone: Marks scan as `failed` with message "Scan orphaned during API restart"
+
+### Automatic Cleanup
+
+```
+[API Start] → [Query Running Scans] → [Check Container Status]
+                                           │
+                    ┌──────────────────────┼──────────────────────┐
+                    │                      │                      │
+              [Container Found]    [Container Gone]        [No Orphans]
+                    │                      │                      │
+              [Resume Monitor]      [Mark Failed]          [Continue]
+```
+
+This ensures scan status accurately reflects reality after any API restart or crash.
+
+## Bulk Operations (v1.0.2)
+
+The scan system supports bulk operations for managing multiple scans:
+
+- **Bulk Delete**: Remove multiple scans in a single API call
+- **Bulk Archive**: Create downloadable ZIP archives of scan reports
+
+### Bulk Delete
+
+```bash
+DELETE /api/scans/bulk
+Content-Type: application/json
+
+{"scan_ids": ["id1", "id2", "id3"]}
+```
+
+### Bulk Archive
+
+```bash
+POST /api/scans/bulk/archive
+Content-Type: application/json
+
+{"scan_ids": ["id1", "id2"]}
+```
+
+For complete documentation of bulk operations, archive management, and use cases, see [[Bulk Operations|Bulk-Operations]].
 
 ## Best Practices
 
