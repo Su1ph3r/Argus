@@ -12,6 +12,9 @@ docker-compose up -d
 # Stop all services
 docker-compose down
 
+# Cleanup containers/images/volumes (see Cleanup section below)
+./scripts/cleanup.sh
+
 # Restart specific service
 docker-compose restart [service-name]
 
@@ -271,15 +274,42 @@ docker-compose up -d --force-recreate --build [service-name]
 docker-compose exec [service-name] /bin/bash
 ```
 
+### Cleanup Utility
+```bash
+# Interactive cleanup menu
+./scripts/cleanup.sh
+
+# Containers only (safe)
+./scripts/cleanup.sh --containers
+
+# Remove locally built images (api, frontend)
+./scripts/cleanup.sh --images-local
+
+# Remove all images (requires re-download)
+./scripts/cleanup.sh --images
+
+# Remove volumes (WARNING: deletes databases!)
+./scripts/cleanup.sh --volumes
+
+# Complete cleanup (all above + prune)
+./scripts/cleanup.sh --all
+
+# Preview actions without executing
+./scripts/cleanup.sh --dry-run --all
+
+# Skip confirmation prompts
+./scripts/cleanup.sh --all --force
+```
+
 ### Disk Space
 ```bash
 # Check Docker disk usage
 docker system df
 
-# Clean unused images/containers
+# Clean unused images/containers (manual)
 docker system prune -a
 
-# Remove old volumes
+# Remove old volumes (manual)
 docker volume prune
 
 # Clean old reports (older than 30 days)

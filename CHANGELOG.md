@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- Docker cleanup utility (`scripts/cleanup.sh`) for managing containers, images, and volumes
+  - Interactive menu mode for guided cleanup
+  - CLI flags: `--containers`, `--images`, `--images-local`, `--volumes`, `--prune`, `--all`
+  - Safety features: `--dry-run` preview mode, confirmation prompts, `--force` for automation
+  - Warnings before destructive operations (volume deletion)
+
 ---
 
 ## [1.0.2] - 2025-01-14
