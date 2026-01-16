@@ -1,0 +1,60 @@
+# Intentionally Vulnerable Kubernetes Deployment
+# For testing Nubicustos K8s scanners
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: insecure-deployment
+  namespace: default
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: insecure-app
+  template:
+    metadata:
+      labels:
+        app: insecure-app
+    spec:
+      # VULN: No service account specified (uses default)
+      # VULN: automountServiceAccountToken not disabled
+      automountServiceAccountToken: true
+
+      containers:
+      - name: web
+        # VULN: Image from untrusted registry with no digest
+        image: some-random-registry.io/app:latest
+
+        # VULN: No resource requests or limits
+        # resources: {}
+
+        # VULN: No security context defined
+        # securityContext: {}
+
+        ports:
+        - containerPort: 8080
+
+        # VULN: No liveness or readiness probes
+        # livenessProbe: {}
+        # readinessProbe: {}
+
+        env:
+        # VULN: Hardcoded secrets in environment variables
+        - name: DATABASE_PASSWORD
+          value: "SuperSecretPassword123!"
+        - name: API_KEY
+          value: "sk-1234567890abcdef"
+        - name: AWS_ACCESS_KEY_ID
+          value: "AKIAIOSFODNN7EXAMPLE"
+        - name: AWS_SECRET_ACCESS_KEY
+          value: "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY"
+
+      - name: sidecar
+        image: busybox:latest
+        command: ["sh", "-c", "while true; do sleep 3600; done"]
+
+        securityContext:
+          # VULN: Running as root
+          runAsNonRoot: false
+          # VULN: Writable filesystem
+          readOnlyRootFilesystem: false

@@ -52,6 +52,7 @@ from routers import (
 from routers.aws_profiles import router as aws_profiles_router
 from routers.database import router as database_router
 from routers.health import set_startup_time
+from routers.iac import router as iac_router
 from services.orphan_recovery import run_orphan_recovery
 
 
@@ -499,6 +500,7 @@ app.include_router(settings_router, prefix="/api")
 app.include_router(database_router, prefix="/api")
 app.include_router(aws_profiles_router, prefix="/api")
 app.include_router(compliance_router, prefix="/api")
+app.include_router(iac_router, prefix="/api")
 
 
 # Root endpoint
@@ -542,6 +544,7 @@ async def api_root():
             "executions": "/api/executions",
             "credentials": "/api/credentials",
             "settings": "/api/settings",
+            "iac": "/api/iac",
         },
     }
 

@@ -1,0 +1,92 @@
+# Intentionally Vulnerable Kubernetes RBAC Configuration
+# For testing Nubicustos K8s scanners
+
+# VULN: ClusterRole with wildcard permissions
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: cluster-admin-like
+rules:
+# VULN: Full access to all resources
+- apiGroups: ["*"]
+  resources: ["*"]
+  verbs: ["*"]
+
+---
+# VULN: ClusterRole with dangerous permissions
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: dangerous-permissions
+rules:
+# VULN: Can create pods (potential for privilege escalation)
+- apiGroups: [""]
+  resources: ["pods"]
+  verbs: ["create", "delete", "get", "list", "watch", "update", "patch"]
+# VULN: Can exec into pods
+- apiGroups: [""]
+  resources: ["pods/exec"]
+  verbs: ["create", "get"]
+# VULN: Can access secrets
+- apiGroups: [""]
+  resources: ["secrets"]
+  verbs: ["get", "list", "watch", "create", "update", "delete"]
+# VULN: Can modify RBAC
+- apiGroups: ["rbac.authorization.k8s.io"]
+  resources: ["clusterroles", "clusterrolebindings", "roles", "rolebindings"]
+  verbs: ["*"]
+# VULN: Can modify service accounts
+- apiGroups: [""]
+  resources: ["serviceaccounts"]
+  verbs: ["*"]
+# VULN: Can impersonate users
+- apiGroups: [""]
+  resources: ["users", "groups", "serviceaccounts"]
+  verbs: ["impersonate"]
+
+---
+# VULN: ClusterRoleBinding to default service account
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: default-admin-binding
+subjects:
+# VULN: Granting cluster-admin to default service account
+- kind: ServiceAccount
+  name: default
+  namespace: default
+# VULN: Granting to all authenticated users
+- kind: Group
+  name: system:authenticated
+  apiGroup: rbac.authorization.k8s.io
+roleRef:
+  kind: ClusterRole
+  name: cluster-admin-like
+  apiGroup: rbac.authorization.k8s.io
+
+---
+# VULN: Role with secret access in kube-system
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: secret-reader
+  namespace: kube-system
+rules:
+- apiGroups: [""]
+  resources: ["secrets"]
+  verbs: ["get", "list", "watch"]
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: read-secrets
+  namespace: kube-system
+subjects:
+- kind: ServiceAccount
+  name: default
+  namespace: default
+roleRef:
+  kind: Role
+  name: secret-reader
+  apiGroup: rbac.authorization.k8s.io

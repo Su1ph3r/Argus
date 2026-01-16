@@ -1364,6 +1364,239 @@ class ReportProcessor:
             logger.error(f"Error processing Polaris report: {e}")
             return None, []
 
+    def process_checkov_report(self, report_path):
+        """Process Checkov JSON report for IaC security findings"""
+        logger.info(f"Processing Checkov report: {report_path}")
+
+        findings = []
+        try:
+            with open(report_path) as f:
+                data = json.load(f)
+
+            metadata = {
+                "tool": "checkov",
+                "cloud_provider": "iac",
+                "scan_date": datetime.now().isoformat(),
+            }
+
+            # Checkov outputs results per check type (terraform, cloudformation, kubernetes, etc.)
+            check_types = data if isinstance(data, list) else [data]
+
+            for check_type_data in check_types:
+                check_type = check_type_data.get("check_type", "unknown")
+
+                # Process failed checks
+                for check in check_type_data.get("results", {}).get("failed_checks", []):
+                    # Map Checkov severity
+                    severity_map = {
+                        "CRITICAL": "critical",
+                        "HIGH": "high",
+                        "MEDIUM": "medium",
+                        "LOW": "low",
+                        "INFO": "info",
+                    }
+                    # Handle None values (key exists but value is None)
+                    raw_severity = check.get("severity") or "MEDIUM"
+                    severity = severity_map.get(raw_severity.upper(), "medium")
+
+                    finding = {
+                        "check_id": check.get("check_id", ""),
+                        "check_title": check.get("check_name", check.get("check_id", "")),
+                        "severity": severity,
+                        "status": "FAIL",
+                        "resource_type": check.get("resource", "").split(".")[-1]
+                        if check.get("resource")
+                        else check_type,
+                        "resource_id": check.get("resource_address", check.get("resource", "")),
+                        "resource_name": check.get("resource", ""),
+                        "region": "iac",
+                        "description": check.get("check_name", ""),
+                        "remediation": check.get("guideline", ""),
+                        "compliance": [],
+                        "poc_evidence": json.dumps(
+                            {
+                                "check_id": check.get("check_id", ""),
+                                "file_path": check.get("file_path", ""),
+                                "file_line_range": check.get("file_line_range", []),
+                                "code_block": check.get("code_block", ""),
+                                "check_class": check.get("check_class", ""),
+                            },
+                            indent=2,
+                        ),
+                        "poc_verification": f"File: {check.get('file_path', 'unknown')}\n"
+                        f"Lines: {check.get('file_line_range', 'N/A')}",
+                        "remediation_commands": [],
+                        "remediation_code": {},
+                        "remediation_resources": [
+                            {
+                                "title": "Checkov Documentation",
+                                "url": f"https://www.checkov.io/5.Policy%20Index/{check.get('check_id', '')}.html",
+                                "type": "documentation",
+                            }
+                        ]
+                        if check.get("check_id")
+                        else [],
+                    }
+                    findings.append(finding)
+
+            logger.info(f"Extracted {len(findings)} findings from Checkov")
+            return metadata, findings
+
+        except Exception as e:
+            logger.error(f"Error processing Checkov report: {e}")
+            return None, []
+
+    def process_terrascan_report(self, report_path):
+        """Process Terrascan JSON report for IaC security findings"""
+        logger.info(f"Processing Terrascan report: {report_path}")
+
+        findings = []
+        try:
+            with open(report_path) as f:
+                data = json.load(f)
+
+            metadata = {
+                "tool": "terrascan",
+                "cloud_provider": "iac",
+                "scan_date": datetime.now().isoformat(),
+            }
+
+            # Terrascan outputs results under 'results'
+            results = data.get("results", {})
+
+            # Map Terrascan severity
+            severity_map = {
+                "CRITICAL": "critical",
+                "HIGH": "high",
+                "MEDIUM": "medium",
+                "LOW": "low",
+            }
+
+            for violation in results.get("violations", []):
+                # Handle None values (key exists but value is None)
+                raw_severity = violation.get("severity") or "MEDIUM"
+                severity = severity_map.get(raw_severity.upper(), "medium")
+
+                finding = {
+                    "check_id": violation.get("rule_id", violation.get("rule_name", "")),
+                    "check_title": violation.get("rule_name", violation.get("description", "")),
+                    "severity": severity,
+                    "status": "FAIL",
+                    "resource_type": violation.get("resource_type", ""),
+                    "resource_id": violation.get("resource_name", violation.get("file", "")),
+                    "resource_name": violation.get("resource_name", ""),
+                    "region": "iac",
+                    "description": violation.get("description", ""),
+                    "remediation": violation.get("remediation", ""),
+                    "compliance": [],
+                    "poc_evidence": json.dumps(
+                        {
+                            "rule_id": violation.get("rule_id", ""),
+                            "file": violation.get("file", ""),
+                            "line": violation.get("line", 0),
+                            "resource_type": violation.get("resource_type", ""),
+                            "category": violation.get("category", ""),
+                        },
+                        indent=2,
+                    ),
+                    "poc_verification": f"File: {violation.get('file', 'unknown')}\n"
+                    f"Line: {violation.get('line', 'N/A')}",
+                    "remediation_commands": [],
+                    "remediation_code": {},
+                    "remediation_resources": [],
+                }
+                findings.append(finding)
+
+            logger.info(f"Extracted {len(findings)} findings from Terrascan")
+            return metadata, findings
+
+        except Exception as e:
+            logger.error(f"Error processing Terrascan report: {e}")
+            return None, []
+
+    def process_tfsec_report(self, report_path):
+        """Process tfsec JSON report for Terraform security findings"""
+        logger.info(f"Processing tfsec report: {report_path}")
+
+        findings = []
+        try:
+            with open(report_path) as f:
+                data = json.load(f)
+
+            metadata = {
+                "tool": "tfsec",
+                "cloud_provider": "iac",
+                "scan_date": datetime.now().isoformat(),
+            }
+
+            # tfsec outputs results array
+            results = data.get("results", []) if isinstance(data, dict) else data
+
+            # Map tfsec severity
+            severity_map = {
+                "CRITICAL": "critical",
+                "HIGH": "high",
+                "MEDIUM": "medium",
+                "LOW": "low",
+            }
+
+            for result in results:
+                # Handle None values (key exists but value is None)
+                raw_severity = result.get("severity") or "MEDIUM"
+                severity = severity_map.get(raw_severity.upper(), "medium")
+
+                # Extract location info
+                location = result.get("location", {})
+                filename = location.get("filename", "unknown")
+                start_line = location.get("start_line", 0)
+                end_line = location.get("end_line", 0)
+
+                finding = {
+                    "check_id": result.get("rule_id", result.get("long_id", "")),
+                    "check_title": result.get("rule_description", result.get("description", "")),
+                    "severity": severity,
+                    "status": "FAIL",
+                    "resource_type": result.get("resource", "").split(".")[-1]
+                    if result.get("resource")
+                    else "terraform",
+                    "resource_id": result.get("resource", filename),
+                    "resource_name": result.get("resource", ""),
+                    "region": "iac",
+                    "description": result.get("description", ""),
+                    "remediation": result.get("resolution", result.get("impact", "")),
+                    "compliance": [],
+                    "poc_evidence": json.dumps(
+                        {
+                            "rule_id": result.get("rule_id", ""),
+                            "rule_provider": result.get("rule_provider", ""),
+                            "rule_service": result.get("rule_service", ""),
+                            "file": filename,
+                            "lines": f"{start_line}-{end_line}",
+                        },
+                        indent=2,
+                    ),
+                    "poc_verification": f"File: {filename}\nLines: {start_line}-{end_line}",
+                    "remediation_commands": [],
+                    "remediation_code": {},
+                    "remediation_resources": [
+                        {
+                            "title": "tfsec Documentation",
+                            "url": result["links"][0],
+                            "type": "documentation",
+                        }
+                    ]
+                    if result.get("links") and len(result["links"]) > 0
+                    else [],
+                }
+                findings.append(finding)
+
+            logger.info(f"Extracted {len(findings)} findings from tfsec")
+            return metadata, findings
+
+        except Exception as e:
+            logger.error(f"Error processing tfsec report: {e}")
+            return None, []
+
     def save_to_database(self, metadata, findings, scan_id, existing_scan_id=None):
         """Save processed findings to database.
 
@@ -1770,6 +2003,108 @@ class ReportProcessor:
                     processed_files["cloudfox"] = [str(f) for f in json_files]
                     # CloudFox enumeration data powers attack path analysis
                     # Findings from CloudFox are generated via attack_path_analyzer.py
+
+        # ========================================================================
+        # IaC Security Tools
+        # ========================================================================
+
+        if "checkov" in tools_to_process:
+            # Process Checkov reports
+            checkov_reports = list(self.reports_dir.glob("checkov/*.json"))
+            checkov_reports += list(self.reports_dir.glob("checkov/results*.json"))
+            checkov_reports = list(set(checkov_reports))
+            if checkov_reports:
+                checkov_reports.sort(key=lambda x: x.stat().st_mtime, reverse=True)
+                report = checkov_reports[0]
+                logger.info(f"Processing Checkov report: {report}")
+                metadata, findings = self.process_checkov_report(report)
+                if metadata and findings:
+                    self.save_to_database(
+                        metadata,
+                        findings,
+                        f"checkov_{report.stem}",
+                        orchestration_scan_id,
+                    )
+                    total_findings += len(findings)
+                    processed_files["checkov"] = [str(report)]
+
+        if "terrascan" in tools_to_process:
+            # Process Terrascan reports
+            terrascan_reports = list(self.reports_dir.glob("terrascan/*.json"))
+            terrascan_reports += list(self.reports_dir.glob("terrascan/terrascan-results*.json"))
+            terrascan_reports = list(set(terrascan_reports))
+            if terrascan_reports:
+                terrascan_reports.sort(key=lambda x: x.stat().st_mtime, reverse=True)
+                report = terrascan_reports[0]
+                logger.info(f"Processing Terrascan report: {report}")
+                metadata, findings = self.process_terrascan_report(report)
+                if metadata and findings:
+                    self.save_to_database(
+                        metadata,
+                        findings,
+                        f"terrascan_{report.stem}",
+                        orchestration_scan_id,
+                    )
+                    total_findings += len(findings)
+                    processed_files["terrascan"] = [str(report)]
+
+        if "tfsec" in tools_to_process:
+            # Process tfsec reports
+            tfsec_reports = list(self.reports_dir.glob("tfsec/*.json"))
+            tfsec_reports += list(self.reports_dir.glob("tfsec/tfsec-*.json"))
+            tfsec_reports = list(set(tfsec_reports))
+            if tfsec_reports:
+                tfsec_reports.sort(key=lambda x: x.stat().st_mtime, reverse=True)
+                report = tfsec_reports[0]
+                logger.info(f"Processing tfsec report: {report}")
+                metadata, findings = self.process_tfsec_report(report)
+                if metadata and findings:
+                    self.save_to_database(
+                        metadata,
+                        findings,
+                        f"tfsec_{report.stem}",
+                        orchestration_scan_id,
+                    )
+                    total_findings += len(findings)
+                    processed_files["tfsec"] = [str(report)]
+
+        if "kube-linter" in tools_to_process:
+            # Process kube-linter reports
+            kube_linter_reports = list(self.reports_dir.glob("kube-linter/*.json"))
+            if kube_linter_reports:
+                kube_linter_reports.sort(key=lambda x: x.stat().st_mtime, reverse=True)
+                report = kube_linter_reports[0]
+                logger.info(f"Processing kube-linter report: {report}")
+                metadata, findings = self.process_kube_linter_report(report)
+                if metadata and findings:
+                    self.save_to_database(
+                        metadata,
+                        findings,
+                        f"kube_linter_{report.stem}",
+                        orchestration_scan_id,
+                    )
+                    total_findings += len(findings)
+                    processed_files["kube-linter"] = [str(report)]
+
+        if "polaris" in tools_to_process:
+            # Process Polaris reports
+            polaris_reports = list(self.reports_dir.glob("polaris/*.json"))
+            polaris_reports += list(self.reports_dir.glob("polaris/polaris-*.json"))
+            polaris_reports = list(set(polaris_reports))
+            if polaris_reports:
+                polaris_reports.sort(key=lambda x: x.stat().st_mtime, reverse=True)
+                report = polaris_reports[0]
+                logger.info(f"Processing Polaris report: {report}")
+                metadata, findings = self.process_polaris_report(report)
+                if metadata and findings:
+                    self.save_to_database(
+                        metadata,
+                        findings,
+                        f"polaris_{report.stem}",
+                        orchestration_scan_id,
+                    )
+                    total_findings += len(findings)
+                    processed_files["polaris"] = [str(report)]
 
         # Register all processed files with the scan
         for tool, files in processed_files.items():

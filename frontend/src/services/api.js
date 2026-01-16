@@ -140,6 +140,55 @@ export const api = {
     const params = framework ? `?framework=${encodeURIComponent(framework)}` : ''
     return `${API_BASE}/compliance/export/csv${params}`
   },
+
+  // IaC Scanning
+  async getIaCProfiles() {
+    return request('/iac/profiles')
+  },
+
+  async uploadIaCFiles(files, onProgress = null) {
+    const formData = new FormData()
+    for (const file of files) {
+      formData.append('files', file)
+    }
+
+    const url = `${API_BASE}/iac/upload`
+
+    try {
+      const response = await fetch(url, {
+        method: 'POST',
+        body: formData,
+      })
+
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({}))
+        throw new ApiError(
+          data.detail || `HTTP error ${response.status}`,
+          response.status,
+          data,
+        )
+      }
+
+      return response.json()
+    } catch (error) {
+      if (error instanceof ApiError) {
+        throw error
+      }
+      throw new ApiError(error.message, 0, null)
+    }
+  },
+
+  async startIaCScan(scanId, profile = 'iac-quick') {
+    return request(`/iac/scan/${scanId}?profile=${encodeURIComponent(profile)}`, {
+      method: 'POST',
+    })
+  },
+
+  async deleteIaCStagingFiles(scanId) {
+    return request(`/iac/staging/${scanId}`, {
+      method: 'DELETE',
+    })
+  },
 }
 
 export { ApiError }

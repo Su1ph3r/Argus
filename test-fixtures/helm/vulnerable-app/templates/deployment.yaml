@@ -1,0 +1,81 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "vulnerable-app.fullname" . }}
+  labels:
+    {{- include "vulnerable-app.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "vulnerable-app.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "vulnerable-app.selectorLabels" . | nindent 8 }}
+    spec:
+      # VULN: Host namespaces enabled via values
+      hostNetwork: {{ .Values.hostNetwork }}
+      hostPID: {{ .Values.hostPID }}
+      hostIPC: {{ .Values.hostIPC }}
+
+      # VULN: Auto-mount service account token
+      automountServiceAccountToken: {{ .Values.serviceAccount.automountServiceAccountToken }}
+
+      containers:
+        - name: {{ .Chart.Name }}
+          # VULN: Using latest tag from values
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+
+          # VULN: Privileged security context
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+
+          ports:
+            - name: http
+              containerPort: 80
+              # VULN: Host port exposed
+              hostPort: 80
+              protocol: TCP
+
+          # VULN: Hardcoded secrets in environment variables
+          env:
+            - name: DATABASE_USERNAME
+              value: {{ .Values.credentials.database.username | quote }}
+            - name: DATABASE_PASSWORD
+              value: {{ .Values.credentials.database.password | quote }}
+            - name: DATABASE_HOST
+              value: {{ .Values.credentials.database.host | quote }}
+            - name: AWS_ACCESS_KEY_ID
+              value: {{ .Values.credentials.aws.accessKeyId | quote }}
+            - name: AWS_SECRET_ACCESS_KEY
+              value: {{ .Values.credentials.aws.secretAccessKey | quote }}
+            - name: STRIPE_API_KEY
+              value: {{ .Values.credentials.apiKeys.stripe | quote }}
+            - name: GITHUB_TOKEN
+              value: {{ .Values.credentials.apiKeys.github | quote }}
+
+          # VULN: No resource limits
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+
+          # VULN: No probes - can't detect unhealthy containers
+          {{- if .Values.livenessProbe }}
+          livenessProbe:
+            {{- toYaml .Values.livenessProbe | nindent 12 }}
+          {{- end }}
+          {{- if .Values.readinessProbe }}
+          readinessProbe:
+            {{- toYaml .Values.readinessProbe | nindent 12 }}
+          {{- end }}
+
+          # VULN: Mounting host filesystem and Docker socket
+          volumeMounts:
+            - name: host-root
+              mountPath: /host
+            - name: docker-socket
+              mountPath: /var/run/docker.sock
+
+      volumes:
+        {{- toYaml .Values.volumes | nindent 8 }}

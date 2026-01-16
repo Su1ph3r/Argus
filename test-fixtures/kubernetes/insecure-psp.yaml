@@ -1,0 +1,64 @@
+# Intentionally Vulnerable Kubernetes Pod Security Policy
+# (Note: PSP is deprecated in K8s 1.21+, replaced by Pod Security Standards)
+# For testing Nubicustos K8s scanners
+
+apiVersion: policy/v1beta1
+kind: PodSecurityPolicy
+metadata:
+  name: permissive-psp
+spec:
+  # VULN: Allows privileged containers
+  privileged: true
+
+  # VULN: Allows host namespaces
+  hostNetwork: true
+  hostPID: true
+  hostIPC: true
+
+  # VULN: Allows host ports
+  hostPorts:
+  - min: 0
+    max: 65535
+
+  # VULN: Allows all volumes including hostPath
+  volumes:
+  - '*'
+
+  # VULN: Allows running as any user
+  runAsUser:
+    rule: RunAsAny
+
+  # VULN: Allows any supplemental groups
+  supplementalGroups:
+    rule: RunAsAny
+
+  # VULN: Allows any fsGroup
+  fsGroup:
+    rule: RunAsAny
+
+  # VULN: Allows privilege escalation
+  allowPrivilegeEscalation: true
+
+  # VULN: Allows all capabilities
+  allowedCapabilities:
+  - '*'
+
+  # VULN: Allows unsafe sysctls
+  allowedUnsafeSysctls:
+  - '*'
+
+  # VULN: No seccomp profile required
+  # VULN: No AppArmor profile required
+
+---
+# Pod Security Standards (replacement for PSP)
+# VULN: Namespace with no pod security enforcement
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: insecure-namespace
+  labels:
+    # VULN: Privileged pod security standard allows everything
+    pod-security.kubernetes.io/enforce: privileged
+    pod-security.kubernetes.io/audit: privileged
+    pod-security.kubernetes.io/warn: privileged

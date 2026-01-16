@@ -487,6 +487,8 @@ services:
       - ./tools:/app/tools:ro
       - ./docker:/app/docker:ro
       - ./cloudmapper:/app/cloudmapper:ro
+      # IaC file staging for upload-based scanning
+      - ./iac-staging:/app/iac-staging:rw
     depends_on:
       postgresql:
         condition: service_healthy

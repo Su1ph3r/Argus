@@ -106,6 +106,27 @@
       </div>
     </section>
 
+    <!-- IaC Security Scanning Section -->
+    <section class="section">
+      <h2 class="section-title">
+        IaC Security Scanning
+      </h2>
+      <div class="iac-scanning-card">
+        <div class="iac-info">
+          <i class="pi pi-file-edit iac-icon" />
+          <div class="iac-content">
+            <h3>Infrastructure-as-Code Security</h3>
+            <p>Upload Terraform, CloudFormation, Kubernetes manifests, or Helm charts for security analysis. No cloud credentials required.</p>
+          </div>
+        </div>
+        <Button
+          label="Upload Files"
+          icon="pi pi-upload"
+          @click="showIaCUploadDialog = true"
+        />
+      </div>
+    </section>
+
     <!-- Quick Actions Section -->
     <section class="section">
       <h2 class="section-title">
@@ -518,6 +539,19 @@
         />
       </template>
     </Dialog>
+
+    <!-- IaC Upload Dialog -->
+    <Dialog
+      v-model:visible="showIaCUploadDialog"
+      modal
+      header="IaC Security Scanning"
+      :style="{ width: '600px' }"
+    >
+      <IaCUpload
+        @cancel="showIaCUploadDialog = false"
+        @scan-started="onIaCScanStarted"
+      />
+    </Dialog>
   </div>
 </template>
 
@@ -538,12 +572,14 @@ import InputText from 'primevue/inputtext'
 import MultiSelect from 'primevue/multiselect'
 import Checkbox from 'primevue/checkbox'
 import ProgressSpinner from 'primevue/progressspinner'
+import IaCUpload from '../components/scans/IaCUpload.vue'
 
 const router = useRouter()
 const store = useScansStore()
 
 const showNewScanDialog = ref(false)
 const showErrorDialog = ref(false)
+const showIaCUploadDialog = ref(false)
 const scanErrorDetails = ref(null)
 const showDeleteConfirm = ref(false)
 const showArchiveConfirm = ref(false)
@@ -736,6 +772,14 @@ function viewScan({ data }) {
 function viewAllScans() {
   store.pagination.page = 1
   store.fetchScans()
+}
+
+function onIaCScanStarted(scanId) {
+  showIaCUploadDialog.value = false
+  // Refresh scans list
+  store.fetchScans()
+  // Start polling for the new scan
+  store.startPolling(scanId)
 }
 
 // Bulk Operations
@@ -1187,5 +1231,56 @@ onUnmounted(() => {
 
 .cursor-pointer {
   cursor: pointer;
+}
+
+/* IaC Scanning Card */
+.iac-scanning-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--spacing-lg);
+  background: linear-gradient(135deg, var(--bg-card) 0%, var(--accent-primary-bg) 100%);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  gap: var(--spacing-lg);
+}
+
+.iac-info {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--spacing-md);
+  flex: 1;
+}
+
+.iac-icon {
+  font-size: 2rem;
+  color: var(--accent-primary);
+  background: var(--bg-card);
+  padding: var(--spacing-md);
+  border-radius: var(--radius-md);
+}
+
+.iac-content h3 {
+  margin: 0 0 var(--spacing-xs) 0;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.iac-content p {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+}
+
+@media (max-width: 768px) {
+  .iac-scanning-card {
+    flex-direction: column;
+    text-align: center;
+  }
+
+  .iac-info {
+    flex-direction: column;
+    align-items: center;
+  }
 }
 </style>

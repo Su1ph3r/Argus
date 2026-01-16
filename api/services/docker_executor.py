@@ -102,6 +102,12 @@ class ToolType(str, Enum):
     ENUMERATE_IAM = "enumerate-iam"
     # Kubernetes Security Tools
     KUBESCAPE = "kubescape"
+    # IaC Security Tools
+    CHECKOV = "checkov"
+    TERRASCAN = "terrascan"
+    TFSEC = "tfsec"
+    KUBE_LINTER = "kube-linter"
+    POLARIS = "polaris"
 
 
 # Build configurations for tools that use local images
@@ -358,6 +364,113 @@ TOOL_CONFIGS = {
         ],
         "expected_exit_codes": [0, 1],
     },
+    # ============================================================================
+    # IaC Security Tools
+    # ============================================================================
+    ToolType.CHECKOV: {
+        "image": "bridgecrew/checkov:3.2.74",
+        "container_name_prefix": "checkov-scan",
+        "volumes": {
+            # Note: /code mount is provided dynamically via extra_volumes in IaC orchestrator
+            "/app/reports/checkov": {"bind": "/reports", "mode": "rw"},
+        },
+        "network": None,  # Resolved dynamically via get_security_network()
+        "environment": {},
+        "default_command": [
+            "-d",
+            "/code",
+            "--output",
+            "json",
+            "--output-file-path",
+            "/reports",
+            "--framework",
+            "terraform",
+            "cloudformation",
+            "kubernetes",
+            "helm",
+            "arm",
+            "--quiet",
+        ],
+        "expected_exit_codes": [0, 1],  # 1 = findings found (not an error)
+    },
+    ToolType.TERRASCAN: {
+        "image": "tenable/terrascan:latest",
+        "container_name_prefix": "terrascan-scan",
+        "volumes": {
+            # Note: /iac mount is provided dynamically via extra_volumes in IaC orchestrator
+            "/app/reports/terrascan": {"bind": "/reports", "mode": "rw"},
+        },
+        "network": None,  # Resolved dynamically via get_security_network()
+        "environment": {},
+        "entrypoint": "/go/bin/terrascan",
+        "default_command": [
+            "scan",
+            "-d",
+            "/iac",
+            "-o",
+            "json",
+            "-f",
+            "/reports/terrascan-results.json",
+        ],
+        "expected_exit_codes": [0, 1],  # 0 = no violations, 1 = violations found
+    },
+    ToolType.TFSEC: {
+        "image": "aquasec/tfsec:v1.28.6",
+        "container_name_prefix": "tfsec-scan",
+        "volumes": {
+            # Note: /src mount is provided dynamically via extra_volumes in IaC orchestrator
+            "/app/reports/tfsec": {"bind": "/reports", "mode": "rw"},
+        },
+        "network": None,  # Resolved dynamically via get_security_network()
+        "environment": {},
+        "default_command": [
+            "/src",
+            "--format",
+            "json",
+            "--out",
+            "/reports/tfsec-results.json",
+            "--soft-fail",
+        ],
+        "expected_exit_codes": [0, 1],  # 1 = findings found (not an error)
+    },
+    ToolType.KUBE_LINTER: {
+        "image": "stackrox/kube-linter:v0.6.8",
+        "container_name_prefix": "kube-linter-scan",
+        "volumes": {
+            # Note: /manifests mount is provided dynamically via extra_volumes in IaC orchestrator
+            "/app/reports/kube-linter": {"bind": "/reports", "mode": "rw"},
+        },
+        "network": None,  # Resolved dynamically via get_security_network()
+        "environment": {},
+        "default_command": [
+            "lint",
+            "/manifests",
+            "--format",
+            "json",
+        ],
+        "expected_exit_codes": [0, 1],  # 1 = findings found (not an error)
+    },
+    ToolType.POLARIS: {
+        "image": "quay.io/fairwinds/polaris:9.0.1",
+        "container_name_prefix": "polaris-scan",
+        "volumes": {
+            # Note: /manifests mount is provided dynamically via extra_volumes in IaC orchestrator
+            "/app/reports/polaris": {"bind": "/reports", "mode": "rw"},
+        },
+        "network": None,  # Resolved dynamically via get_security_network()
+        "environment": {},
+        "default_command": [
+            "audit",
+            "--audit-path",
+            "/manifests",
+            "--format",
+            "json",
+            "--output-file",
+            "/reports/polaris-results.json",
+            "--set-exit-code-on-danger",
+        ],
+        "expected_exit_codes": [0, 1, 3],  # 0 = pass, 1 = warnings, 3 = danger-level issues
+    },
 }
 
 
@@ -389,6 +502,28 @@ SCAN_PROFILES = {
         "duration_estimate": "15-20 minutes",
         "prowler_options": ["--compliance", "cis_2.0_aws", "soc2_aws", "pci_3.2.1_aws", "hipaa_aws"],
         # scoutsuite_options removed - causes path handling bug
+    },
+}
+
+# IaC Scan profile definitions - which tools to run for each IaC profile
+IAC_SCAN_PROFILES = {
+    "iac-quick": {
+        "tools": [ToolType.CHECKOV],
+        "description": "Fast IaC scan with Checkov only (1-3 min)",
+        "duration_estimate": "1-3 minutes",
+        "supported_frameworks": ["terraform", "cloudformation", "kubernetes", "helm", "arm"],
+    },
+    "iac-comprehensive": {
+        "tools": [ToolType.CHECKOV, ToolType.TERRASCAN, ToolType.TFSEC],
+        "description": "Full IaC security scan with multiple tools (5-10 min)",
+        "duration_estimate": "5-10 minutes",
+        "supported_frameworks": ["terraform", "cloudformation", "kubernetes", "helm", "arm"],
+    },
+    "kubernetes-manifests": {
+        "tools": [ToolType.KUBE_LINTER, ToolType.POLARIS],
+        "description": "Kubernetes manifest security scanning (2-5 min)",
+        "duration_estimate": "2-5 minutes",
+        "supported_frameworks": ["kubernetes", "helm"],
     },
 }
 

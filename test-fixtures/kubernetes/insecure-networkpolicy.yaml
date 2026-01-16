@@ -1,0 +1,68 @@
+# Intentionally Vulnerable Kubernetes Network Configuration
+# For testing Nubicustos K8s scanners
+
+# VULN: NetworkPolicy that allows all ingress traffic
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-all-ingress
+  namespace: default
+spec:
+  podSelector: {}  # VULN: Applies to all pods
+  policyTypes:
+  - Ingress
+  ingress:
+  - {}  # VULN: Allows all ingress from anywhere
+
+---
+# VULN: NetworkPolicy that allows all egress traffic
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-all-egress
+  namespace: default
+spec:
+  podSelector: {}
+  policyTypes:
+  - Egress
+  egress:
+  - {}  # VULN: Allows all egress to anywhere
+
+---
+# VULN: Default deny policy is missing
+# Best practice: Have a default deny all policy, then allow specific traffic
+# This namespace has no default deny, allowing all traffic by default
+
+---
+# VULN: Policy allowing access from any namespace
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-from-any-namespace
+  namespace: default
+spec:
+  podSelector:
+    matchLabels:
+      app: database
+  policyTypes:
+  - Ingress
+  ingress:
+  - from:
+    - namespaceSelector: {}  # VULN: Allows from ALL namespaces
+    ports:
+    - protocol: TCP
+      port: 5432
+
+---
+# For comparison: This is what a secure default-deny policy looks like
+# (but we're not deploying it to leave the namespace insecure)
+# apiVersion: networking.k8s.io/v1
+# kind: NetworkPolicy
+# metadata:
+#   name: default-deny-all
+#   namespace: default
+# spec:
+#   podSelector: {}
+#   policyTypes:
+#   - Ingress
+#   - Egress
