@@ -34,6 +34,9 @@ data/
 # IaC staging (uploaded files for scanning)
 iac-staging/
 
+# Test fixtures (intentionally vulnerable IaC for scanner testing)
+test-fixtures/
+
 # Database files
 *.db
 *.sqlite
