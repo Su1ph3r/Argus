@@ -86,13 +86,77 @@
         </div>
       </div>
 
+      <!-- Azure Profiles from Stored Credentials -->
+      <div
+        v-if="selectedProvider === 'azure' && azureProfiles.length > 0"
+        class="profiles-section"
+      >
+        <h3>
+          <i class="pi pi-folder" />
+          Azure Profiles (saved credentials)
+        </h3>
+        <p class="profiles-description">
+          Select a profile from your saved Azure credentials. This is the recommended approach.
+        </p>
+        <div class="profiles-grid">
+          <div
+            v-for="profile in azureProfiles"
+            :key="profile.name"
+            class="profile-card"
+            :class="{ selected: selectedAzureProfile === profile.name, verified: azureProfileVerified === profile.name }"
+            @click="selectAzureProfileCard(profile.name)"
+          >
+            <div class="profile-header">
+              <i class="pi pi-microsoft" />
+              <span class="profile-name">{{ profile.name }}</span>
+              <i
+                v-if="selectedAzureProfile === profile.name"
+                class="pi pi-check-circle profile-check"
+              />
+              <button
+                class="btn-delete-profile"
+                title="Delete profile"
+                @click.stop="deleteAzureProfile(profile.name)"
+              >
+                <i class="pi pi-trash" />
+              </button>
+            </div>
+            <div class="profile-details">
+              <span
+                v-if="profile.identity"
+                class="profile-region"
+              >
+                <i class="pi pi-globe" /> {{ profile.identity }}
+              </span>
+              <span
+                v-if="profile.subscription_names && profile.subscription_names.length > 0"
+                class="profile-badge azure"
+              >{{ profile.subscription_names.length }} subscription(s)</span>
+            </div>
+          </div>
+        </div>
+        <div
+          v-if="selectedAzureProfile"
+          class="profile-selected-info"
+        >
+          <i class="pi pi-check-circle" />
+          <span>Profile <strong>{{ selectedAzureProfile }}</strong> is ready for scans</span>
+          <button
+            class="btn-clear-profile"
+            @click="clearAzureProfileSelection"
+          >
+            <i class="pi pi-times" /> Clear
+          </button>
+        </div>
+      </div>
+
       <!-- Manual Credential Form -->
       <div
         class="form-section"
-        :class="{ collapsed: selectedProvider === 'aws' && awsProfiles.length > 0 && !showManualForm }"
+        :class="{ collapsed: (selectedProvider === 'aws' && awsProfiles.length > 0 && !showManualForm) || (selectedProvider === 'azure' && azureProfiles.length > 0 && !showManualForm) }"
       >
         <div
-          v-if="selectedProvider === 'aws' && awsProfiles.length > 0"
+          v-if="(selectedProvider === 'aws' && awsProfiles.length > 0) || (selectedProvider === 'azure' && azureProfiles.length > 0)"
           class="manual-toggle"
           @click="showManualForm = !showManualForm"
         >
@@ -408,6 +472,7 @@ const error = ref(null)
 const result = ref(null)
 const showManualForm = ref(false)
 const profileVerified = ref(null)
+const azureProfileVerified = ref(null)
 const profileNameToSave = ref('')
 const savingProfile = ref(false)
 
@@ -459,13 +524,62 @@ function generateUniqueProfileName(identity = null) {
   return `profile-${counter}`
 }
 
+// Generate a unique Azure profile name based on identity or fallback to numbered names
+function generateUniqueAzureProfileName(identity = null) {
+  const existingNames = azureProfiles.value.map(p => p.name)
+
+  // Try to use the subscription name as the profile name
+  if (identity) {
+    let baseName = identity
+
+    // Clean up the name (remove special chars, make lowercase)
+    baseName = baseName.replace(/[^a-zA-Z0-9-_]/g, '-').toLowerCase()
+    // Remove consecutive dashes and trim dashes from ends
+    baseName = baseName.replace(/-+/g, '-').replace(/^-|-$/g, '')
+
+    // If this name doesn't exist, use it
+    if (!existingNames.includes(baseName)) {
+      return baseName
+    }
+
+    // Otherwise, add a number suffix
+    let counter = 2
+    while (existingNames.includes(`${baseName}-${counter}`)) {
+      counter++
+    }
+    return `${baseName}-${counter}`
+  }
+
+  // Fallback: If no identity, use generic naming
+  if (existingNames.length === 0) {
+    return 'default'
+  }
+
+  if (!existingNames.includes('default')) {
+    return 'default'
+  }
+
+  let counter = 2
+  while (existingNames.includes(`azure-${counter}`)) {
+    counter++
+  }
+  return `azure-${counter}`
+}
+
 // AWS Profiles from store
 const awsProfiles = computed(() => credentialsStore.awsProfiles)
 const selectedAwsProfile = computed(() => credentialsStore.selectedAwsProfile)
 
-// Fetch AWS profiles on mount
+// Azure Profiles from store
+const azureProfiles = computed(() => credentialsStore.azureProfiles)
+const selectedAzureProfile = computed(() => credentialsStore.selectedAzureProfile)
+
+// Fetch profiles on mount
 onMounted(async () => {
-  await credentialsStore.fetchAwsProfiles()
+  await Promise.all([
+    credentialsStore.fetchAwsProfiles(),
+    credentialsStore.fetchAzureProfiles(),
+  ])
 })
 
 // Profile selection
@@ -515,6 +629,90 @@ function clearProfile() {
     detail: 'AWS profile selection cleared',
     life: 3000,
   })
+}
+
+// Azure Profile selection
+async function selectAzureProfileCard(profileName) {
+  loading.value = true
+  error.value = null
+  result.value = null
+
+  try {
+    const selectResult = await credentialsStore.selectAzureProfile(profileName)
+
+    if (selectResult.success) {
+      azureProfileVerified.value = profileName
+      toast.add({
+        severity: 'success',
+        summary: 'Profile Ready',
+        detail: `Azure profile "${profileName}" verified and ready for scans`,
+        life: 4000,
+      })
+    } else {
+      toast.add({
+        severity: 'error',
+        summary: 'Verification Failed',
+        detail: selectResult.message || 'Could not verify Azure profile credentials',
+        life: 5000,
+      })
+    }
+  } catch (e) {
+    error.value = e.message
+    toast.add({
+      severity: 'error',
+      summary: 'Error',
+      detail: e.message,
+      life: 5000,
+    })
+  } finally {
+    loading.value = false
+  }
+}
+
+function clearAzureProfileSelection() {
+  credentialsStore.clearAzureProfile()
+  azureProfileVerified.value = null
+  toast.add({
+    severity: 'info',
+    summary: 'Profile Cleared',
+    detail: 'Azure profile selection cleared',
+    life: 3000,
+  })
+}
+
+async function deleteAzureProfile(profileName) {
+  try {
+    const response = await fetch(`${API_BASE}/azure-profiles/${profileName}`, {
+      method: 'DELETE',
+    })
+    if (!response.ok) {
+      const errData = await response.json()
+      throw new Error(errData.detail || 'Failed to delete Azure profile')
+    }
+
+    // Refresh the profiles list
+    await credentialsStore.fetchAzureProfiles()
+
+    // Clear selection if we deleted the selected profile
+    if (selectedAzureProfile.value === profileName) {
+      credentialsStore.clearAzureProfile()
+      azureProfileVerified.value = null
+    }
+
+    toast.add({
+      severity: 'success',
+      summary: 'Profile Deleted',
+      detail: `Azure profile "${profileName}" deleted`,
+      life: 3000,
+    })
+  } catch (e) {
+    toast.add({
+      severity: 'error',
+      summary: 'Delete Failed',
+      detail: e.message,
+      life: 5000,
+    })
+  }
 }
 
 async function deleteProfile(profileName) {
@@ -690,9 +888,15 @@ async function verifyCredentials() {
     // Always generate a unique profile name when verification succeeds
     // Use the identity (username/role) from the verification result
     if (result.value.success) {
-      // Refresh profiles list to get latest data before generating name
-      await credentialsStore.fetchAwsProfiles()
-      profileNameToSave.value = generateUniqueProfileName(result.value.identity)
+      if (selectedProvider.value === 'aws') {
+        // Refresh profiles list to get latest data before generating name
+        await credentialsStore.fetchAwsProfiles()
+        profileNameToSave.value = generateUniqueProfileName(result.value.identity)
+      } else if (selectedProvider.value === 'azure') {
+        // Refresh Azure profiles list
+        await credentialsStore.fetchAzureProfiles()
+        profileNameToSave.value = generateUniqueAzureProfileName(result.value.identity)
+      }
     }
   } catch (e) {
     error.value = e.message
@@ -706,11 +910,6 @@ function copyOutput() {
     navigator.clipboard.writeText(result.value.raw_output)
   }
 }
-
-// Check if current provider credentials are stored in session
-const isCredentialStored = computed(() => {
-  return credentialsStore.getSessionCredentials(selectedProvider.value) !== null
-})
 
 // Store verified credentials for use in scans and save as profile
 async function useForScans() {
@@ -768,13 +967,65 @@ async function useForScans() {
     } finally {
       savingProfile.value = false
     }
+  } else if (selectedProvider.value === 'azure') {
+    // Save Azure credentials as a profile
+    savingProfile.value = true
+    try {
+      const response = await fetch(`${API_BASE}/azure-profiles/`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          profile_name: profileNameToSave.value.trim(),
+          tenant_id: azureForm.value.tenant_id,
+          client_id: azureForm.value.client_id,
+          client_secret: azureForm.value.client_secret,
+          subscription_id: azureForm.value.subscription_id || null,
+        }),
+      })
+
+      if (!response.ok) {
+        const errData = await response.json()
+        throw new Error(errData.detail || 'Failed to save Azure profile')
+      }
+
+      const data = await response.json()
+
+      // Store in session
+      credentialsStore.setSessionCredentials('azure', { ...azureForm.value })
+
+      // Refresh the profiles list
+      await credentialsStore.fetchAzureProfiles()
+
+      // Select the newly created profile
+      await credentialsStore.selectAzureProfile(profileNameToSave.value.trim())
+
+      toast.add({
+        severity: 'success',
+        summary: 'Profile Saved',
+        detail: `Azure profile "${profileNameToSave.value}" saved (Identity: ${data.identity})`,
+        life: 5000,
+      })
+
+      // Reset form
+      azureForm.value = { tenant_id: '', client_id: '', client_secret: '', subscription_id: '' }
+      result.value = null
+      profileNameToSave.value = ''
+      showManualForm.value = false
+    } catch (e) {
+      toast.add({
+        severity: 'error',
+        summary: 'Save Failed',
+        detail: e.message,
+        life: 5000,
+      })
+    } finally {
+      savingProfile.value = false
+    }
   } else {
-    // For other providers, just store in session for now
+    // For GCP/Kubernetes, just store in session for now
     let credentials = null
 
-    if (selectedProvider.value === 'azure') {
-      credentials = { ...azureForm.value }
-    } else if (selectedProvider.value === 'gcp') {
+    if (selectedProvider.value === 'gcp') {
       credentials = { ...gcpForm.value }
     } else if (selectedProvider.value === 'kubernetes') {
       credentials = { ...kubernetesForm.value }
@@ -1297,6 +1548,11 @@ async function useForScans() {
 .profile-badge.temp {
   background: var(--yellow-100);
   color: var(--yellow-700);
+}
+
+.profile-badge.azure {
+  background: var(--blue-100);
+  color: var(--blue-700);
 }
 
 .profile-selected-info {

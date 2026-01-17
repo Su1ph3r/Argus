@@ -154,17 +154,34 @@ export const useScansStore = defineStore('scans', () => {
     error.value = null
 
     try {
+      const payload = {
+        profile: config.profile || 'quick',
+        provider: config.provider || null,
+        tools: config.tools && config.tools.length > 0 ? config.tools : null,
+        target: config.target || null,
+        severity_filter: config.severityFilter || null,
+        dry_run: config.dryRun || false,
+      }
+
+      // Add AWS profile if specified
+      if (config.aws_profile) {
+        payload.aws_profile = config.aws_profile
+      }
+
+      // Add Azure credentials if specified
+      if (config.azure_tenant_id) {
+        payload.azure_tenant_id = config.azure_tenant_id
+        payload.azure_client_id = config.azure_client_id
+        payload.azure_client_secret = config.azure_client_secret
+        if (config.azure_subscription_id) {
+          payload.azure_subscription_id = config.azure_subscription_id
+        }
+      }
+
       const response = await fetch(`${API_BASE}/scans`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          profile: config.profile || 'quick',
-          provider: config.provider || null,
-          tools: config.tools && config.tools.length > 0 ? config.tools : null,
-          target: config.target || null,
-          severity_filter: config.severityFilter || null,
-          dry_run: config.dryRun || false,
-        }),
+        body: JSON.stringify(payload),
       })
 
       if (!response.ok) {

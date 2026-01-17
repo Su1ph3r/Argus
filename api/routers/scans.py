@@ -382,6 +382,17 @@ async def run_scan_orchestration(
 
             elif tool == ToolType.SCOUTSUITE_AZURE:
                 command = list(tool_config.get("default_command", []))
+                # ScoutSuite Azure requires credentials as CLI flags, not env vars
+                # Unlike Prowler which uses --sp-env-auth, ScoutSuite needs explicit flags
+                if azure_credentials:
+                    if azure_credentials.get("tenant_id"):
+                        command.extend(["--tenant", azure_credentials["tenant_id"]])
+                    if azure_credentials.get("client_id"):
+                        command.extend(["--client-id", azure_credentials["client_id"]])
+                    if azure_credentials.get("client_secret"):
+                        command.extend(["--client-secret", azure_credentials["client_secret"]])
+                    if azure_credentials.get("subscription_id"):
+                        command.extend(["--subscriptions", azure_credentials["subscription_id"]])
                 # Add profile-specific options (same as AWS ScoutSuite)
                 scoutsuite_options = profile_config.get("scoutsuite_options", [])
                 if scoutsuite_options:
@@ -703,6 +714,19 @@ async def create_scan(scan_request: ScanCreate, db: Session = Depends(get_db)):
     """
     # Validate profile exists
     profile_name = scan_request.profile.value
+
+    # Auto-translate profile to provider-specific variant if needed
+    if scan_request.provider == "azure" and not profile_name.startswith("azure-"):
+        # Map standard profiles to Azure equivalents
+        azure_profile_map = {
+            "quick": "azure-quick",
+            "comprehensive": "azure-comprehensive",
+            "compliance-only": "azure-compliance",
+        }
+        if profile_name in azure_profile_map:
+            profile_name = azure_profile_map[profile_name]
+            logger.info(f"Translated profile to Azure variant: {profile_name}")
+
     if profile_name not in SCAN_PROFILES:
         raise HTTPException(
             status_code=400,
@@ -720,8 +744,8 @@ async def create_scan(scan_request: ScanCreate, db: Session = Depends(get_db)):
                 f"Available: {available_tools}",
             )
 
-    # Validate Azure credentials are provided for Azure profiles
-    if profile_name.startswith("azure-"):
+    # Validate Azure credentials are provided for Azure profiles OR Azure provider
+    if profile_name.startswith("azure-") or scan_request.provider == "azure":
         if not (
             scan_request.azure_tenant_id
             and scan_request.azure_client_id

@@ -818,6 +818,7 @@ class ReportProcessor:
         logger.info(f"Processing Prowler report: {report_path}")
 
         findings = []
+        detected_provider = None  # Will be extracted from report data
         try:
             with open(report_path) as f:
                 content = f.read()
@@ -828,6 +829,10 @@ class ReportProcessor:
                 if isinstance(data, list):
                     # OCSF format - array of findings
                     for finding_data in data:
+                        # Extract cloud provider from first finding if not yet detected
+                        if detected_provider is None:
+                            cloud_data = finding_data.get("cloud", {})
+                            detected_provider = cloud_data.get("provider", "").lower()
                         finding = self._parse_prowler_ocsf(finding_data)
                         if finding:
                             # Enhance finding with KB data
@@ -858,9 +863,20 @@ class ReportProcessor:
                         except json.JSONDecodeError:
                             continue
 
+            # Determine cloud provider: from report data, report path, or default to aws
+            if not detected_provider:
+                # Fallback: detect from report path
+                report_path_str = str(report_path)
+                if "prowler-azure" in report_path_str or "/azure/" in report_path_str:
+                    detected_provider = "azure"
+                elif "prowler-gcp" in report_path_str or "/gcp/" in report_path_str:
+                    detected_provider = "gcp"
+                else:
+                    detected_provider = "aws"
+
             metadata = {
                 "tool": "prowler",
-                "cloud_provider": "aws",
+                "cloud_provider": detected_provider,
                 "scan_date": datetime.now().isoformat(),
             }
 
@@ -1940,6 +1956,29 @@ class ReportProcessor:
                     total_findings += len(findings)
                     # Track processed file for registration
                     processed_files["prowler"] = [str(report)]
+
+        if "prowler-azure" in tools_to_process:
+            # Process most recent Prowler Azure reports (same format as AWS Prowler)
+            prowler_azure_reports = list(self.reports_dir.glob("prowler-azure/*/prowler-output-*.json"))
+            prowler_azure_reports += list(self.reports_dir.glob("prowler-azure/prowler-output-*.json"))
+            prowler_azure_reports += list(self.reports_dir.glob("prowler-azure/prowler-output-*.ocsf.json"))
+            prowler_azure_reports = list(set(prowler_azure_reports))
+            # Sort by modification time, process most recent
+            if prowler_azure_reports:
+                prowler_azure_reports.sort(key=lambda x: x.stat().st_mtime, reverse=True)
+                report = prowler_azure_reports[0]
+                logger.info(f"Processing Prowler Azure report: {report}")
+                metadata, findings = self.process_prowler_report(report)
+                if metadata and findings:
+                    self.save_to_database(
+                        metadata,
+                        findings,
+                        f"prowler_azure_{report.stem}",
+                        orchestration_scan_id,
+                    )
+                    total_findings += len(findings)
+                    # Track processed file for registration
+                    processed_files["prowler-azure"] = [str(report)]
 
         if "scoutsuite" in tools_to_process:
             # Process most recent ScoutSuite reports

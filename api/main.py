@@ -50,6 +50,7 @@ from routers import (
     sync_router,
 )
 from routers.aws_profiles import router as aws_profiles_router
+from routers.azure_profiles import router as azure_profiles_router
 from routers.database import router as database_router
 from routers.health import set_startup_time
 from routers.iac import router as iac_router
@@ -499,6 +500,7 @@ app.include_router(credentials_router, prefix="/api")
 app.include_router(settings_router, prefix="/api")
 app.include_router(database_router, prefix="/api")
 app.include_router(aws_profiles_router, prefix="/api")
+app.include_router(azure_profiles_router, prefix="/api")
 app.include_router(compliance_router, prefix="/api")
 app.include_router(iac_router, prefix="/api")
 

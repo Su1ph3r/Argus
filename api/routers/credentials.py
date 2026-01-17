@@ -266,7 +266,13 @@ def verify_azure_credentials(creds: AzureCredentials) -> VerificationResult:
         subscriptions = list(sub_client.subscriptions.list())
 
         result.success = True
-        result.identity = f"App: {creds.client_id}"
+        # Use subscription display name as identity (more meaningful than client_id UUID)
+        if subscriptions:
+            first_sub = subscriptions[0]
+            result.identity = first_sub.display_name
+        else:
+            # Fallback to tenant ID prefix if no subscriptions accessible
+            result.identity = f"Azure-{creds.tenant_id[:8]}"
         result.account_info = f"Tenant: {creds.tenant_id}"
 
         output_lines.append("[SUCCESS] Credentials are valid!")
@@ -274,6 +280,7 @@ def verify_azure_credentials(creds: AzureCredentials) -> VerificationResult:
         output_lines.append("IDENTITY INFORMATION:")
         output_lines.append(f"  Tenant ID:  {creds.tenant_id}")
         output_lines.append(f"  Client ID:  {creds.client_id}")
+        output_lines.append(f"  Identity:   {result.identity}")
         output_lines.append("")
         output_lines.append("ACCESSIBLE SUBSCRIPTIONS:")
 

@@ -137,7 +137,6 @@
           v-for="profile in store.profiles"
           :key="profile.id"
           class="profile-card"
-          @click="startQuickScan(profile.id)"
         >
           <div class="profile-header">
             <h3>{{ profile.name }}</h3>
@@ -146,13 +145,35 @@
           <p class="profile-description">
             {{ profile.description }}
           </p>
+          <div class="profile-provider-toggles">
+            <button
+              v-for="cp in cloudProviders"
+              :key="cp.value"
+              type="button"
+              class="profile-provider-btn"
+              :class="{
+                'active': getQuickScanProviders(profile.id)[cp.value],
+                'disabled': !isProviderReady(cp.value)
+              }"
+              :disabled="!isProviderReady(cp.value)"
+              @click.stop="toggleQuickProvider(profile.id, cp.value)"
+            >
+              <i :class="cp.icon" />
+              <span>{{ cp.label }}</span>
+              <i
+                v-if="getQuickScanProviders(profile.id)[cp.value]"
+                class="pi pi-check check-mark"
+              />
+            </button>
+          </div>
           <Button
             label="Start"
             icon="pi pi-play"
             size="small"
             class="profile-start-btn"
             :loading="store.loading && selectedProfile === profile.id"
-            :disabled="store.hasRunningScans"
+            :disabled="store.hasRunningScans || !hasQuickProviderSelected(profile.id)"
+            @click.stop="startQuickScan(profile.id)"
           />
         </div>
       </div>
@@ -393,21 +414,41 @@
         </div>
 
         <div class="form-field">
-          <label>Cloud Provider</label>
-          <Dropdown
-            v-model="newScanConfig.provider"
-            :options="providerOptions"
-            option-label="label"
-            option-value="value"
-            placeholder="Select a provider"
-            class="w-full"
-            show-clear
-            @change="onProviderChange"
-          />
+          <label>Cloud Providers</label>
+          <div class="provider-toggles">
+            <div
+              v-for="provider in cloudProviders"
+              :key="provider.value"
+              class="provider-toggle-wrapper"
+            >
+              <button
+                type="button"
+                class="provider-toggle"
+                :class="{
+                  'active': selectedProviders[provider.value],
+                  'disabled': !isProviderReady(provider.value)
+                }"
+                :disabled="!isProviderReady(provider.value)"
+                @click="toggleProvider(provider.value)"
+              >
+                <i :class="provider.icon" />
+                <span>{{ provider.label }}</span>
+                <i
+                  v-if="selectedProviders[provider.value]"
+                  class="pi pi-check check-icon"
+                />
+              </button>
+              <span
+                v-if="!isProviderReady(provider.value)"
+                class="provider-status-hint"
+              >Not configured</span>
+            </div>
+          </div>
+          <small class="helper-text">Select one or more cloud providers to scan</small>
         </div>
 
         <div
-          v-if="newScanConfig.provider"
+          v-if="hasSelectedProviders"
           class="form-field"
         >
           <label>Tools (optional - leave empty for profile defaults)</label>
@@ -556,10 +597,10 @@
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useScansStore } from '../stores/scans'
-import { onCredentialStatusChange } from '../stores/credentials'
+import { useCredentialsStore, onCredentialStatusChange } from '../stores/credentials'
 import { api } from '../services/api'
 import { toast } from '../services/toast'
 import DataTable from 'primevue/datatable'
@@ -576,6 +617,7 @@ import IaCUpload from '../components/scans/IaCUpload.vue'
 
 const router = useRouter()
 const store = useScansStore()
+const credentialsStore = useCredentialsStore()
 
 const showNewScanDialog = ref(false)
 const showErrorDialog = ref(false)
@@ -584,24 +626,135 @@ const scanErrorDetails = ref(null)
 const showDeleteConfirm = ref(false)
 const showArchiveConfirm = ref(false)
 const selectedProfile = ref(null)
+
+// Track selected providers for each Quick Action profile card
+const quickScanProviders = ref({})
+
+// Initialize provider selection for a profile (lazy init)
+function getQuickScanProviders(profileId) {
+  if (!quickScanProviders.value[profileId]) {
+    quickScanProviders.value[profileId] = {
+      aws: false,
+      azure: false,
+      gcp: false,
+      kubernetes: false,
+      iac: false,
+    }
+  }
+  return quickScanProviders.value[profileId]
+}
+
+// Toggle provider for a Quick Action card
+function toggleQuickProvider(profileId, provider) {
+  const providers = getQuickScanProviders(profileId)
+  if (isProviderReady(provider)) {
+    providers[provider] = !providers[provider]
+  }
+}
+
+// Check if a Quick Action card has at least one provider selected
+function hasQuickProviderSelected(profileId) {
+  const providers = quickScanProviders.value[profileId]
+  if (!providers) return false
+  return Object.values(providers).some(v => v)
+}
+
+// Get list of selected providers for a Quick Action card
+function getQuickSelectedProviders(profileId) {
+  const providers = quickScanProviders.value[profileId]
+  if (!providers) return []
+  return Object.entries(providers)
+    .filter(([, selected]) => selected)
+    .map(([provider]) => provider)
+}
+
 const newScanConfig = ref({
   profile: 'comprehensive',
   target: '',
   severities: [],
-  provider: null,
   tools: [],
   dryRun: false,
 })
 
+// Provider selection state
+const selectedProviders = ref({
+  aws: false,
+  azure: false,
+  gcp: false,
+  kubernetes: false,
+  iac: false,
+})
+
 const toolOptions = ref([])
 
-const providerOptions = [
-  { label: 'AWS', value: 'aws' },
-  { label: 'Azure', value: 'azure' },
-  { label: 'GCP', value: 'gcp' },
-  { label: 'Kubernetes', value: 'kubernetes' },
-  { label: 'IaC', value: 'iac' },
+const cloudProviders = [
+  { label: 'AWS', value: 'aws', icon: 'pi pi-cloud' },
+  { label: 'Azure', value: 'azure', icon: 'pi pi-microsoft' },
+  { label: 'GCP', value: 'gcp', icon: 'pi pi-google' },
+  { label: 'Kubernetes', value: 'kubernetes', icon: 'pi pi-box' },
+  { label: 'IaC', value: 'iac', icon: 'pi pi-file-edit' },
 ]
+
+// Check if a provider has valid credentials
+function isProviderReady(provider) {
+  if (provider === 'aws') {
+    return store.awsStatus === 'ready'
+  }
+  if (provider === 'azure') {
+    return store.azureStatus === 'ready'
+  }
+  if (provider === 'gcp') {
+    return store.gcpStatus === 'ready'
+  }
+  if (provider === 'kubernetes') {
+    return store.kubernetesStatus === 'ready'
+  }
+  if (provider === 'iac') {
+    // IaC scanning doesn't require credentials
+    return true
+  }
+  return false
+}
+
+// Toggle provider selection
+function toggleProvider(provider) {
+  selectedProviders.value[provider] = !selectedProviders.value[provider]
+  // When toggling, update tool options for selected providers
+  updateToolOptions()
+}
+
+// Check if any provider is selected
+const hasSelectedProviders = computed(() => {
+  return Object.values(selectedProviders.value).some(v => v)
+})
+
+// Get list of selected provider values
+function getSelectedProviderList() {
+  return Object.entries(selectedProviders.value)
+    .filter(([, selected]) => selected)
+    .map(([provider]) => provider)
+}
+
+// Update tool options based on selected providers
+async function updateToolOptions() {
+  const selected = getSelectedProviderList()
+  if (selected.length === 0) {
+    toolOptions.value = []
+    return
+  }
+
+  // Get tools for each selected provider
+  const allTools = []
+  for (const provider of selected) {
+    const tools = await store.fetchToolsForProvider(provider)
+    allTools.push(...tools.map(tool => ({
+      label: formatToolName(tool),
+      value: tool,
+      provider,
+    })))
+  }
+  toolOptions.value = allTools
+}
 
 const severityOptions = [
   { label: 'Critical', value: 'critical' },
@@ -616,21 +769,6 @@ function formatToolName(tool) {
     .split('-')
     .map(word => word.charAt(0).toUpperCase() + word.slice(1))
     .join(' ')
-}
-
-async function onProviderChange() {
-  // Clear previously selected tools when provider changes
-  newScanConfig.value.tools = []
-
-  if (newScanConfig.value.provider) {
-    const tools = await store.fetchToolsForProvider(newScanConfig.value.provider)
-    toolOptions.value = tools.map(tool => ({
-      label: formatToolName(tool),
-      value: tool,
-    }))
-  } else {
-    toolOptions.value = []
-  }
 }
 
 function getStatusClass(status) {
@@ -714,9 +852,57 @@ function formatDate(dateStr) {
 }
 
 async function startQuickScan(profileId) {
+  const providers = getQuickSelectedProviders(profileId)
+
+  if (providers.length === 0) {
+    toast.add({
+      severity: 'warn',
+      summary: 'Select Provider',
+      detail: 'Please select at least one cloud provider to scan',
+      life: 4000,
+    })
+    return
+  }
+
   selectedProfile.value = profileId
   try {
-    await store.createScan({ profile: profileId })
+    // Create a scan for each selected provider
+    for (const provider of providers) {
+      const scanPayload = {
+        profile: profileId,
+        provider: provider,
+      }
+
+      // Inject Azure credentials if Azure provider selected
+      if (provider === 'azure') {
+        const azureCreds = credentialsStore.getSessionCredentials('azure')
+        if (azureCreds) {
+          scanPayload.azure_tenant_id = azureCreds.tenant_id
+          scanPayload.azure_client_id = azureCreds.client_id
+          scanPayload.azure_client_secret = azureCreds.client_secret
+          if (azureCreds.subscription_id) {
+            scanPayload.azure_subscription_id = azureCreds.subscription_id
+          }
+        } else {
+          toast.add({
+            severity: 'error',
+            summary: 'Azure Credentials Missing',
+            detail: 'Please configure Azure credentials in the Credentials page',
+            life: 5000,
+          })
+          return
+        }
+      }
+
+      // For AWS, use selected profile
+      if (provider === 'aws') {
+        if (credentialsStore.selectedAwsProfile) {
+          scanPayload.aws_profile = credentialsStore.selectedAwsProfile
+        }
+      }
+
+      await store.createScan(scanPayload)
+    }
   } catch (e) {
     console.error('Failed to start scan:', e)
     toast.apiError(e, 'Failed to start scan')
@@ -726,26 +912,75 @@ async function startQuickScan(profileId) {
 }
 
 async function startScan() {
-  try {
-    await store.createScan({
-      profile: newScanConfig.value.profile,
-      provider: newScanConfig.value.provider || null,
-      tools: newScanConfig.value.tools.length > 0 ? newScanConfig.value.tools : null,
-      target: newScanConfig.value.target || null,
-      severityFilter: newScanConfig.value.severities.length > 0
-        ? newScanConfig.value.severities.join(',')
-        : null,
-      dryRun: newScanConfig.value.dryRun,
+  const providers = getSelectedProviderList()
+
+  if (providers.length === 0) {
+    toast.add({
+      severity: 'warn',
+      summary: 'Select Provider',
+      detail: 'Please select at least one cloud provider to scan',
+      life: 4000,
     })
+    return
+  }
+
+  try {
+    // Create a scan for each selected provider
+    for (const provider of providers) {
+      const scanPayload = {
+        profile: newScanConfig.value.profile,
+        provider: provider,
+        tools: newScanConfig.value.tools.length > 0 ? newScanConfig.value.tools : null,
+        target: newScanConfig.value.target || null,
+        severityFilter: newScanConfig.value.severities.length > 0
+          ? newScanConfig.value.severities.join(',')
+          : null,
+        dryRun: newScanConfig.value.dryRun,
+      }
+
+      // Inject Azure credentials if Azure provider selected
+      if (provider === 'azure') {
+        const azureCreds = credentialsStore.getSessionCredentials('azure')
+        if (azureCreds) {
+          scanPayload.azure_tenant_id = azureCreds.tenant_id
+          scanPayload.azure_client_id = azureCreds.client_id
+          scanPayload.azure_client_secret = azureCreds.client_secret
+          if (azureCreds.subscription_id) {
+            scanPayload.azure_subscription_id = azureCreds.subscription_id
+          }
+        } else {
+          toast.add({
+            severity: 'error',
+            summary: 'Azure Credentials Missing',
+            detail: 'Please configure Azure credentials in the Credentials page',
+            life: 5000,
+          })
+          return
+        }
+      }
+
+      // For AWS, use selected profile
+      if (provider === 'aws') {
+        if (credentialsStore.selectedAwsProfile) {
+          scanPayload.aws_profile = credentialsStore.selectedAwsProfile
+        }
+      }
+
+      await store.createScan(scanPayload)
+    }
+
     showNewScanDialog.value = false
     // Reset form
     newScanConfig.value = {
       profile: 'comprehensive',
       target: '',
       severities: [],
-      provider: null,
       tools: [],
       dryRun: false,
+    }
+    selectedProviders.value = {
+      aws: false,
+      azure: false,
     }
     toolOptions.value = []
   } catch (e) {
@@ -1085,7 +1320,56 @@ onUnmounted(() => {
 .profile-description {
   color: var(--text-secondary);
   font-size: 0.875rem;
+  margin-bottom: var(--spacing-sm);
+}
+
+/* Profile Provider Toggles */
+.profile-provider-toggles {
+  display: flex;
+  gap: 0.5rem;
   margin-bottom: var(--spacing-md);
+}
+
+.profile-provider-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.375rem 0.625rem;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+  flex: 1;
+  justify-content: center;
+}
+
+.profile-provider-btn:hover:not(.disabled) {
+  border-color: var(--accent-primary);
+  color: var(--text-primary);
+}
+
+.profile-provider-btn.active {
+  border-color: var(--green-500);
+  background: rgba(34, 197, 94, 0.1);
+  color: var(--green-700);
+}
+
+.profile-provider-btn.disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.profile-provider-btn i:first-child {
+  font-size: 0.875rem;
+}
+
+.profile-provider-btn .check-mark {
+  font-size: 0.625rem;
+  color: var(--green-500);
 }
 
 .profile-start-btn {
@@ -1231,6 +1515,79 @@ onUnmounted(() => {
 
 .cursor-pointer {
   cursor: pointer;
+}
+
+/* Provider Toggle Styles */
+.provider-toggles {
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.provider-toggle-wrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.provider-toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1.25rem;
+  background: var(--bg-card);
+  border: 2px solid var(--border-color);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  min-width: 120px;
+  justify-content: center;
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.provider-toggle:hover:not(.disabled) {
+  border-color: var(--accent-primary);
+  background: var(--accent-primary-bg);
+}
+
+.provider-toggle.active {
+  border-color: var(--green-500);
+  background: rgba(34, 197, 94, 0.1);
+  color: var(--green-700);
+}
+
+.provider-toggle.active .check-icon {
+  color: var(--green-500);
+}
+
+.provider-toggle.disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  background: var(--surface-100);
+}
+
+.provider-toggle i:first-child {
+  font-size: 1.1rem;
+}
+
+.check-icon {
+  margin-left: auto;
+  font-size: 0.9rem;
+}
+
+.provider-status-hint {
+  font-size: 0.7rem;
+  color: var(--text-secondary);
+  opacity: 0.8;
+}
+
+.helper-text {
+  color: var(--text-secondary);
+  font-size: 0.8rem;
+  margin-top: 0.25rem;
 }
 
 /* IaC Scanning Card */

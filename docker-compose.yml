@@ -482,6 +482,7 @@ services:
       - ./scripts:/app/scripts:ro
       - ./report-processor:/app/report-processor:ro
       - ./credentials/aws:/app/credentials/aws:rw
+      - ./credentials/azure:/app/credentials/azure:rw
       - /var/run/docker.sock:/var/run/docker.sock:ro
       # Tool build contexts for on-demand image building
       - ./tools:/app/tools:ro

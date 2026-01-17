@@ -40,6 +40,11 @@ export const useCredentialsStore = defineStore('credentials', () => {
   const selectedAwsProfile = ref(null)
   const awsProfilesLoading = ref(false)
 
+  // Azure Profiles from stored credentials
+  const azureProfiles = ref([])
+  const selectedAzureProfile = ref(null)
+  const azureProfilesLoading = ref(false)
+
   // Computed
   const isVerified = computed(() => verificationResult.value?.success === true)
 
@@ -327,6 +332,111 @@ export const useCredentialsStore = defineStore('credentials', () => {
     }
   }
 
+  // Azure Profile management
+  async function fetchAzureProfiles() {
+    azureProfilesLoading.value = true
+    try {
+      const response = await fetch(`${API_BASE}/azure-profiles`)
+      if (!response.ok) throw new Error('Failed to fetch Azure profiles')
+
+      const data = await response.json()
+      azureProfiles.value = data.profiles || []
+      return azureProfiles.value
+    } catch (e) {
+      console.error('Error fetching Azure profiles:', e)
+      azureProfiles.value = []
+      return []
+    } finally {
+      azureProfilesLoading.value = false
+    }
+  }
+
+  async function verifyAzureProfile(profileName) {
+    loading.value = true
+    error.value = null
+
+    try {
+      const response = await fetch(`${API_BASE}/azure-profiles/${profileName}/verify`, {
+        method: 'POST',
+      })
+
+      if (!response.ok) throw new Error('Failed to verify Azure profile')
+
+      const result = await response.json()
+      return result
+    } catch (e) {
+      error.value = e.message
+      throw e
+    } finally {
+      loading.value = false
+    }
+  }
+
+  async function selectAzureProfile(profileName) {
+    // Verify the profile first
+    const result = await verifyAzureProfile(profileName)
+
+    if (result.valid) {
+      selectedAzureProfile.value = profileName
+
+      // Fetch credentials and store in session
+      try {
+        const response = await fetch(`${API_BASE}/azure-profiles/${profileName}/credentials`)
+        if (response.ok) {
+          const creds = await response.json()
+          sessionCredentials.value.azure = {
+            tenant_id: creds.tenant_id,
+            client_id: creds.client_id,
+            client_secret: creds.client_secret,
+            subscription_id: creds.subscription_id,
+            profile: profileName,
+          }
+          // Persist the selected profile name in localStorage
+          localStorage.setItem('selectedAzureProfile', profileName)
+          // Notify listeners that credential status has changed
+          notifyCredentialStatusChange()
+          toast.success('Profile Selected', `Using Azure profile: ${profileName}`)
+        }
+      } catch (e) {
+        console.error('Error fetching Azure profile credentials:', e)
+        toast.error('Profile Error', 'Failed to fetch Azure profile credentials')
+      }
+
+      return { success: true, ...result }
+    } else {
+      toast.error('Profile Invalid', result.error || 'Azure profile verification failed')
+      return { success: false, ...result }
+    }
+  }
+
+  function clearAzureProfile() {
+    selectedAzureProfile.value = null
+    sessionCredentials.value.azure = null
+    localStorage.removeItem('selectedAzureProfile')
+    // Notify listeners that credential status has changed
+    notifyCredentialStatusChange()
+  }
+
+  // Restore persisted Azure profile on init
+  async function restoreAzureProfile() {
+    const savedProfile = localStorage.getItem('selectedAzureProfile')
+    if (savedProfile) {
+      // Fetch profiles first if not loaded
+      if (azureProfiles.value.length === 0) {
+        await fetchAzureProfiles()
+      }
+      // Check if the saved profile still exists
+      const profileExists = azureProfiles.value.some(p => p.name === savedProfile)
+      if (profileExists) {
+        // Re-select the profile (will verify and fetch credentials)
+        await selectAzureProfile(savedProfile)
+      } else {
+        // Profile no longer exists, clear the saved value
+        localStorage.removeItem('selectedAzureProfile')
+      }
+    }
+  }
+
   return {
     verificationResult,
     credentialStatus,
@@ -337,6 +447,9 @@ export const useCredentialsStore = defineStore('credentials', () => {
     awsProfiles,
     selectedAwsProfile,
     awsProfilesLoading,
+    azureProfiles,
+    selectedAzureProfile,
+    azureProfilesLoading,
     isVerified,
     hasSessionCredentials,
     activeSessionProviders,
@@ -358,5 +471,10 @@ export const useCredentialsStore = defineStore('credentials', () => {
     selectAwsProfile,
     clearAwsProfile,
     restoreAwsProfile,
+    fetchAzureProfiles,
+    verifyAzureProfile,
+    selectAzureProfile,
+    clearAzureProfile,
+    restoreAzureProfile,
   }
 })
