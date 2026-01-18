@@ -7,12 +7,86 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+---
+
+## [1.0.3] - 2026-01-18
+
 ### Added
+
+#### Phase 1: Open Source Features
+
+##### Intelligent Alert Prioritization
+- Enhanced risk scoring with asset criticality multipliers (critical: 1.3x, high: 1.15x, medium: 1.0x, low: 0.85x)
+- Blast radius scoring for downstream impact assessment (1-100+ resources)
+- Recurrence penalty for repeat findings (up to 1.2x multiplier)
+- New API endpoint: `GET /api/findings/top-critical` - Returns highest-risk findings by score
+- New API endpoint: `GET /api/findings/trend` - Returns severity trend over time for dashboard charts
+- New database columns: `asset_criticality`, `blast_radius`, `recurrence_count`, `scoring_factors`
+
+##### Threat Intelligence Enrichment (Design Framework)
+- Extensible provider framework for threat intelligence integrations
+- `ThreatIntelProvider` abstract base class for implementing providers
+- `ThreatIntelResult` dataclass for standardized enrichment results
+- `ProviderRegistry` for managing multiple providers
+- `PlaceholderProvider` implementation demonstrating design pattern
+- New API endpoint: `GET /api/findings/{id}/threat-intel` - Returns enrichment data structure
+- Indicator extraction from findings (IP addresses, domains, hashes)
+- Future provider support: AlienVault OTX, VirusTotal, Shodan, GreyNoise, AbuseIPDB
+
+##### Scheduled Scanning
+- APScheduler integration for recurring security scans
+- Support for cron expressions (5-field standard: minute hour day month day_of_week)
+- Support for interval-based schedules (minimum 5 minutes)
+- New API endpoints:
+  - `GET /api/schedules` - List all schedules
+  - `POST /api/schedules` - Create schedule
+  - `GET /api/schedules/{id}` - Get schedule details
+  - `PATCH /api/schedules/{id}` - Update schedule
+  - `DELETE /api/schedules/{id}` - Delete schedule
+  - `POST /api/schedules/{id}/trigger` - Trigger immediate execution
+  - `GET /api/schedules/status` - Get scheduler status and job list
+- New database table: `scan_schedules` with full audit trail
+- Automatic schedule loading on API startup
+- Non-fatal scheduler failures (API continues if scheduler fails)
+
+##### Slack/Teams Notifications
+- Scan completion notifications with findings summary
+- Slack webhook integration with formatted messages
+- Microsoft Teams webhook integration with adaptive card format
+- Unified notification dispatcher supporting multiple channels
+- Configuration via Settings API:
+  - `PUT /api/settings/notifications_enabled`
+  - `PUT /api/settings/slack_webhook_url`
+  - `PUT /api/settings/teams_webhook_url`
+- Non-fatal notification failures (scan completes even if notification fails)
+
+##### Enhanced Dashboard
+- New API endpoint: `GET /api/executions/health/summary` - Tool execution health statistics
+- New Vue component: `RiskTrendChart.vue` - Bar chart showing severity trend over time
+- New Vue component: `ToolHealthCard.vue` - Grid displaying tool execution health with success rates
+- New Vue component: `ComplianceOverview.vue` - Framework compliance cards with percentages
+- Dashboard sections for risk trends and tool health monitoring
+
+#### Utilities
 - Docker cleanup utility (`scripts/cleanup.sh`) for managing containers, images, and volumes
   - Interactive menu mode for guided cleanup
   - CLI flags: `--containers`, `--images`, `--images-local`, `--volumes`, `--prune`, `--all`
   - Safety features: `--dry-run` preview mode, confirmation prompts, `--force` for automation
   - Warnings before destructive operations (volume deletion)
+
+### Changed
+- Dashboard view extended with health and compliance grid sections
+- Findings router extended with new endpoint routes (ordered before `/{finding_id}` to avoid conflicts)
+- Main application lifespan includes scheduler lifecycle management
+
+### Fixed
+- Database session leak in scheduler service (proper try/finally cleanup)
+- Private IP detection using `ipaddress` module for accurate RFC 1918 compliance
+
+### Documentation
+- Added `docs/PHASE1_FEATURES.md` with comprehensive feature documentation
+- API endpoint documentation for all new routes
+- Database migration instructions
 
 ---
 
@@ -192,6 +266,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 | Version | Date | Description |
 |---------|------|-------------|
+| 1.0.3 | 2026-01-18 | Phase 1 Open Source features: alert prioritization, threat intel, scheduling, notifications, dashboard |
 | 1.0.2 | 2025-01-14 | Security fixes, bulk operations, error handling improvements |
 | 1.0.1 | 2026-01-09 | Bug fixes from beta testing |
 | 1.0.0 | 2026-01-08 | Initial release |
@@ -199,6 +274,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ---
 
 ## Upgrade Notes
+
+### Upgrading to 1.0.3
+No breaking changes. Apply database migration and rebuild:
+```bash
+git pull origin main
+docker exec -i postgresql psql -U auditor -d security_audits < db-migrations/001_phase1_features.sql
+docker compose build api && docker compose up -d api
+```
 
 ### Upgrading to 1.0.2
 No breaking changes. Run:
@@ -218,7 +301,8 @@ docker-compose up -d
 
 ---
 
-[Unreleased]: https://github.com/Su1ph3r/Nubicustos/compare/v1.0.2...HEAD
+[Unreleased]: https://github.com/Su1ph3r/Nubicustos/compare/v1.0.3...HEAD
+[1.0.3]: https://github.com/Su1ph3r/Nubicustos/compare/v1.0.2...v1.0.3
 [1.0.2]: https://github.com/Su1ph3r/Nubicustos/compare/v1.0.1...v1.0.2
 [1.0.1]: https://github.com/Su1ph3r/Nubicustos/compare/v1.0.0...v1.0.1
 [1.0.0]: https://github.com/Su1ph3r/Nubicustos/releases/tag/v1.0.0
