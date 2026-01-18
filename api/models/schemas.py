@@ -54,6 +54,10 @@ class ScanProfile(str, Enum):
     azure_quick = "azure-quick"
     azure_comprehensive = "azure-comprehensive"
     azure_compliance = "azure-compliance"
+    # Secrets scanning profiles
+    secrets = "secrets"
+    # IAM deep analysis profiles
+    iam_analysis = "iam-analysis"
 
 
 # ============================================================================

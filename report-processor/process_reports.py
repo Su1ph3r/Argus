@@ -1932,6 +1932,14 @@ class ReportProcessor:
                 try:
                     item = json.loads(line)
 
+                    # Skip log messages (have "level" field but no "SourceMetadata")
+                    if "level" in item and "SourceMetadata" not in item:
+                        continue
+
+                    # Skip if this is not a finding (must have SourceMetadata or Raw)
+                    if "SourceMetadata" not in item and "Raw" not in item:
+                        continue
+
                     # Extract source metadata
                     source_metadata = item.get("SourceMetadata", {})
                     source_data = source_metadata.get("Data", {})
