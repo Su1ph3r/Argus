@@ -41,6 +41,9 @@ python-dateutil==2.9.0
 colorama==0.4.6
 click==8.1.7
 
+# Scheduled Scanning (Phase 1 Feature)
+APScheduler>=3.10.0
+
 # Testing (dev dependencies, included for CI)
 pytest==8.1.1
 pytest-cov==5.0.0

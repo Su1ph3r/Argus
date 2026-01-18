@@ -113,6 +113,19 @@
         </div>
       </section>
 
+      <!-- Risk Trend Chart (Phase 1 Feature) -->
+      <section class="section">
+        <RiskTrendChart />
+      </section>
+
+      <!-- Health & Compliance Grid (Phase 1 Feature) -->
+      <section class="section">
+        <div class="health-compliance-grid">
+          <ToolHealthCard />
+          <ComplianceOverview />
+        </div>
+      </section>
+
       <!-- Action Buttons -->
       <section class="section actions-section">
         <Button
@@ -149,6 +162,9 @@ import { useSummaryStore } from '../stores/summary'
 import { useFindingsStore } from '../stores/findings'
 import SeverityCards from '../components/dashboard/SeverityCards.vue'
 import SeverityChart from '../components/dashboard/SeverityChart.vue'
+import RiskTrendChart from '../components/dashboard/RiskTrendChart.vue'
+import ToolHealthCard from '../components/dashboard/ToolHealthCard.vue'
+import ComplianceOverview from '../components/dashboard/ComplianceOverview.vue'
 
 const router = useRouter()
 const summaryStore = useSummaryStore()
@@ -411,6 +427,19 @@ onUnmounted(() => {
   align-items: center;
   gap: var(--spacing-md);
   font-weight: 500;
+}
+
+/* Health & Compliance Grid (Phase 1 Feature) */
+.health-compliance-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--spacing-lg);
+}
+
+@media (max-width: 1024px) {
+  .health-compliance-grid {
+    grid-template-columns: 1fr;
+  }
 }
 
 @media (max-width: 768px) {

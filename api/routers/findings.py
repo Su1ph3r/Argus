@@ -314,6 +314,224 @@ async def get_findings_summary(
     )
 
 
+# =============================================================================
+# Enhanced Finding Endpoints (Phase 1 Feature)
+# These routes MUST be defined BEFORE /{finding_id} to avoid path conflicts
+# =============================================================================
+
+
+@router.get("/top-critical")
+async def get_top_critical_findings(
+    db: Session = Depends(get_db),
+    limit: int = Query(10, ge=1, le=100, description="Number of findings to return"),
+    status: str | None = Query(
+        None, description="Filter by status (comma-separated, default: open,fail)"
+    ),
+):
+    """
+    Get the top critical findings by risk score.
+
+    Returns the highest-risk findings across all scans, useful for prioritization
+    dashboards and executive summaries.
+
+    Args:
+        limit: Maximum number of findings to return (1-100, default: 10)
+        status: Comma-separated statuses to include (default: open,fail)
+
+    Returns:
+        dict: List of top findings with risk score and metadata
+    """
+    # Default to active findings
+    if status:
+        statuses = [s.strip().lower() for s in status.split(",")]
+    else:
+        statuses = ["open", "fail"]
+
+    # Query top findings by risk score
+    findings = (
+        db.query(Finding)
+        .filter(Finding.status.in_(statuses))
+        .order_by(desc(Finding.risk_score).nulls_last())
+        .limit(limit)
+        .all()
+    )
+
+    return {
+        "findings": [
+            {
+                "id": f.id,
+                "finding_id": f.finding_id,
+                "title": f.title,
+                "severity": f.severity,
+                "risk_score": float(f.risk_score) if f.risk_score else None,
+                "resource_type": f.resource_type,
+                "resource_id": f.resource_id,
+                "cloud_provider": f.cloud_provider,
+                "tool": f.tool,
+                "scan_date": f.scan_date.isoformat() if f.scan_date else None,
+            }
+            for f in findings
+        ],
+        "total": len(findings),
+        "limit": limit,
+    }
+
+
+@router.get("/trend")
+async def get_findings_trend(
+    db: Session = Depends(get_db),
+    days: int = Query(30, ge=1, le=365, description="Number of days to look back"),
+    status: str | None = Query(
+        None, description="Filter by status (comma-separated, default: open,fail)"
+    ),
+):
+    """
+    Get severity trend over time.
+
+    Returns daily counts of findings by severity for trend analysis
+    and dashboard charts.
+
+    Args:
+        days: Number of days to look back (1-365, default: 30)
+        status: Comma-separated statuses to include (default: open,fail)
+
+    Returns:
+        dict: Trend data grouped by date and severity
+    """
+    from datetime import datetime, timedelta
+
+    # Default to active findings
+    if status:
+        statuses = [s.strip().lower() for s in status.split(",")]
+    else:
+        statuses = ["open", "fail"]
+
+    # Calculate date range
+    end_date = datetime.utcnow()
+    start_date = end_date - timedelta(days=days)
+
+    # Query findings grouped by date and severity
+    results = (
+        db.query(
+            func.date(Finding.scan_date).label("scan_day"),
+            Finding.severity,
+            func.count(Finding.id).label("count"),
+        )
+        .filter(
+            Finding.status.in_(statuses),
+            Finding.scan_date >= start_date,
+            Finding.scan_date <= end_date,
+        )
+        .group_by(func.date(Finding.scan_date), Finding.severity)
+        .order_by(func.date(Finding.scan_date))
+        .all()
+    )
+
+    # Organize results by date
+    trend_data = {}
+    for row in results:
+        date_str = row.scan_day.isoformat() if row.scan_day else "unknown"
+        if date_str not in trend_data:
+            trend_data[date_str] = {
+                "date": date_str,
+                "critical": 0,
+                "high": 0,
+                "medium": 0,
+                "low": 0,
+                "info": 0,
+                "total": 0,
+            }
+        if row.severity:
+            severity_key = row.severity.lower()
+            if severity_key in trend_data[date_str]:
+                trend_data[date_str][severity_key] = row.count
+                trend_data[date_str]["total"] += row.count
+
+    # Convert to list sorted by date
+    trend_list = sorted(trend_data.values(), key=lambda x: x["date"])
+
+    return {
+        "trend": trend_list,
+        "days": days,
+        "start_date": start_date.isoformat(),
+        "end_date": end_date.isoformat(),
+    }
+
+
+@router.get("/{finding_id}/threat-intel")
+async def get_finding_threat_intel(
+    finding_id: int,
+    db: Session = Depends(get_db),
+):
+    """
+    Get threat intelligence enrichment for a finding.
+
+    DESIGN PLACEHOLDER: This endpoint returns the structure for threat intel data.
+    No actual enrichment is performed until threat intel providers are configured.
+
+    Future integrations could include:
+    - AlienVault OTX
+    - VirusTotal
+    - Shodan
+    - GreyNoise
+    - MISP
+
+    Args:
+        finding_id: The ID of the finding to enrich
+
+    Returns:
+        dict: Threat intelligence data structure
+    """
+    finding = db.query(Finding).filter(Finding.id == finding_id).first()
+
+    if not finding:
+        raise HTTPException(status_code=404, detail="Finding not found")
+
+    # Check if we have cached threat intel data
+    if finding.threat_intel_enrichment:
+        return {
+            "finding_id": finding_id,
+            "enriched": True,
+            "last_checked": finding.threat_intel_last_checked.isoformat()
+            if finding.threat_intel_last_checked
+            else None,
+            "data": finding.threat_intel_enrichment,
+        }
+
+    # Return placeholder structure for design
+    return {
+        "finding_id": finding_id,
+        "enriched": False,
+        "last_checked": None,
+        "data": None,
+        "message": "Threat intel enrichment not configured. Enable a provider in settings.",
+        "available_providers": ["placeholder"],
+        "design_structure": {
+            "provider_name": "string",
+            "query_time": "ISO8601 datetime",
+            "found": "boolean",
+            "indicators": [
+                {
+                    "indicator_type": "ip|domain|hash|url",
+                    "indicator_value": "string",
+                    "categories": ["malware", "phishing", "botnet", "..."],
+                    "confidence": "high|medium|low|unknown",
+                    "first_seen": "ISO8601 datetime",
+                    "last_seen": "ISO8601 datetime",
+                    "tags": ["list", "of", "tags"],
+                    "source": "string",
+                    "reference_url": "string",
+                }
+            ],
+            "risk_score_delta": "float (-10 to +10)",
+            "categories": ["list", "of", "threat", "categories"],
+            "confidence": "high|medium|low|unknown",
+            "related_campaigns": ["list", "of", "campaign", "names"],
+            "mitre_techniques": ["T1234", "T5678"],
+        },
+    }
+
+
 @router.get("/{finding_id}", response_model=FindingResponse)
 async def get_finding(finding_id: int, db: Session = Depends(get_db)):
     """

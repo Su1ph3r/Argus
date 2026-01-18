@@ -543,6 +543,27 @@ async def run_scan_orchestration(
             # Still mark scan as completed - reports can be reprocessed
 
         logger.info(f"Scan {scan_id}: All tools completed successfully")
+
+        # Send notifications (Phase 1 Feature - non-fatal)
+        try:
+            from services.notification_service import send_scan_notification
+
+            # Get scan to retrieve finding counts
+            scan = db.query(Scan).filter(Scan.scan_id == scan_id).first()
+            if scan:
+                summary = {
+                    "total": scan.total_findings or 0,
+                    "critical": scan.critical_findings or 0,
+                    "high": scan.high_findings or 0,
+                    "medium": scan.medium_findings or 0,
+                    "low": scan.low_findings or 0,
+                }
+                await send_scan_notification(db, scan_id, "scan_complete", summary)
+        except Exception as notify_err:
+            # NON-FATAL: Log warning but don't fail the scan
+            logger.warning(f"Scan {scan_id}: Notification failed (non-fatal): {notify_err}")
+            # Scan still completes successfully even if notification fails
+
         _update_scan_status(
             db, scan_id, "completed",
             execution_ids=execution_ids,

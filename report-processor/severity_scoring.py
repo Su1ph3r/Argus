@@ -432,6 +432,129 @@ def enrich_finding_with_scoring(finding: dict) -> dict:
     return finding
 
 
+# =============================================================================
+# ENHANCED RISK SCORING (Phase 1 Feature)
+# =============================================================================
+
+# Asset criticality multipliers
+ASSET_CRITICALITY_MULTIPLIERS = {
+    "critical": 1.3,    # Production databases, authentication systems
+    "high": 1.15,       # Customer-facing services
+    "medium": 1.0,      # Standard resources (default)
+    "low": 0.85,        # Development/test resources
+}
+
+# Blast radius multipliers (number of affected downstream resources)
+BLAST_RADIUS_MULTIPLIERS = {
+    1: 1.0,             # Single resource
+    2: 1.05,            # 2 resources
+    3: 1.1,             # 3 resources
+    5: 1.15,            # 4-5 resources
+    10: 1.2,            # 6-10 resources
+    50: 1.25,           # 11-50 resources
+    100: 1.3,           # 50+ resources
+}
+
+# Recurrence penalty multipliers
+RECURRENCE_MULTIPLIERS = {
+    1: 1.0,             # First occurrence
+    2: 1.05,            # Second occurrence
+    3: 1.1,             # Third occurrence
+    5: 1.15,            # 4-5 occurrences
+    10: 1.2,            # 6-10 occurrences
+}
+
+
+def _get_blast_radius_multiplier(blast_radius: int) -> float:
+    """Get the multiplier for a given blast radius."""
+    for threshold, multiplier in sorted(BLAST_RADIUS_MULTIPLIERS.items(), reverse=True):
+        if blast_radius >= threshold:
+            return multiplier
+    return 1.0
+
+
+def _get_recurrence_multiplier(recurrence_count: int) -> float:
+    """Get the multiplier for a given recurrence count."""
+    for threshold, multiplier in sorted(RECURRENCE_MULTIPLIERS.items(), reverse=True):
+        if recurrence_count >= threshold:
+            return multiplier
+    return 1.0
+
+
+def calculate_enhanced_risk_score(
+    finding: dict,
+    asset_criticality: str = "medium",
+    blast_radius: int = 1,
+    recurrence_count: int = 1,
+) -> tuple[float, str, dict]:
+    """
+    Calculate enhanced risk score with additional context factors.
+
+    This function EXTENDS the base calculate_risk_score() by adding:
+    - Asset criticality weighting
+    - Blast radius (downstream impact) consideration
+    - Recurrence penalty for repeat findings
+
+    Args:
+        finding: The finding dictionary
+        asset_criticality: Asset importance level (critical, high, medium, low)
+        blast_radius: Number of downstream resources affected
+        recurrence_count: Number of times this finding has been seen
+
+    Returns:
+        Tuple of (enhanced_risk_score 0-100, adjusted_severity, enhanced_scoring_details)
+    """
+    # Get base score using existing function (no changes to existing behavior)
+    base_score, base_severity, base_details = calculate_risk_score(finding)
+
+    # Apply enhancement multipliers
+    criticality_mult = ASSET_CRITICALITY_MULTIPLIERS.get(asset_criticality.lower(), 1.0)
+    blast_mult = _get_blast_radius_multiplier(blast_radius)
+    recurrence_mult = _get_recurrence_multiplier(recurrence_count)
+
+    # Calculate combined multiplier (capped to prevent excessive inflation)
+    combined_multiplier = min(criticality_mult * blast_mult * recurrence_mult, 1.5)
+
+    # Apply multiplier to base score
+    enhanced_score = base_score * combined_multiplier
+
+    # Cap at 100
+    enhanced_score = min(enhanced_score, 100.0)
+
+    # Determine adjusted severity based on enhanced score
+    if enhanced_score >= 90:
+        enhanced_severity = "critical"
+    elif enhanced_score >= 70:
+        enhanced_severity = "high"
+    elif enhanced_score >= 40:
+        enhanced_severity = "medium"
+    elif enhanced_score >= 20:
+        enhanced_severity = "low"
+    else:
+        enhanced_severity = "info"
+
+    # Build enhanced scoring details
+    enhanced_details = {
+        **base_details,  # Include all base details
+        "enhanced_scoring": {
+            "base_risk_score": base_score,
+            "asset_criticality": asset_criticality.lower(),
+            "criticality_multiplier": criticality_mult,
+            "blast_radius": blast_radius,
+            "blast_radius_multiplier": blast_mult,
+            "recurrence_count": recurrence_count,
+            "recurrence_multiplier": recurrence_mult,
+            "combined_multiplier": round(combined_multiplier, 3),
+            "enhanced_risk_score": round(enhanced_score, 1),
+            "severity_changed": enhanced_severity != base_severity,
+            "original_severity": base_severity,
+            "enhanced_severity": enhanced_severity,
+        },
+    }
+
+    return round(enhanced_score, 1), enhanced_severity, enhanced_details
+
+
 if __name__ == "__main__":
     # Test the scoring system
     test_findings = [

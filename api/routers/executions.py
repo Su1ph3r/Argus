@@ -760,3 +760,102 @@ async def start_tool_execution(
             message="Failed to start execution",
             error=str(e),
         )
+
+
+# =============================================================================
+# Tool Health Summary Endpoint (Phase 1 Feature)
+# =============================================================================
+
+
+@router.get("/health/summary")
+async def get_tool_health_summary(
+    db: Session = Depends(get_db),
+    days: int = Query(30, ge=1, le=365, description="Days to look back"),
+):
+    """
+    Get tool execution health summary.
+
+    Returns success rates and execution counts for each tool over the
+    specified time period. Useful for dashboard health monitoring.
+
+    Args:
+        days: Number of days to look back (default: 30)
+
+    Returns:
+        dict: Tool health summary with success rates
+    """
+    from datetime import datetime, timedelta
+
+    from sqlalchemy import case, func
+
+    # Calculate date range
+    end_date = datetime.utcnow()
+    start_date = end_date - timedelta(days=days)
+
+    # Query tool execution stats grouped by tool
+    results = (
+        db.query(
+            ToolExecution.tool_name,
+            func.count(ToolExecution.id).label("total"),
+            func.sum(case((ToolExecution.status == "completed", 1), else_=0)).label(
+                "completed"
+            ),
+            func.sum(case((ToolExecution.status == "failed", 1), else_=0)).label(
+                "failed"
+            ),
+            func.sum(case((ToolExecution.status == "running", 1), else_=0)).label(
+                "running"
+            ),
+            func.avg(
+                case(
+                    (
+                        ToolExecution.completed_at.isnot(None),
+                        func.extract(
+                            "epoch",
+                            ToolExecution.completed_at - ToolExecution.started_at,
+                        ),
+                    ),
+                    else_=None,
+                )
+            ).label("avg_duration_seconds"),
+        )
+        .filter(ToolExecution.created_at >= start_date)
+        .group_by(ToolExecution.tool_name)
+        .all()
+    )
+
+    # Build response
+    tools = {}
+    for row in results:
+        total = row.total or 0
+        completed = row.completed or 0
+        failed = row.failed or 0
+        running = row.running or 0
+
+        success_rate = (completed / total * 100) if total > 0 else 0
+
+        tools[row.tool_name] = {
+            "tool_name": row.tool_name,
+            "total_executions": total,
+            "completed": completed,
+            "failed": failed,
+            "running": running,
+            "success_rate": round(success_rate, 1),
+            "avg_duration_seconds": (
+                round(row.avg_duration_seconds, 1) if row.avg_duration_seconds else None
+            ),
+        }
+
+    # Calculate overall health
+    total_all = sum(t["total_executions"] for t in tools.values())
+    completed_all = sum(t["completed"] for t in tools.values())
+    overall_success_rate = (completed_all / total_all * 100) if total_all > 0 else 100
+
+    return {
+        "period_days": days,
+        "start_date": start_date.isoformat(),
+        "end_date": end_date.isoformat(),
+        "overall_success_rate": round(overall_success_rate, 1),
+        "total_executions": total_all,
+        "tools": tools,
+    }

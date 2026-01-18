@@ -54,7 +54,9 @@ from routers.azure_profiles import router as azure_profiles_router
 from routers.database import router as database_router
 from routers.health import set_startup_time
 from routers.iac import router as iac_router
+from routers.schedules import router as schedules_router
 from services.orphan_recovery import run_orphan_recovery
+from services.scheduler_service import start_scheduler, stop_scheduler
 
 
 # ============================================================================
@@ -273,12 +275,27 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     except Exception as e:
         logger.warning(f"Orphan recovery failed (non-fatal): {e}")
 
+    # Start the scan scheduler (Phase 1 Feature)
+    try:
+        await start_scheduler()
+        logger.info("Scan scheduler started")
+    except Exception as e:
+        logger.warning(f"Scheduler startup failed (non-fatal): {e}")
+        # NON-FATAL: API continues to work even if scheduler fails
+
     logger.info("Nubicustos API started successfully")
 
     yield
 
     # Shutdown
     logger.info("Shutting down Nubicustos API")
+
+    # Stop the scan scheduler (Phase 1 Feature)
+    try:
+        await stop_scheduler()
+        logger.info("Scan scheduler stopped")
+    except Exception as e:
+        logger.warning(f"Scheduler shutdown error (non-fatal): {e}")
 
     # Wait for in-flight requests to complete
     shutdown_start = time.time()
@@ -503,6 +520,7 @@ app.include_router(aws_profiles_router, prefix="/api")
 app.include_router(azure_profiles_router, prefix="/api")
 app.include_router(compliance_router, prefix="/api")
 app.include_router(iac_router, prefix="/api")
+app.include_router(schedules_router, prefix="/api")
 
 
 # Root endpoint
@@ -547,6 +565,7 @@ async def api_root():
             "credentials": "/api/credentials",
             "settings": "/api/settings",
             "iac": "/api/iac",
+            "schedules": "/api/schedules",
         },
     }
 

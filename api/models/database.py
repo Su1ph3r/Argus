@@ -127,6 +127,14 @@ class Finding(Base):
     canonical_id = Column(String(256))
     tool_sources = Column(JSONB, default=[])
     affected_resources = Column(JSONB, default=[])
+    # Enhanced scoring fields (Phase 1)
+    asset_criticality = Column(String(16), default="medium")
+    blast_radius = Column(Integer, default=1)
+    recurrence_count = Column(Integer, default=1)
+    scoring_factors = Column(JSONB, default={})
+    # Threat intelligence fields (Phase 1)
+    threat_intel_enrichment = Column(JSONB, default=None)
+    threat_intel_last_checked = Column(DateTime)
 
     scan = relationship("Scan", back_populates="findings")
 
@@ -505,6 +513,36 @@ class UserSetting(Base):
     description = Column(Text)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class ScanSchedule(Base):
+    """Scan schedule model for scheduled/recurring scans."""
+
+    __tablename__ = "scan_schedules"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    schedule_id = Column(UUID(as_uuid=True), unique=True, default=uuid.uuid4)
+    name = Column(String(128), nullable=False)
+    description = Column(Text)
+    profile = Column(String(64), nullable=False)
+    provider = Column(String(32))
+    aws_profile = Column(String(64))
+    azure_credentials = Column(JSONB)
+    schedule_type = Column(String(32), nullable=False, default="cron")
+    cron_expression = Column(String(128))
+    interval_minutes = Column(Integer)
+    next_run_at = Column(DateTime)
+    last_run_at = Column(DateTime)
+    last_run_status = Column(String(32))
+    last_scan_id = Column(UUID(as_uuid=True), ForeignKey("scans.scan_id", ondelete="SET NULL"))
+    is_enabled = Column(Boolean, default=True)
+    run_count = Column(Integer, default=0)
+    error_count = Column(Integer, default=0)
+    last_error = Column(Text)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    last_scan = relationship("Scan", foreign_keys=[last_scan_id])
 
 
 class CredentialStatusCache(Base):
