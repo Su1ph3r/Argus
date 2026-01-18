@@ -1,12 +1,15 @@
 # Nubicustos
 
-> Cloud Security Guardian - Automated multi-cloud security auditing platform
+> **Cloud Security Guardian** - Orchestrate 20+ security tools with one command. Unified findings, attack paths, and compliance across AWS, Azure, GCP, and Kubernetes.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
+[![Python 3.11+](https://img.shields.io/badge/Python-3.11+-3776AB?logo=python&logoColor=white)](https://python.org)
 [![Docker](https://img.shields.io/badge/Docker-Required-2496ED?logo=docker&logoColor=white)](https://docker.com)
 [![Version](https://img.shields.io/badge/Version-1.0.2-green.svg)](CHANGELOG.md)
+[![GitHub stars](https://img.shields.io/github/stars/Su1ph3r/Nubicustos?style=social)](https://github.com/Su1ph3r/Nubicustos/stargazers)
+[![GitHub last commit](https://img.shields.io/github/last-commit/Su1ph3r/Nubicustos)](https://github.com/Su1ph3r/Nubicustos/commits/main)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](CONTRIBUTING.md)
-[![Cloud Support](https://img.shields.io/badge/Cloud-AWS%20%7C%20Azure%20%7C%20GCP%20%7C%20OCI-orange.svg)](#multi-cloud-support)
+[![Cloud Support](https://img.shields.io/badge/Cloud-AWS%20%7C%20Azure%20%7C%20GCP%20%7C%20K8s-orange.svg)](#multi-cloud-support)
 
 *Named from Latin: nubes (cloud) + custos (guardian)*
 
