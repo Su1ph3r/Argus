@@ -227,16 +227,54 @@ async def verify_profile(profile_name: str):
 def _write_credentials_file(config: configparser.ConfigParser) -> None:
     """Write AWS credentials file."""
     # Ensure directory exists
-    os.makedirs(os.path.dirname(AWS_CREDENTIALS_PATH), exist_ok=True)
-    with open(AWS_CREDENTIALS_PATH, "w") as f:
-        config.write(f)
+    try:
+        os.makedirs(os.path.dirname(AWS_CREDENTIALS_PATH), exist_ok=True)
+    except PermissionError:
+        raise HTTPException(
+            status_code=500,
+            detail=(
+                f"Permission denied creating directory {os.path.dirname(AWS_CREDENTIALS_PATH)}. "
+                "On Linux, run: sudo chown -R 1000:1000 ./credentials/aws"
+            )
+        )
+
+    try:
+        with open(AWS_CREDENTIALS_PATH, "w") as f:
+            config.write(f)
+    except PermissionError:
+        raise HTTPException(
+            status_code=500,
+            detail=(
+                f"Permission denied writing to {AWS_CREDENTIALS_PATH}. "
+                "On Linux, run: sudo chown -R 1000:1000 ./credentials/aws"
+            )
+        )
 
 
 def _write_config_file(config: configparser.ConfigParser) -> None:
     """Write AWS config file."""
-    os.makedirs(os.path.dirname(AWS_CONFIG_PATH), exist_ok=True)
-    with open(AWS_CONFIG_PATH, "w") as f:
-        config.write(f)
+    try:
+        os.makedirs(os.path.dirname(AWS_CONFIG_PATH), exist_ok=True)
+    except PermissionError:
+        raise HTTPException(
+            status_code=500,
+            detail=(
+                f"Permission denied creating directory {os.path.dirname(AWS_CONFIG_PATH)}. "
+                "On Linux, run: sudo chown -R 1000:1000 ./credentials/aws"
+            )
+        )
+
+    try:
+        with open(AWS_CONFIG_PATH, "w") as f:
+            config.write(f)
+    except PermissionError:
+        raise HTTPException(
+            status_code=500,
+            detail=(
+                f"Permission denied writing to {AWS_CONFIG_PATH}. "
+                "On Linux, run: sudo chown -R 1000:1000 ./credentials/aws"
+            )
+        )
 
 
 @router.post("")

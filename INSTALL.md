@@ -165,6 +165,22 @@ chmod +x scripts/*.sh
 chmod 600 credentials/aws/credentials
 ```
 
+### Linux: Cannot Save Credentials as Profiles
+
+On Linux (including Kali, Ubuntu, Debian), the API container runs as user ID 1000. If your host directories have different ownership, saving verified credentials as profiles will fail with a permission error.
+
+**Quick fix:**
+```bash
+sudo chown -R 1000:1000 ./credentials
+```
+
+**Or run the setup script:**
+```bash
+sudo ./scripts/setup-linux-permissions.sh
+```
+
+This is not required on Docker Desktop for Mac/Windows as they handle UID mapping automatically.
+
 ### Container Won't Start
 ```bash
 # View logs

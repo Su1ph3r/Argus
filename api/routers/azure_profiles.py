@@ -68,9 +68,28 @@ def _read_profiles_file() -> dict:
 
 def _write_profiles_file(data: dict) -> None:
     """Write Azure profiles to JSON file."""
-    os.makedirs(os.path.dirname(AZURE_PROFILES_PATH), exist_ok=True)
-    with open(AZURE_PROFILES_PATH, "w") as f:
-        json.dump(data, f, indent=2, default=str)
+    try:
+        os.makedirs(os.path.dirname(AZURE_PROFILES_PATH), exist_ok=True)
+    except PermissionError:
+        raise HTTPException(
+            status_code=500,
+            detail=(
+                f"Permission denied creating directory {os.path.dirname(AZURE_PROFILES_PATH)}. "
+                "On Linux, run: sudo chown -R 1000:1000 ./credentials/azure"
+            )
+        )
+
+    try:
+        with open(AZURE_PROFILES_PATH, "w") as f:
+            json.dump(data, f, indent=2, default=str)
+    except PermissionError:
+        raise HTTPException(
+            status_code=500,
+            detail=(
+                f"Permission denied writing to {AZURE_PROFILES_PATH}. "
+                "On Linux, run: sudo chown -R 1000:1000 ./credentials/azure"
+            )
+        )
 
 
 def _verify_azure_credentials(tenant_id: str, client_id: str, client_secret: str):
