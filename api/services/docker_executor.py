@@ -777,7 +777,11 @@ class DockerExecutor:
                     "Ensure docker-compose is run from the project directory, "
                     "or set HOST_PROJECT_PATH explicitly in your .env file."
                 )
-            if not host_base.startswith("/"):
+            # Check for absolute path (Unix starts with /, Windows with drive letter like C:\)
+            is_absolute = host_base.startswith("/") or (
+                len(host_base) >= 3 and host_base[1] == ":" and host_base[2] in "/\\"
+            )
+            if not is_absolute:
                 raise RuntimeError(
                     f"HOST_PROJECT_PATH must be an absolute path, got: {host_base}"
                 )

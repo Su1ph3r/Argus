@@ -1100,7 +1100,7 @@ async def bulk_archive_scans(
         logger.error(f"Archive creation failed: {e}")
         raise HTTPException(status_code=500, detail="Failed to create archive")
 
-    archive_name = archive_path.split("/")[-1]
+    archive_name = os.path.basename(archive_path)
 
     # Delete scans from database FIRST (before file deletion)
     # This ensures we can rollback if DB fails, before files are deleted
