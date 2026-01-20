@@ -176,11 +176,30 @@ async def run_enumerate_iam(request: EnumerateIamRunRequest, db: Session = Depen
 
     Use GET /api/executions/{execution_id} to check status.
     """
+    import re
+
     # Validate that we have credentials
     if not request.access_key or not request.secret_key:
         raise HTTPException(
             status_code=400, detail="access_key and secret_key are required for enumerate-iam"
         )
+
+    # Validate credential format to prevent command injection
+    # AWS access keys: alphanumeric, 16-128 chars
+    # AWS secret keys: alphanumeric + /+=, 40 chars typically
+    aws_key_pattern = re.compile(r"^[A-Za-z0-9]{16,128}$")
+    aws_secret_pattern = re.compile(r"^[A-Za-z0-9/+=]{40,}$")
+    aws_token_pattern = re.compile(r"^[A-Za-z0-9/+=]{100,}$")
+    aws_region_pattern = re.compile(r"^[a-z]{2}-[a-z]+-\d$")
+
+    if not aws_key_pattern.match(request.access_key):
+        raise HTTPException(status_code=400, detail="Invalid AWS access key format")
+    if not aws_secret_pattern.match(request.secret_key):
+        raise HTTPException(status_code=400, detail="Invalid AWS secret key format")
+    if request.session_token and not aws_token_pattern.match(request.session_token):
+        raise HTTPException(status_code=400, detail="Invalid AWS session token format")
+    if request.region and not aws_region_pattern.match(request.region):
+        raise HTTPException(status_code=400, detail="Invalid AWS region format")
 
     # Build config for tracking
     config = {
@@ -188,16 +207,20 @@ async def run_enumerate_iam(request: EnumerateIamRunRequest, db: Session = Depen
         "has_credentials": True,
     }
 
-    # Build enumerate-iam CLI arguments
-    enum_args = f"--access-key {request.access_key} --secret-key {request.secret_key}"
+    # Pass credentials via environment variables instead of command line arguments
+    # This prevents command injection and avoids exposing secrets in process lists
+    environment = {
+        "AWS_ACCESS_KEY_ID": request.access_key,
+        "AWS_SECRET_ACCESS_KEY": request.secret_key,
+    }
     if request.session_token:
-        enum_args += f" --session-token {request.session_token}"
+        environment["AWS_SESSION_TOKEN"] = request.session_token
     if request.region:
-        enum_args += f" --region {request.region}"
+        environment["AWS_DEFAULT_REGION"] = request.region
 
-    # Build command - clone enumerate-iam and run it with credentials as arguments
-    shell_script = f"""
-apt-get update -qq && apt-get install -y -qq git > /dev/null && pip install -q boto3 botocore && git clone --quiet https://github.com/andresriancho/enumerate-iam.git /enumerate-iam 2>/dev/null && python /enumerate-iam/enumerate-iam.py {enum_args}
+    # Build command - clone enumerate-iam and run it (credentials from env vars)
+    shell_script = """
+apt-get update -qq && apt-get install -y -qq git > /dev/null && pip install -q boto3 botocore && git clone --quiet https://github.com/andresriancho/enumerate-iam.git /enumerate-iam 2>/dev/null && python /enumerate-iam/enumerate-iam.py
 """
     command = ["-c", shell_script.strip()]
 
@@ -207,7 +230,7 @@ apt-get update -qq && apt-get install -y -qq git > /dev/null && pip install -q b
         tool_type=ToolType.ENUMERATE_IAM,
         config=config,
         command=command,
-        environment=None,
+        environment=environment,
         entrypoint="/bin/sh",
         db=db,
     )

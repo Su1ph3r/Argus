@@ -135,11 +135,15 @@ def check_database_tables(db: Session) -> ServiceStatus:
     """Check if required database tables exist and are accessible."""
     start_time = time.time()
     try:
-        # Check core tables
+        # Check core tables - whitelist validated to prevent SQL injection
         tables_to_check = ["scans", "findings", "assets"]
+        allowed_tables = frozenset(["scans", "findings", "assets"])
         table_counts = {}
 
         for table in tables_to_check:
+            # Validate table name against whitelist
+            if table not in allowed_tables:
+                continue
             result = db.execute(text(f"SELECT COUNT(*) FROM {table}"))
             table_counts[table] = result.scalar()
 

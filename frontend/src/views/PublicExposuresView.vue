@@ -172,8 +172,9 @@ function clearFilters() {
   store.clearFilters()
 }
 
-function viewExposure(exposure) {
-  console.log('View exposure:', exposure)
+function viewExposure(_exposure) {
+  // TODO: Navigate to exposure detail view or show modal
+  // For now, this is a placeholder for future implementation
 }
 
 function onPageChange(event) {

@@ -137,13 +137,23 @@ function getExploitSeverity(level) {
   return map[level] || 'secondary'
 }
 
-function viewPath(path) {
-  console.log('View path:', path)
+function viewPath(_path) {
+  // TODO: Navigate to path detail view or show modal
+  // For now, this is a placeholder for future implementation
 }
 
 async function exportPath(id) {
   const result = await store.exportPath(id, 'markdown')
-  console.log('Export:', result)
+  // Download the exported content
+  if (result?.content) {
+    const blob = new Blob([result.content], { type: 'text/markdown' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `privesc-path-${id}.md`
+    a.click()
+    URL.revokeObjectURL(url)
+  }
 }
 
 function onPageChange(event) {
