@@ -227,13 +227,23 @@ function toggleSecrets() {
 }
 
 async function viewAnalysis(id) {
-  const analysis = await store.fetchAnalysis(id)
-  console.log('Analysis:', analysis)
+  // TODO: Navigate to analysis detail view or show modal
+  // For now, fetch is available via store.fetchAnalysis(id)
+  await store.fetchAnalysis(id)
 }
 
 async function exportAnalysis(id) {
   const result = await store.exportAnalysis(id, 'markdown')
-  console.log('Export:', result.content)
+  // Download the exported content
+  if (result?.content) {
+    const blob = new Blob([result.content], { type: 'text/markdown' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `lambda-analysis-${id}.md`
+    a.click()
+    URL.revokeObjectURL(url)
+  }
 }
 
 async function runAnalysis() {

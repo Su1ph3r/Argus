@@ -181,7 +181,10 @@ async function analyzeRoles() {
 
 async function getCypher(id) {
   const result = await store.getNeo4jQuery(id)
-  console.log('Cypher Query:', result.cypher_query)
+  // TODO: Display cypher query in a modal or copy to clipboard
+  if (result?.cypher_query) {
+    navigator.clipboard?.writeText(result.cypher_query)
+  }
 }
 
 function onPageChange(event) {

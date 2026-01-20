@@ -301,8 +301,8 @@ async def execute_scheduled_scan(schedule_id: str) -> None:
                 schedule.last_error = str(e)[:500] if str(e) else "Unknown error"
                 schedule.error_count += 1
                 error_db.commit()
-        except Exception:
-            pass
+        except Exception as inner_e:
+            logger.error(f"Failed to update error status for schedule {schedule_id}: {inner_e}")
         finally:
             if error_db:
                 error_db.close()

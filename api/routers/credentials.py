@@ -199,11 +199,15 @@ def verify_aws_credentials(creds: AWSCredentials) -> VerificationResult:
                     output_lines.append(f"  [DENY] {permission}")
                 else:
                     # Other errors (region not available, service not enabled, etc.)
+                    # Log the specific error for debugging but don't count as available
+                    logger.debug(f"Permission check {permission} returned non-access error: {error_code}")
                     result.permissions_available.append(permission)
                     output_lines.append(f"  [OK]   {permission} (service responded)")
-            except Exception:
-                result.permissions_available.append(permission)
-                output_lines.append(f"  [OK]   {permission} (service available)")
+            except Exception as e:
+                # Log unexpected exceptions - don't silently assume permission is available
+                logger.warning(f"Unexpected error checking {permission}: {e}")
+                # Mark as unknown rather than available to be conservative
+                output_lines.append(f"  [?]    {permission} (check failed: {type(e).__name__})")
 
         output_lines.append("")
         output_lines.append("SUMMARY:")
@@ -665,11 +669,13 @@ def check_aws_tool_permissions(
                 if error_code in ["AccessDenied", "UnauthorizedOperation", "AccessDeniedException"]:
                     result.permissions_missing.append(action)
                 else:
+                    # Non-access errors still indicate the service is reachable
                     result.permissions_ok.append(action)
                     passed += 1
-            except Exception:
-                result.permissions_ok.append(action)
-                passed += 1
+            except Exception as e:
+                # Log unexpected errors - don't silently count as passed
+                logger.warning(f"Unexpected error checking tool permission {action}: {e}")
+                # Don't count this as passed or failed - skip it
             checked += 1
 
     if checked == 0 or passed == checked:
@@ -907,6 +913,7 @@ async def verify_credentials_enhanced(
 
         db.commit()
     except Exception as e:
+        db.rollback()
         logger.warning(f"Failed to cache credential status: {e}")
 
     return result

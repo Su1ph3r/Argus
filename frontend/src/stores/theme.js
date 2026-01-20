@@ -6,6 +6,10 @@ export const useThemeStore = defineStore('theme', () => {
   const theme = ref('system') // 'light' | 'dark' | 'system'
   const systemPrefersDark = ref(false)
 
+  // Store reference to media query and handler for cleanup
+  let mediaQuery = null
+  let mediaQueryHandler = null
+
   // Computed
   const resolvedTheme = computed(() => {
     if (theme.value === 'system') {
@@ -37,15 +41,32 @@ export const useThemeStore = defineStore('theme', () => {
   }
 
   function detectSystem() {
-    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)')
+    // Clean up previous listener if exists
+    if (mediaQuery && mediaQueryHandler) {
+      mediaQuery.removeEventListener('change', mediaQueryHandler)
+    }
+
+    mediaQuery = window.matchMedia('(prefers-color-scheme: dark)')
     systemPrefersDark.value = mediaQuery.matches
 
-    mediaQuery.addEventListener('change', (e) => {
+    // Store handler reference for cleanup
+    mediaQueryHandler = (e) => {
       systemPrefersDark.value = e.matches
       if (theme.value === 'system') {
         applyTheme()
       }
-    })
+    }
+
+    mediaQuery.addEventListener('change', mediaQueryHandler)
+  }
+
+  function cleanup() {
+    // Remove event listener to prevent memory leaks
+    if (mediaQuery && mediaQueryHandler) {
+      mediaQuery.removeEventListener('change', mediaQueryHandler)
+      mediaQuery = null
+      mediaQueryHandler = null
+    }
   }
 
   function init() {
@@ -74,5 +95,6 @@ export const useThemeStore = defineStore('theme', () => {
     setTheme,
     toggle,
     init,
+    cleanup,
   }
 })
