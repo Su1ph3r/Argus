@@ -208,6 +208,31 @@ docker compose down && docker compose up -d
 
 This is not required on Docker Desktop for Mac/Windows.
 
+### Windows: Setup and Configuration
+
+On Windows, use the PowerShell setup script to configure paths and create directories:
+
+```powershell
+# Run in PowerShell (as Administrator recommended)
+.\scripts\setup-windows.ps1
+```
+
+This script:
+- Creates all required directories
+- Configures `HOST_PROJECT_PATH` and `HOST_REPORTS_PATH` in `.env`
+- Converts Windows paths to Docker-compatible format
+
+**Manual setup:**
+```powershell
+# Set environment variables in .env (use forward slashes!)
+HOST_PROJECT_PATH=C:/Users/YourName/Nubicustos
+HOST_REPORTS_PATH=C:/Users/YourName/Nubicustos/reports
+```
+
+**Requirements:**
+- Docker Desktop with WSL 2 backend enabled
+- Project directory must be on a drive shared with Docker
+
 ### Container Won't Start
 ```bash
 # View logs
