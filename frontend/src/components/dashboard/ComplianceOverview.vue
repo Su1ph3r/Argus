@@ -2,27 +2,42 @@
   <div class="compliance-container">
     <div class="compliance-header">
       <h3>Compliance Overview</h3>
-      <router-link to="/compliance" class="view-all">
+      <router-link
+        to="/compliance"
+        class="view-all"
+      >
         View All <i class="pi pi-arrow-right" />
       </router-link>
     </div>
 
-    <div v-if="loading" class="loading-state">
+    <div
+      v-if="loading"
+      class="loading-state"
+    >
       <i class="pi pi-spin pi-spinner" />
       <span>Loading compliance data...</span>
     </div>
 
-    <div v-else-if="error" class="error-state">
+    <div
+      v-else-if="error"
+      class="error-state"
+    >
       <i class="pi pi-exclamation-circle" />
       <span>{{ error }}</span>
     </div>
 
-    <div v-else-if="frameworks.length === 0" class="empty-state">
+    <div
+      v-else-if="frameworks.length === 0"
+      class="empty-state"
+    >
       <i class="pi pi-check-circle" />
       <span>No compliance data available</span>
     </div>
 
-    <div v-else class="frameworks-grid">
+    <div
+      v-else
+      class="frameworks-grid"
+    >
       <div
         v-for="framework in topFrameworks"
         :key="framework.framework"
@@ -62,7 +77,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { apiClient } from '../../services/api'
+import { api } from '../../services/api'
 
 const router = useRouter()
 const loading = ref(true)
@@ -78,8 +93,8 @@ const fetchCompliance = async () => {
   error.value = null
 
   try {
-    const response = await apiClient.get('/compliance/summary')
-    frameworks.value = response.data.frameworks || []
+    const response = await api.getComplianceSummary()
+    frameworks.value = response.frameworks || []
   } catch (err) {
     error.value = 'Failed to load compliance data'
     console.error('Error fetching compliance:', err)

@@ -3,29 +3,50 @@
     <div class="trend-header">
       <h3>Finding Trend ({{ days }} days)</h3>
       <div class="trend-controls">
-        <select v-model="days" @change="fetchTrend" class="days-select">
-          <option :value="7">7 days</option>
-          <option :value="14">14 days</option>
-          <option :value="30">30 days</option>
-          <option :value="90">90 days</option>
+        <select
+          v-model="days"
+          class="days-select"
+          @change="fetchTrend"
+        >
+          <option :value="7">
+            7 days
+          </option>
+          <option :value="14">
+            14 days
+          </option>
+          <option :value="30">
+            30 days
+          </option>
+          <option :value="90">
+            90 days
+          </option>
         </select>
       </div>
     </div>
 
-    <div v-if="loading" class="loading-state">
+    <div
+      v-if="loading"
+      class="loading-state"
+    >
       <i class="pi pi-spin pi-spinner" />
       <span>Loading trend data...</span>
     </div>
 
-    <div v-else-if="error" class="error-state">
+    <div
+      v-else-if="error"
+      class="error-state"
+    >
       <i class="pi pi-exclamation-circle" />
       <span>{{ error }}</span>
     </div>
 
-    <div v-else class="trend-chart">
+    <div
+      v-else
+      class="trend-chart"
+    >
       <div class="chart-area">
         <div
-          v-for="(point, index) in trendData"
+          v-for="point in trendData"
           :key="point.date"
           class="chart-bar-group"
         >
@@ -55,7 +76,9 @@
               :title="`Low: ${point.low}`"
             />
           </div>
-          <div class="bar-label">{{ formatDate(point.date) }}</div>
+          <div class="bar-label">
+            {{ formatDate(point.date) }}
+          </div>
         </div>
       </div>
 
@@ -79,7 +102,10 @@
       </div>
     </div>
 
-    <div v-if="!loading && !error && trendData.length === 0" class="empty-state">
+    <div
+      v-if="!loading && !error && trendData.length === 0"
+      class="empty-state"
+    >
       <i class="pi pi-chart-line" />
       <span>No trend data available for the selected period</span>
     </div>
@@ -88,7 +114,7 @@
 
 <script setup>
 import { ref, onMounted } from 'vue'
-import { apiClient } from '../../services/api'
+import { api } from '../../services/api'
 
 const days = ref(30)
 const loading = ref(true)
@@ -101,13 +127,13 @@ const fetchTrend = async () => {
   error.value = null
 
   try {
-    const response = await apiClient.get(`/findings/trend?days=${days.value}`)
-    trendData.value = response.data.trend || []
+    const response = await api.getTrend(days.value)
+    trendData.value = response.trend || []
 
     // Calculate max value for scaling
     maxValue.value = Math.max(
       10,
-      ...trendData.value.map(d => d.total || 0)
+      ...trendData.value.map(d => d.total || 0),
     )
   } catch (err) {
     error.value = 'Failed to load trend data'

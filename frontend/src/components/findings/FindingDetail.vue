@@ -238,12 +238,6 @@ const toggleResourcePoc = (index) => {
   }
 }
 
-const hasPocEvidence = computed(() => {
-  return props.finding.poc_evidence ||
-         props.finding.poc_verification ||
-         props.finding.poc_screenshot_path
-})
-
 // PoC evidence without verification command (shown separately)
 const hasPocEvidenceOnly = computed(() => {
   return props.finding.poc_evidence ||

@@ -1,0 +1,62 @@
+#!/bin/bash
+# Pre-commit hook: Validates frontend and API code before commits
+#
+# Install: git config core.hooksPath .githooks
+# Or copy to: .git/hooks/pre-commit
+
+set -e
+
+# Colors for output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+NC='\033[0m' # No Color
+
+echo -e "${YELLOW}Running pre-commit checks...${NC}"
+
+# Check if frontend files are staged
+FRONTEND_CHANGED=$(git diff --cached --name-only -- 'frontend/' | grep -E '\.(vue|js|ts|jsx|tsx)$' || true)
+
+if [ -n "$FRONTEND_CHANGED" ]; then
+    echo -e "${YELLOW}Frontend changes detected. Running validation...${NC}"
+
+    # Run ESLint
+    echo "  → Running ESLint..."
+    cd frontend
+    if ! npm run lint --silent 2>/dev/null; then
+        echo -e "${RED}ESLint found issues. Please fix them before committing.${NC}"
+        exit 1
+    fi
+
+    # Run build to catch import errors (the main issue we're preventing)
+    echo "  → Running build check..."
+    if ! npm run build --silent 2>&1 | tail -5; then
+        echo -e "${RED}Frontend build failed! Check for import errors or syntax issues.${NC}"
+        exit 1
+    fi
+
+    cd ..
+    echo -e "${GREEN}Frontend validation passed.${NC}"
+fi
+
+# Check if API files are staged
+API_CHANGED=$(git diff --cached --name-only -- 'api/' | grep -E '\.py$' || true)
+
+if [ -n "$API_CHANGED" ]; then
+    echo -e "${YELLOW}API changes detected. Running validation...${NC}"
+
+    # Run Python syntax check
+    echo "  → Checking Python syntax..."
+    for file in $API_CHANGED; do
+        if [ -f "$file" ]; then
+            python3 -m py_compile "$file" 2>/dev/null || {
+                echo -e "${RED}Syntax error in $file${NC}"
+                exit 1
+            }
+        fi
+    done
+
+    echo -e "${GREEN}API validation passed.${NC}"
+fi
+
+echo -e "${GREEN}All pre-commit checks passed!${NC}"
