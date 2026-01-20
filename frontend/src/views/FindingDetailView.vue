@@ -76,7 +76,6 @@ import { computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { useFindingsStore } from '../stores/findings'
 import FindingDetail from '../components/findings/FindingDetail.vue'
-import VerificationCommand from '../components/findings/VerificationCommand.vue'
 
 const route = useRoute()
 const findingsStore = useFindingsStore()

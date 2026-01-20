@@ -10,22 +10,34 @@
       </div>
     </div>
 
-    <div v-if="loading" class="loading-state">
+    <div
+      v-if="loading"
+      class="loading-state"
+    >
       <i class="pi pi-spin pi-spinner" />
       <span>Loading health data...</span>
     </div>
 
-    <div v-else-if="error" class="error-state">
+    <div
+      v-else-if="error"
+      class="error-state"
+    >
       <i class="pi pi-exclamation-circle" />
       <span>{{ error }}</span>
     </div>
 
-    <div v-else-if="Object.keys(tools).length === 0" class="empty-state">
+    <div
+      v-else-if="Object.keys(tools).length === 0"
+      class="empty-state"
+    >
       <i class="pi pi-cog" />
       <span>No tool executions in the last {{ periodDays }} days</span>
     </div>
 
-    <div v-else class="tools-grid">
+    <div
+      v-else
+      class="tools-grid"
+    >
       <div
         v-for="(tool, name) in tools"
         :key="name"
@@ -51,7 +63,10 @@
             <span class="stat-label">Failed</span>
           </div>
         </div>
-        <div v-if="tool.avg_duration_seconds" class="tool-duration">
+        <div
+          v-if="tool.avg_duration_seconds"
+          class="tool-duration"
+        >
           Avg: {{ formatDuration(tool.avg_duration_seconds) }}
         </div>
       </div>
@@ -65,7 +80,7 @@
 
 <script setup>
 import { ref, onMounted } from 'vue'
-import { apiClient } from '../../services/api'
+import { api } from '../../services/api'
 
 const loading = ref(true)
 const error = ref(null)
@@ -78,10 +93,10 @@ const fetchHealth = async () => {
   error.value = null
 
   try {
-    const response = await apiClient.get(`/executions/health/summary?days=${periodDays.value}`)
-    tools.value = response.data.tools || {}
-    overallSuccessRate.value = response.data.overall_success_rate
-    periodDays.value = response.data.period_days
+    const response = await api.getExecutionsHealthSummary(periodDays.value)
+    tools.value = response.tools || {}
+    overallSuccessRate.value = response.overall_success_rate
+    periodDays.value = response.period_days
   } catch (err) {
     error.value = 'Failed to load health data'
     console.error('Error fetching health:', err)

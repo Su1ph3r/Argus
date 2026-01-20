@@ -70,6 +70,10 @@ export const api = {
     return request('/findings/summary')
   },
 
+  async getTrend(days = 30) {
+    return request(`/findings/trend?days=${days}`)
+  },
+
   async updateFinding(id, data) {
     return request(`/findings/${id}`, {
       method: 'PATCH',
@@ -110,6 +114,11 @@ export const api = {
     return `${API_BASE}/exports/${format}${query ? `?${query}` : ''}`
   },
 
+  // Executions
+  async getExecutionsHealthSummary(days = 30) {
+    return request(`/executions/health/summary?days=${days}`)
+  },
+
   // Health
   async getHealth() {
     return request('/health')
@@ -146,7 +155,7 @@ export const api = {
     return request('/iac/profiles')
   },
 
-  async uploadIaCFiles(files, onProgress = null) {
+  async uploadIaCFiles(files) {
     const formData = new FormData()
     for (const file of files) {
       formData.append('files', file)
