@@ -32,34 +32,6 @@ Nubicustos doesn't just run tools - it transforms raw scanner output into **acti
 
 ---
 
-## Screenshots
-
-### Security Dashboard
-![Dashboard](screenshots/dashboard.png)
-*Unified security posture view with findings by severity, tool, and cloud provider*
-
-### Findings Explorer
-![Findings](screenshots/findings.png)
-*Searchable findings from all tools with severity filtering and CSV export*
-
-### Compliance Dashboard
-![Compliance](screenshots/compliance.png)
-*Track compliance across 29+ frameworks including CIS, SOC2, PCI-DSS, HIPAA, and NIST*
-
-### Scan Orchestration
-![Scans](screenshots/scans.png)
-*Launch scans, monitor progress, and manage credentials across cloud providers*
-
-### Attack Path Analysis
-![Attack Paths](screenshots/attack-paths.png)
-*Discover multi-step attack chains with risk scoring and MITRE ATT&CK mapping*
-
-### Credential Management
-![Credentials](screenshots/credentials.png)
-*Manage AWS, Azure, GCP, and Kubernetes credentials with profile selection*
-
----
-
 ## Key Capabilities
 
 ### Unified Security Intelligence
@@ -192,6 +164,80 @@ curl -X POST http://localhost:8000/api/scans \
 
 ---
 
+## Multi-Cloud Support
+
+### AWS
+- **Prowler** - AWS security best practices and CIS benchmarks
+- **ScoutSuite** - Multi-service security auditing
+- **Pacu** - AWS exploitation framework for testing
+- **CloudFox** - AWS attack surface enumeration
+- **Enumerate-IAM** - Comprehensive IAM permission mapping
+- **CloudSploit** - Configuration security scanning
+- **Cloud Custodian** - Policy-based governance
+- **CloudMapper** - AWS account visualization
+
+### Azure
+- **ScoutSuite** - Azure security configuration review
+- **CloudSploit** - Azure resource scanning
+- **Cloud Custodian** - Azure policy enforcement
+
+### GCP
+- **Prowler** - GCP security posture assessment
+- **ScoutSuite** - GCP multi-service auditing
+- **CloudSploit** - GCP configuration scanning
+
+### Kubernetes
+- **kube-bench** - CIS Kubernetes Benchmark
+- **Kubescape** - NSA, MITRE ATT&CK frameworks
+- **kube-hunter** - Penetration testing
+- **Trivy** - Container vulnerability scanning
+- **Falco** - Runtime threat detection
+- **Polaris** - Best practices validation
+
+### Infrastructure-as-Code
+- **Checkov** - Terraform, CloudFormation, Kubernetes, Helm
+- **Terrascan** - Policy-as-code engine
+- **tfsec** - Terraform security scanner
+
+### Secrets Scanning
+- **TruffleHog** - 700+ secret detectors with API verification
+- **Gitleaks** - Fast git secrets scanner with extensive rule set
+
+### IAM Deep Analysis
+- **PMapper** - IAM privilege escalation path analysis
+- **Cloudsplaining** - AWS managed policy analysis and least privilege violations
+
+---
+
+## Web Frontend
+
+Nubicustos includes a modern Vue.js 3 web interface with 22+ specialized views:
+
+| View | Description |
+|------|-------------|
+| **Dashboard** | Security posture overview with critical metrics |
+| **Findings** | Searchable list with severity filtering and export |
+| **Attack Paths** | Graph visualization of discovered attack chains |
+| **Compliance** | Framework compliance status (CIS, SOC2, PCI-DSS) |
+| **Compliance Detail** | Framework-specific control breakdown |
+| **Scans** | Scan history, orchestration, bulk operations, and monitoring |
+| **Public Exposures** | Exposed resources and attack surface |
+| **Exposed Credentials** | Leaked credential detection |
+| **Privilege Escalation** | IAM lateral movement paths |
+| **Privesc Paths** | Detailed privilege escalation path explorer |
+| **Assumed Roles** | IAM role assumption analysis |
+| **IMDS Checks** | EC2 metadata service vulnerabilities |
+| **Lambda Analysis** | Serverless security assessment |
+| **CloudFox** | AWS enumeration results |
+| **Pacu** | AWS exploitation findings |
+| **Enumerate IAM** | IAM permission mapping |
+| **Credentials** | Cloud credential profile management |
+| **Settings** | Configuration management |
+
+Access the frontend at `http://localhost:8080` after starting the stack.
+
+---
+
 ## Scan Profiles
 
 | Profile | Duration | Description |
@@ -211,6 +257,124 @@ curl -X POST http://localhost:8000/api/scans \
 
 # Via UI
 # Navigate to Scans page → Quick Actions → Select profile → Start
+```
+
+---
+
+## Usage Examples
+
+### Running Scans
+
+```bash
+# Full audit with all tools
+./scripts/run-all-audits.sh
+
+# Quick scan (5-10 minutes)
+./scripts/run-all-audits.sh --profile quick
+
+# Comprehensive scan (30-60 minutes)
+./scripts/run-all-audits.sh --profile comprehensive
+
+# Compliance-focused scan
+./scripts/run-all-audits.sh --profile compliance-only
+
+# Filter by severity
+./scripts/run-all-audits.sh --severity critical,high
+
+# Preview without execution
+./scripts/run-all-audits.sh --dry-run
+```
+
+### Secrets Scanning
+
+```bash
+# Scan for exposed secrets with TruffleHog and Gitleaks
+curl -X POST http://localhost:8000/api/scans \
+  -H "Content-Type: application/json" \
+  -d '{"profile": "secrets", "target_path": "/path/to/code"}'
+
+# Query secrets findings
+curl "http://localhost:8000/api/findings?tool=trufflehog"
+curl "http://localhost:8000/api/findings?tool=gitleaks"
+```
+
+**Secrets Scanning Features:**
+- **TruffleHog** - 700+ secret detectors with API verification for active credentials
+- **Gitleaks** - Fast pattern-based detection with extensive rule coverage
+- Automatic secret redaction in findings (only first 4 chars shown)
+- Severity mapping: Verified secrets = Critical, Cloud provider keys = High
+
+### IAM Deep Analysis
+
+```bash
+# Analyze IAM privilege escalation paths and policy risks
+curl -X POST http://localhost:8000/api/scans \
+  -H "Content-Type: application/json" \
+  -d '{"profile": "iam-analysis", "aws_profile": "your-profile"}'
+
+# Query IAM findings
+curl "http://localhost:8000/api/findings?tool=pmapper"
+curl "http://localhost:8000/api/findings?tool=cloudsplaining"
+```
+
+**IAM Analysis Features:**
+- **PMapper** - Graph-based IAM privilege escalation path discovery
+- **Cloudsplaining** - Identifies least privilege violations in IAM policies
+- Risk categories: Privilege Escalation, Resource Exposure, Data Exfiltration, Infrastructure Modification
+
+### Pre-Flight Permission Validation
+
+```bash
+# Check all cloud provider permissions
+python scripts/check-permissions.py
+
+# Check specific provider
+python scripts/check-permissions.py --provider aws
+
+# Export with remediation instructions
+python scripts/check-permissions.py --output report.md --remediation
+```
+
+### Compare Scans
+
+```bash
+# Compare two scans with MTTR metrics
+python3 report-processor/compare_scans.py \
+  --baseline-id abc123 \
+  --current-id def456 \
+  --include-mttr
+```
+
+### Bulk Operations
+
+```bash
+# Delete multiple scans
+curl -X DELETE http://localhost:8000/api/scans/bulk \
+  -H "Content-Type: application/json" \
+  -d '{"scan_ids": ["id1", "id2", "id3"]}'
+
+# Archive scans to downloadable ZIP
+curl -X POST http://localhost:8000/api/scans/bulk/archive \
+  -H "Content-Type: application/json" \
+  -d '{"scan_ids": ["id1", "id2"]}'
+
+# List available archives
+curl http://localhost:8000/api/scans/archives
+
+# Get per-tool error breakdown for a scan
+curl http://localhost:8000/api/scans/{scan_id}/errors
+```
+
+### Dynamic AWS Profiles
+
+```bash
+# Scan with specific AWS credential profile
+curl -X POST http://localhost:8000/api/scans \
+  -H "Content-Type: application/json" \
+  -d '{"profile": "comprehensive", "aws_profile": "prod-audit"}'
+
+# List available AWS profiles
+curl http://localhost:8000/api/credentials/aws/profiles
 ```
 
 ---
@@ -265,6 +429,20 @@ Ask natural language questions about your security posture:
 - *"Are we compliant with CIS 2.0?"*
 - *"What attack paths exist from public-facing resources?"*
 
+### Available MCP Tools
+
+| Category | Tools |
+|----------|-------|
+| **Scan Management** | list_scans, trigger_scan, get_scan_status, cancel_scan |
+| **Finding Queries** | search_findings, get_findings_summary, get_finding_details |
+| **Attack Paths** | list_attack_paths, analyze_attack_paths, list_privesc_paths |
+| **AWS Security** | get_imds_checks, get_lambda_analysis, run_cloudfox |
+| **Exports** | export_findings, get_export_summary |
+| **Bulk Operations** | bulk_delete_scans, bulk_archive_scans |
+| **Error Analysis** | get_scan_errors, get_tool_status |
+| **Archives** | list_archives, download_archive |
+| **Assumed Roles** | analyze_assumed_roles, list_role_chains |
+
 See [MCP Server Guide](nubicustos-mcp/README.md) for setup instructions.
 
 ---
@@ -315,6 +493,15 @@ We welcome contributions! See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
 
 Found a vulnerability? Please use GitHub's private vulnerability reporting or email maintainers directly. Do not open public issues for security concerns.
 
+### Security Features
+
+- **Path Traversal Protection** - All file operations validated with `os.path.realpath()` to prevent directory escape
+- **Zip Slip Prevention** - Archive extraction secured against path manipulation attacks
+- **ReDoS Mitigation** - Input length limits on regex patterns to prevent denial of service
+- **Log Sanitization** - Credentials, tokens, and IP addresses automatically redacted from logs
+- **Error Information Control** - Limited validation error details to prevent schema disclosure
+- **SQLAlchemy Error Handling** - Specific exception handling to prevent information leakage
+
 ---
 
 ## License
@@ -327,20 +514,32 @@ MIT License - see [LICENSE](LICENSE) for details.
 
 Nubicustos builds on these excellent open-source security tools:
 
-[Prowler](https://github.com/prowler-cloud/prowler) |
-[ScoutSuite](https://github.com/nccgroup/ScoutSuite) |
-[Kubescape](https://github.com/kubescape/kubescape) |
-[kube-bench](https://github.com/aquasecurity/kube-bench) |
-[Trivy](https://github.com/aquasecurity/trivy) |
-[Checkov](https://github.com/bridgecrewio/checkov) |
-[Falco](https://github.com/falcosecurity/falco) |
-[Cartography](https://github.com/lyft/cartography) |
-[TruffleHog](https://github.com/trufflesecurity/trufflehog) |
-[Gitleaks](https://github.com/gitleaks/gitleaks) |
-[PMapper](https://github.com/nccgroup/PMapper) |
-[Cloudsplaining](https://github.com/salesforce/cloudsplaining)
+| Tool | Purpose | License |
+|------|---------|---------|
+| [Prowler](https://github.com/prowler-cloud/prowler) | Cloud Security Posture Management | Apache-2.0 |
+| [ScoutSuite](https://github.com/nccgroup/ScoutSuite) | Multi-cloud security auditing | GPL-2.0 |
+| [Kubescape](https://github.com/kubescape/kubescape) | Kubernetes security platform | Apache-2.0 |
+| [kube-bench](https://github.com/aquasecurity/kube-bench) | CIS Kubernetes Benchmark | Apache-2.0 |
+| [Trivy](https://github.com/aquasecurity/trivy) | Container vulnerability scanner | Apache-2.0 |
+| [Checkov](https://github.com/bridgecrewio/checkov) | IaC security scanner | Apache-2.0 |
+| [Falco](https://github.com/falcosecurity/falco) | Runtime threat detection | Apache-2.0 |
+| [Cartography](https://github.com/lyft/cartography) | Asset inventory mapping | Apache-2.0 |
+| [TruffleHog](https://github.com/trufflesecurity/trufflehog) | Secrets detection with verification | AGPL-3.0 |
+| [Gitleaks](https://github.com/gitleaks/gitleaks) | Git secrets scanner | MIT |
+| [PMapper](https://github.com/nccgroup/PMapper) | IAM privilege escalation analysis | AGPL-3.0 |
+| [Cloudsplaining](https://github.com/salesforce/cloudsplaining) | AWS IAM policy analysis | BSD-3-Clause |
 
 See [NOTICE](NOTICE) for full attribution.
+
+---
+
+## Roadmap
+
+- [ ] IBM Cloud support
+- [ ] SIEM platform integration
+- [ ] Slack/Teams notifications
+- [ ] Automated scheduled scanning
+- [ ] Multi-tenancy support
 
 ---
 
