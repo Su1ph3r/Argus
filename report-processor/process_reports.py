@@ -2664,6 +2664,47 @@ class ReportProcessor:
         finally:
             conn.close()
 
+    def _log_directory_contents(self, tool_name: str) -> None:
+        """Log directory contents for debugging report discovery issues.
+
+        This is called when no reports are found for a tool to help diagnose
+        permission issues or unexpected directory structures on Linux systems.
+        """
+        tool_dir = self.reports_dir / tool_name
+        try:
+            if not tool_dir.exists():
+                logger.warning(f"  Directory does not exist: {tool_dir}")
+                return
+            if not tool_dir.is_dir():
+                logger.warning(f"  Path exists but is not a directory: {tool_dir}")
+                return
+
+            # Check if directory is readable
+            try:
+                contents = list(tool_dir.iterdir())
+            except PermissionError:
+                logger.error(f"  Permission denied reading directory: {tool_dir}")
+                logger.error("  On Linux, run: sudo chmod -R 755 ./reports")
+                return
+
+            if not contents:
+                logger.warning(f"  Directory is empty: {tool_dir}")
+                return
+
+            logger.info(f"  Directory contents of {tool_dir}:")
+            for item in contents[:10]:  # Limit to first 10 items
+                try:
+                    stat_info = item.stat()
+                    mode = oct(stat_info.st_mode)[-3:]
+                    logger.info(f"    {item.name} (mode: {mode})")
+                except PermissionError:
+                    logger.warning(f"    {item.name} (permission denied)")
+            if len(contents) > 10:
+                logger.info(f"    ... and {len(contents) - 10} more items")
+
+        except Exception as e:
+            logger.error(f"  Error listing directory {tool_dir}: {e}")
+
     def process_for_scan(self, orchestration_scan_id: str, tools: list = None):
         """Process reports and link findings to an existing orchestration scan.
 
@@ -2680,6 +2721,20 @@ class ReportProcessor:
             int: Total number of findings processed
         """
         logger.info(f"Processing reports for orchestration scan: {orchestration_scan_id}")
+        logger.info(f"Reports directory: {self.reports_dir}")
+        logger.info(f"Reports directory exists: {self.reports_dir.exists()}")
+
+        # Check reports directory accessibility
+        if not self.reports_dir.exists():
+            logger.error(f"Reports directory does not exist: {self.reports_dir}")
+            return 0
+        try:
+            list(self.reports_dir.iterdir())
+        except PermissionError:
+            logger.error(f"Permission denied accessing reports directory: {self.reports_dir}")
+            logger.error("On Linux, run: sudo chmod -R 755 ./reports")
+            return 0
+
         total_findings = 0
         processed_files = {}  # tool -> list of file paths
 
@@ -2688,6 +2743,7 @@ class ReportProcessor:
             "prowler", "scoutsuite", "cloudsploit", "cloudfox",
             "trufflehog", "gitleaks", "pmapper", "cloudsplaining"
         ]
+        logger.info(f"Tools to process: {tools_to_process}")
 
         if "prowler" in tools_to_process:
             # Process most recent Prowler reports
@@ -2695,6 +2751,7 @@ class ReportProcessor:
             prowler_reports += list(self.reports_dir.glob("prowler/prowler-output-*.json"))
             prowler_reports += list(self.reports_dir.glob("prowler/prowler-output-*.ocsf.json"))
             prowler_reports = list(set(prowler_reports))
+            logger.info(f"Found {len(prowler_reports)} Prowler report(s)")
             # Sort by modification time, process most recent
             if prowler_reports:
                 prowler_reports.sort(key=lambda x: x.stat().st_mtime, reverse=True)
@@ -2711,6 +2768,11 @@ class ReportProcessor:
                     total_findings += len(findings)
                     # Track processed file for registration
                     processed_files["prowler"] = [str(report)]
+                else:
+                    logger.warning(f"Prowler report yielded no findings: {report}")
+            else:
+                logger.warning("No Prowler reports found. Checking directory contents...")
+                self._log_directory_contents("prowler")
 
         if "prowler-azure" in tools_to_process:
             # Process most recent Prowler Azure reports (same format as AWS Prowler)
@@ -2718,6 +2780,7 @@ class ReportProcessor:
             prowler_azure_reports += list(self.reports_dir.glob("prowler-azure/prowler-output-*.json"))
             prowler_azure_reports += list(self.reports_dir.glob("prowler-azure/prowler-output-*.ocsf.json"))
             prowler_azure_reports = list(set(prowler_azure_reports))
+            logger.info(f"Found {len(prowler_azure_reports)} Prowler Azure report(s)")
             # Sort by modification time, process most recent
             if prowler_azure_reports:
                 prowler_azure_reports.sort(key=lambda x: x.stat().st_mtime, reverse=True)
@@ -2734,6 +2797,11 @@ class ReportProcessor:
                     total_findings += len(findings)
                     # Track processed file for registration
                     processed_files["prowler-azure"] = [str(report)]
+                else:
+                    logger.warning(f"Prowler Azure report yielded no findings: {report}")
+            else:
+                logger.warning("No Prowler Azure reports found. Checking directory contents...")
+                self._log_directory_contents("prowler-azure")
 
         if "scoutsuite" in tools_to_process:
             # Process most recent ScoutSuite reports
@@ -2745,6 +2813,7 @@ class ReportProcessor:
                 self.reports_dir.glob("scoutsuite/*/scoutsuite_results_*.json")
             )
             scoutsuite_reports = list(set(scoutsuite_reports))
+            logger.info(f"Found {len(scoutsuite_reports)} ScoutSuite report(s)")
             if scoutsuite_reports:
                 scoutsuite_reports.sort(key=lambda x: x.stat().st_mtime, reverse=True)
                 report = scoutsuite_reports[0]
@@ -2762,6 +2831,9 @@ class ReportProcessor:
                     processed_files["scoutsuite"] = [str(report)]
                 else:
                     logger.warning(f"ScoutSuite report yielded no findings: {report}")
+            else:
+                logger.warning("No ScoutSuite reports found. Checking directory contents...")
+                self._log_directory_contents("scoutsuite")
 
         if "scoutsuite-azure" in tools_to_process:
             # Process most recent ScoutSuite Azure reports (same format as AWS ScoutSuite)
@@ -2772,6 +2844,7 @@ class ReportProcessor:
                 self.reports_dir.glob("scoutsuite/azure/scoutsuite_results_*.json")
             )
             scoutsuite_azure_reports = list(set(scoutsuite_azure_reports))
+            logger.info(f"Found {len(scoutsuite_azure_reports)} ScoutSuite Azure report(s)")
             if scoutsuite_azure_reports:
                 scoutsuite_azure_reports.sort(key=lambda x: x.stat().st_mtime, reverse=True)
                 report = scoutsuite_azure_reports[0]
@@ -2788,10 +2861,13 @@ class ReportProcessor:
                     processed_files["scoutsuite-azure"] = [str(report)]
                 else:
                     logger.warning(f"ScoutSuite Azure report yielded no findings: {report}")
+            else:
+                logger.warning("No ScoutSuite Azure reports found.")
 
         if "cloudsploit" in tools_to_process:
             # Process most recent CloudSploit reports
             cloudsploit_reports = list(self.reports_dir.glob("cloudsploit/*.json"))
+            logger.info(f"Found {len(cloudsploit_reports)} CloudSploit report(s)")
             if cloudsploit_reports:
                 cloudsploit_reports.sort(key=lambda x: x.stat().st_mtime, reverse=True)
                 report = cloudsploit_reports[0]
@@ -2807,6 +2883,11 @@ class ReportProcessor:
                     total_findings += len(findings)
                     # Track processed file for registration
                     processed_files["cloudsploit"] = [str(report)]
+                else:
+                    logger.warning(f"CloudSploit report yielded no findings: {report}")
+            else:
+                logger.warning("No CloudSploit reports found. Checking directory contents...")
+                self._log_directory_contents("cloudsploit")
 
         if "cloudfox" in tools_to_process:
             # CloudFox outputs are enumeration data (inventory, permissions, principals)
@@ -3019,7 +3100,22 @@ class ReportProcessor:
             if files:
                 self._register_scan_files(orchestration_scan_id, tool, files)
 
-        logger.info(f"Processed {total_findings} total findings for scan {orchestration_scan_id}")
+        # Summary logging with diagnostic hints
+        if total_findings == 0:
+            logger.warning(
+                f"ZERO findings processed for scan {orchestration_scan_id}. "
+                "This may indicate a problem with report discovery or permissions."
+            )
+            logger.warning(f"Tools requested: {tools_to_process}")
+            logger.warning(f"Processed files: {processed_files}")
+            logger.warning(
+                "If running on Linux, ensure reports directory is readable: "
+                "sudo chmod -R 755 ./reports"
+            )
+        else:
+            logger.info(f"Successfully processed {total_findings} findings for scan {orchestration_scan_id}")
+            logger.info(f"Processed files by tool: {list(processed_files.keys())}")
+
         return total_findings
 
     def run(self):

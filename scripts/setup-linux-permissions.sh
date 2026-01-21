@@ -144,7 +144,13 @@ if [ "$EUID" -eq 0 ]; then
     chmod -R 755 "$PROJECT_ROOT/iac-staging"
 
     # Reports - needs to be writable by multiple containers (various UIDs)
+    # Use chmod 777 with sticky bit to ensure files are readable by all
     chmod -R 777 "$PROJECT_ROOT/reports"
+    # Set default ACL to make new files world-readable (if ACL is supported)
+    if command -v setfacl &> /dev/null; then
+        setfacl -R -d -m o::rx "$PROJECT_ROOT/reports" 2>/dev/null || true
+        echo "Set default ACL on reports directory"
+    fi
 
     # Logs - needs to be writable by multiple containers
     chmod -R 777 "$PROJECT_ROOT/logs"
@@ -188,3 +194,8 @@ echo "If you encounter permission issues:"
 echo "  - Re-run this script with sudo"
 echo "  - Ensure your user is in the docker group:"
 echo "    sudo usermod -aG docker \$USER && newgrp docker"
+echo ""
+echo "If scans complete but show zero findings:"
+echo "  - Re-run this script with sudo to fix report file permissions"
+echo "  - Check API logs: docker logs security-api"
+echo "  - Verify reports exist: ls -la ./reports/prowler/"

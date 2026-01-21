@@ -147,6 +147,85 @@ def _sanitize_log_snippet(log_text: str) -> str:
     return log_text
 
 
+async def _fix_report_permissions(tools: list[str]) -> None:
+    """
+    Fix permissions on report files created by tool containers.
+
+    On Linux systems, files created by containers may have restrictive permissions
+    that prevent the API container from reading them. This function attempts to
+    make report files readable.
+
+    This is a best-effort operation - failures are logged but don't prevent
+    report processing from attempting to run.
+    """
+    import os
+    import platform
+    import stat
+
+    # Only needed on Linux - Docker Desktop on Mac/Windows handles this
+    if platform.system() != "Linux":
+        return
+
+    reports_base = Path("/reports")
+    if not reports_base.exists():
+        return
+
+    # Map tool names to their report directories
+    tool_dirs = {
+        "prowler": "prowler",
+        "prowler-azure": "prowler-azure",
+        "scoutsuite": "scoutsuite",
+        "scoutsuite-azure": "scoutsuite",
+        "cloudsploit": "cloudsploit",
+        "cloudfox": "cloudfox",
+        "trufflehog": "trufflehog",
+        "gitleaks": "gitleaks",
+        "pmapper": "pmapper",
+        "cloudsplaining": "cloudsplaining",
+        "checkov": "checkov",
+        "terrascan": "terrascan",
+        "tfsec": "tfsec",
+        "kube-linter": "kube-linter",
+        "polaris": "polaris",
+    }
+
+    for tool in tools:
+        tool_dir_name = tool_dirs.get(tool, tool)
+        tool_dir = reports_base / tool_dir_name
+
+        if not tool_dir.exists():
+            continue
+
+        try:
+            # Walk through all files and make them readable
+            for root, dirs, files in os.walk(tool_dir):
+                # Make directories readable and executable
+                for d in dirs:
+                    dir_path = Path(root) / d
+                    try:
+                        current_mode = dir_path.stat().st_mode
+                        # Add read and execute for all users
+                        new_mode = current_mode | stat.S_IROTH | stat.S_IXOTH | stat.S_IRGRP | stat.S_IXGRP
+                        os.chmod(dir_path, new_mode)
+                    except (PermissionError, OSError):
+                        pass  # Best effort
+
+                # Make files readable
+                for f in files:
+                    file_path = Path(root) / f
+                    try:
+                        current_mode = file_path.stat().st_mode
+                        # Add read permission for all users
+                        new_mode = current_mode | stat.S_IROTH | stat.S_IRGRP
+                        os.chmod(file_path, new_mode)
+                    except (PermissionError, OSError):
+                        pass  # Best effort
+
+            logger.debug(f"Fixed permissions for {tool_dir}")
+        except Exception as e:
+            logger.warning(f"Could not fix permissions for {tool_dir}: {e}")
+
+
 async def _process_scan_reports(
     scan_id: str,
     tools: list[str],
@@ -533,6 +612,10 @@ async def run_scan_orchestration(
 
         # All tools completed successfully - now process reports
         logger.info(f"Scan {scan_id}: All tools completed, triggering report processing")
+
+        # On Linux, fix report file permissions before processing
+        # This ensures files created by tool containers are readable by the API container
+        await _fix_report_permissions([t.value for t in tools])
 
         # Run report processor to parse findings and link to this scan_id
         try:
