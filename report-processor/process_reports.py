@@ -74,6 +74,23 @@ except ImportError:
         return 50.0, "medium", {}
 
 
+# Import attack validation modules (optional - graceful degradation if unavailable)
+try:
+    from blast_radius_analyzer import BlastRadiusAnalyzer
+except ImportError:
+    BlastRadiusAnalyzer = None
+
+try:
+    from poc_validator import PoCValidator
+except ImportError:
+    PoCValidator = None
+
+try:
+    from runtime_correlator import RuntimeCorrelator
+except ImportError:
+    RuntimeCorrelator = None
+
+
 # Configure logging
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
@@ -3110,6 +3127,11 @@ class ReportProcessor:
             if files:
                 self._register_scan_files(orchestration_scan_id, tool, files)
 
+        # ========================================================================
+        # Attack Validation Features (v2)
+        # ========================================================================
+        self._run_attack_validation_features(orchestration_scan_id)
+
         # Summary logging with diagnostic hints
         if total_findings == 0:
             logger.warning(
@@ -3127,6 +3149,89 @@ class ReportProcessor:
             logger.info(f"Processed files by tool: {list(processed_files.keys())}")
 
         return total_findings
+
+    def _run_attack_validation_features(self, scan_id: str):
+        """Run attack validation features based on user settings.
+
+        Features (v2):
+        - Blast Radius Analysis: Calculate impact of compromised identities
+        - PoC Validation: Test if attack paths are exploitable (if enabled)
+        - Runtime Correlation: Link findings to CloudTrail events (if enabled)
+
+        Args:
+            scan_id: UUID of the scan to run validation features for
+        """
+        # Get user settings to determine which features to run
+        settings = self._get_validation_settings()
+
+        # Blast Radius Analysis (default: auto-enabled)
+        if settings.get("blast_radius_auto_analyze", True) and BlastRadiusAnalyzer:
+            try:
+                logger.info(f"Running blast radius analysis for scan {scan_id}")
+                analyzer = BlastRadiusAnalyzer(self.conn)
+                results = analyzer.analyze_for_scan(scan_id)
+                logger.info(f"Blast radius analysis complete: {len(results)} identities analyzed")
+            except Exception as e:
+                logger.warning(f"Blast radius analysis failed (non-fatal): {e}")
+
+        # PoC Validation (default: disabled, requires explicit opt-in)
+        if settings.get("auto_validate_poc", False) and PoCValidator:
+            try:
+                logger.info(f"Running PoC validation for scan {scan_id}")
+                validator = PoCValidator(self.conn)
+                # Only validate high-severity attack paths
+                results = validator.validate_attack_paths_for_scan(scan_id, severity_filter="high")
+                validated = sum(1 for r in results if r.get("validation_status") == "validated_exploitable")
+                logger.info(f"PoC validation complete: {validated}/{len(results)} paths validated as exploitable")
+            except Exception as e:
+                logger.warning(f"PoC validation failed (non-fatal): {e}")
+
+        # Runtime Correlation (default: disabled, requires CloudTrail access)
+        if settings.get("cloudtrail_correlation", False) and RuntimeCorrelator:
+            try:
+                logger.info(f"Running runtime correlation for scan {scan_id}")
+                lookback_hours = int(settings.get("cloudtrail_lookback_hours", 24))
+                correlator = RuntimeCorrelator(self.conn)
+                results = correlator.correlate_for_scan(scan_id, lookback_hours=lookback_hours)
+                confirmed = sum(1 for r in results if r.get("confirms_exploitability", False))
+                logger.info(f"Runtime correlation complete: {confirmed} findings confirmed by CloudTrail events")
+            except Exception as e:
+                logger.warning(f"Runtime correlation failed (non-fatal): {e}")
+
+    def _get_validation_settings(self) -> dict:
+        """Retrieve validation feature settings from user_settings table.
+
+        Returns:
+            Dictionary of setting_key -> setting_value for validation features.
+        """
+        settings = {}
+        validation_keys = [
+            "auto_validate_poc",
+            "cloudtrail_correlation",
+            "blast_radius_auto_analyze",
+            "poc_validation_timeout",
+            "cloudtrail_lookback_hours",
+        ]
+        try:
+            with self.conn.cursor() as cur:
+                cur.execute(
+                    """
+                    SELECT setting_key, setting_value
+                    FROM user_settings
+                    WHERE setting_key = ANY(%s)
+                    """,
+                    (validation_keys,),
+                )
+                for row in cur.fetchall():
+                    key, value = row
+                    # Convert boolean strings
+                    if value.lower() in ("true", "false"):
+                        settings[key] = value.lower() == "true"
+                    else:
+                        settings[key] = value
+        except Exception as e:
+            logger.debug(f"Could not retrieve validation settings: {e}")
+        return settings
 
     def run(self):
         """Main processing loop"""

@@ -30,6 +30,7 @@ from models.database import engine
 from routers import (
     assumed_roles_router,
     attack_paths_router,
+    blast_radius_router,
     cloudfox_router,
     compliance_router,
     credentials_router,
@@ -42,8 +43,10 @@ from routers import (
     imds_checks_router,
     lambda_analysis_router,
     pacu_router,
+    poc_validation_router,
     privesc_paths_router,
     public_exposures_router,
+    runtime_correlation_router,
     scans_router,
     settings_router,
     severity_overrides_router,
@@ -536,6 +539,9 @@ app.include_router(azure_profiles_router, prefix="/api")
 app.include_router(compliance_router, prefix="/api")
 app.include_router(iac_router, prefix="/api")
 app.include_router(schedules_router, prefix="/api")
+app.include_router(blast_radius_router, prefix="/api")
+app.include_router(poc_validation_router, prefix="/api")
+app.include_router(runtime_correlation_router, prefix="/api")
 
 
 # Root endpoint
@@ -581,6 +587,9 @@ async def api_root():
             "settings": "/api/settings",
             "iac": "/api/iac",
             "schedules": "/api/schedules",
+            "blast_radius": "/api/blast-radius",
+            "poc_validation": "/api/poc-validation",
+            "runtime_correlation": "/api/runtime",
         },
     }
 
