@@ -2,7 +2,10 @@
 
 from .assumed_roles import router as assumed_roles_router
 from .attack_paths import router as attack_paths_router
+from .blast_radius import router as blast_radius_router
 from .cloudfox import router as cloudfox_router
+from .poc_validation import router as poc_validation_router
+from .runtime_correlation import router as runtime_correlation_router
 from .compliance import router as compliance_router
 from .credentials import router as credentials_router
 from .enumerate_iam import router as enumerate_iam_router
@@ -42,4 +45,7 @@ __all__ = [
     "credentials_router",
     "settings_router",
     "compliance_router",
+    "blast_radius_router",
+    "poc_validation_router",
+    "runtime_correlation_router",
 ]

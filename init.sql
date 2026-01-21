@@ -1079,6 +1079,138 @@ INSERT INTO credential_status_cache (provider, status) VALUES
 ON CONFLICT (provider) DO NOTHING;
 
 -- ============================================================================
+-- Attack Path Validation Features (v2)
+-- ============================================================================
+
+-- Extend attack_paths table with validation columns
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='attack_paths' AND column_name='validation_status') THEN
+        ALTER TABLE attack_paths ADD COLUMN validation_status VARCHAR(32) DEFAULT 'pending';
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='attack_paths' AND column_name='validation_timestamp') THEN
+        ALTER TABLE attack_paths ADD COLUMN validation_timestamp TIMESTAMP;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='attack_paths' AND column_name='validation_evidence') THEN
+        ALTER TABLE attack_paths ADD COLUMN validation_evidence JSONB;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='attack_paths' AND column_name='validation_error') THEN
+        ALTER TABLE attack_paths ADD COLUMN validation_error TEXT;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='attack_paths' AND column_name='runtime_confirmed') THEN
+        ALTER TABLE attack_paths ADD COLUMN runtime_confirmed BOOLEAN DEFAULT FALSE;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='attack_paths' AND column_name='cloudtrail_events') THEN
+        ALTER TABLE attack_paths ADD COLUMN cloudtrail_events JSONB DEFAULT '[]';
+    END IF;
+END $$;
+
+-- Extend privesc_paths table with validation columns
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='privesc_paths' AND column_name='validation_status') THEN
+        ALTER TABLE privesc_paths ADD COLUMN validation_status VARCHAR(32) DEFAULT 'pending';
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='privesc_paths' AND column_name='validation_timestamp') THEN
+        ALTER TABLE privesc_paths ADD COLUMN validation_timestamp TIMESTAMP;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='privesc_paths' AND column_name='validation_evidence') THEN
+        ALTER TABLE privesc_paths ADD COLUMN validation_evidence JSONB;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='privesc_paths' AND column_name='runtime_confirmed') THEN
+        ALTER TABLE privesc_paths ADD COLUMN runtime_confirmed BOOLEAN DEFAULT FALSE;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='privesc_paths' AND column_name='cloudtrail_events') THEN
+        ALTER TABLE privesc_paths ADD COLUMN cloudtrail_events JSONB DEFAULT '[]';
+    END IF;
+END $$;
+
+-- Indexes for validation status queries
+CREATE INDEX IF NOT EXISTS idx_attack_paths_validation ON attack_paths(validation_status);
+CREATE INDEX IF NOT EXISTS idx_attack_paths_runtime ON attack_paths(runtime_confirmed) WHERE runtime_confirmed = true;
+CREATE INDEX IF NOT EXISTS idx_privesc_paths_validation ON privesc_paths(validation_status);
+CREATE INDEX IF NOT EXISTS idx_privesc_paths_runtime ON privesc_paths(runtime_confirmed) WHERE runtime_confirmed = true;
+
+-- Blast Radius Analysis Table
+CREATE TABLE IF NOT EXISTS blast_radius_analyses (
+    id SERIAL PRIMARY KEY,
+    analysis_id VARCHAR(64) UNIQUE NOT NULL,
+    scan_id UUID REFERENCES scans(scan_id) ON DELETE CASCADE,
+    identity_arn VARCHAR(512) NOT NULL,
+    identity_type VARCHAR(64),
+    account_id VARCHAR(128),
+    direct_permission_count INTEGER DEFAULT 0,
+    direct_resource_count INTEGER DEFAULT 0,
+    assumable_roles_count INTEGER DEFAULT 0,
+    assumption_chain_depth INTEGER DEFAULT 1,
+    cross_account_roles_count INTEGER DEFAULT 0,
+    affected_accounts JSONB DEFAULT '[]',
+    total_blast_radius INTEGER DEFAULT 0,
+    risk_level VARCHAR(16) DEFAULT 'medium',
+    reachable_resources JSONB,
+    reachable_roles JSONB,
+    permission_breakdown JSONB,
+    created_at TIMESTAMP DEFAULT NOW(),
+    updated_at TIMESTAMP DEFAULT NOW()
+);
+
+-- Blast radius indexes
+CREATE INDEX IF NOT EXISTS idx_blast_radius_identity ON blast_radius_analyses(identity_arn);
+CREATE INDEX IF NOT EXISTS idx_blast_radius_scan ON blast_radius_analyses(scan_id);
+CREATE INDEX IF NOT EXISTS idx_blast_radius_risk ON blast_radius_analyses(risk_level, total_blast_radius DESC);
+CREATE INDEX IF NOT EXISTS idx_blast_radius_account ON blast_radius_analyses(account_id);
+
+-- Blast radius trigger
+DROP TRIGGER IF EXISTS update_blast_radius_analyses_updated_at ON blast_radius_analyses;
+CREATE TRIGGER update_blast_radius_analyses_updated_at BEFORE UPDATE ON blast_radius_analyses
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+-- Runtime Correlations Table
+CREATE TABLE IF NOT EXISTS runtime_correlations (
+    id SERIAL PRIMARY KEY,
+    correlation_id VARCHAR(64) UNIQUE NOT NULL,
+    finding_id INTEGER REFERENCES findings(id) ON DELETE CASCADE,
+    attack_path_id INTEGER REFERENCES attack_paths(id) ON DELETE CASCADE,
+    privesc_path_id INTEGER REFERENCES privesc_paths(id) ON DELETE CASCADE,
+    event_id VARCHAR(128),
+    event_source VARCHAR(128),
+    event_name VARCHAR(128),
+    event_time TIMESTAMP,
+    source_ip VARCHAR(64),
+    user_identity JSONB,
+    request_parameters JSONB,
+    response_elements JSONB,
+    correlation_type VARCHAR(64),
+    confidence_score INTEGER DEFAULT 0,
+    analysis_notes TEXT,
+    confirms_exploitability BOOLEAN DEFAULT FALSE,
+    anomaly_detected BOOLEAN DEFAULT FALSE,
+    created_at TIMESTAMP DEFAULT NOW()
+);
+
+-- Runtime correlation indexes
+CREATE INDEX IF NOT EXISTS idx_runtime_correlation_finding ON runtime_correlations(finding_id);
+CREATE INDEX IF NOT EXISTS idx_runtime_correlation_attack_path ON runtime_correlations(attack_path_id);
+CREATE INDEX IF NOT EXISTS idx_runtime_correlation_privesc ON runtime_correlations(privesc_path_id);
+CREATE INDEX IF NOT EXISTS idx_runtime_correlation_type ON runtime_correlations(correlation_type);
+CREATE INDEX IF NOT EXISTS idx_runtime_correlation_confirmed ON runtime_correlations(confirms_exploitability) WHERE confirms_exploitability = true;
+CREATE INDEX IF NOT EXISTS idx_runtime_correlation_anomaly ON runtime_correlations(anomaly_detected) WHERE anomaly_detected = true;
+CREATE INDEX IF NOT EXISTS idx_runtime_correlation_event_time ON runtime_correlations(event_time DESC);
+
+-- New feature user settings
+INSERT INTO user_settings (setting_key, setting_value, category, description) VALUES
+    ('auto_validate_poc', 'false', 'scans', 'Automatically run PoC validation after attack path analysis'),
+    ('cloudtrail_correlation', 'false', 'scans', 'Enable CloudTrail event correlation for findings'),
+    ('blast_radius_auto_analyze', 'true', 'scans', 'Automatically calculate blast radius after identity enumeration'),
+    ('poc_validation_timeout', '30', 'scans', 'Timeout in seconds for PoC validation commands'),
+    ('cloudtrail_lookback_hours', '24', 'scans', 'Hours to look back for CloudTrail correlation')
+ON CONFLICT (setting_key) DO NOTHING;
+
+-- Grant permissions on new tables
+GRANT ALL PRIVILEGES ON blast_radius_analyses TO auditor;
+GRANT ALL PRIVILEGES ON runtime_correlations TO auditor;
+
+-- ============================================================================
 -- Maintenance
 -- ============================================================================
 

@@ -189,6 +189,14 @@ class AttackPath(Base):
     poc_steps = Column(JSONB)
     mitre_tactics = Column(JSONB)  # Array stored as JSONB
     aws_services = Column(JSONB)  # Array stored as JSONB
+    # PoC Validation fields (v2)
+    validation_status = Column(String(32), default="pending")
+    validation_timestamp = Column(DateTime)
+    validation_evidence = Column(JSONB)
+    validation_error = Column(Text)
+    # Runtime correlation fields (v2)
+    runtime_confirmed = Column(Boolean, default=False)
+    cloudtrail_events = Column(JSONB, default=[])
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
@@ -306,6 +314,13 @@ class PrivescPath(Base):
     poc_commands = Column(JSONB)
     finding_ids = Column(JSONB)
     status = Column(String(32), default="open")
+    # PoC Validation fields (v2)
+    validation_status = Column(String(32), default="pending")
+    validation_timestamp = Column(DateTime)
+    validation_evidence = Column(JSONB)
+    # Runtime correlation fields (v2)
+    runtime_confirmed = Column(Boolean, default=False)
+    cloudtrail_events = Column(JSONB, default=[])
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
@@ -563,3 +578,74 @@ class CredentialStatusCache(Base):
     verification_error = Column(Text)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+# ============================================================================
+# Attack Path Validation Models (v2)
+# ============================================================================
+
+
+class BlastRadiusAnalysis(Base):
+    """Blast radius analysis model for identity impact calculation."""
+
+    __tablename__ = "blast_radius_analyses"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    analysis_id = Column(String(64), unique=True, nullable=False)
+    scan_id = Column(UUID(as_uuid=True), ForeignKey("scans.scan_id", ondelete="CASCADE"))
+    identity_arn = Column(String(512), nullable=False)
+    identity_type = Column(String(64))
+    account_id = Column(String(128))
+    # Direct permissions
+    direct_permission_count = Column(Integer, default=0)
+    direct_resource_count = Column(Integer, default=0)
+    # Role assumption analysis
+    assumable_roles_count = Column(Integer, default=0)
+    assumption_chain_depth = Column(Integer, default=1)
+    cross_account_roles_count = Column(Integer, default=0)
+    affected_accounts = Column(JSONB, default=[])
+    # Calculated blast radius
+    total_blast_radius = Column(Integer, default=0)
+    risk_level = Column(String(16), default="medium")
+    # Detailed breakdown
+    reachable_resources = Column(JSONB)
+    reachable_roles = Column(JSONB)
+    permission_breakdown = Column(JSONB)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    scan = relationship("Scan")
+
+
+class RuntimeCorrelation(Base):
+    """Runtime correlation model for CloudTrail event matching."""
+
+    __tablename__ = "runtime_correlations"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    correlation_id = Column(String(64), unique=True, nullable=False)
+    # References (one will be set)
+    finding_id = Column(Integer, ForeignKey("findings.id", ondelete="CASCADE"))
+    attack_path_id = Column(Integer, ForeignKey("attack_paths.id", ondelete="CASCADE"))
+    privesc_path_id = Column(Integer, ForeignKey("privesc_paths.id", ondelete="CASCADE"))
+    # CloudTrail event details
+    event_id = Column(String(128))
+    event_source = Column(String(128))
+    event_name = Column(String(128))
+    event_time = Column(DateTime)
+    source_ip = Column(String(64))
+    user_identity = Column(JSONB)
+    request_parameters = Column(JSONB)
+    response_elements = Column(JSONB)
+    # Correlation analysis
+    correlation_type = Column(String(64))
+    confidence_score = Column(Integer, default=0)
+    analysis_notes = Column(Text)
+    confirms_exploitability = Column(Boolean, default=False)
+    anomaly_detected = Column(Boolean, default=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    # Relationships
+    finding = relationship("Finding")
+    attack_path = relationship("AttackPath")
+    privesc_path = relationship("PrivescPath")
