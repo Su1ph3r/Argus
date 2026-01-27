@@ -16,7 +16,9 @@ Endpoints:
     GET /attack-paths - List attack paths with filters
     GET /attack-paths/summary - Get attack path statistics
     GET /attack-paths/{path_id} - Get path details
-    POST /attack-paths/analyze - Trigger path analysis
+    POST /attack-paths/analyze - Trigger path analysis (synchronous)
+    POST /attack-paths/analyze-async - Trigger async path analysis
+    GET /attack-paths/analysis-status/{job_id} - Get async job status
     GET /attack-paths/{path_id}/findings - Get related findings
     GET /attack-paths/{path_id}/export - Export path as markdown/JSON
     DELETE /attack-paths/{path_id} - Delete an attack path
@@ -24,15 +26,20 @@ Endpoints:
 
 import sys
 import time
+import uuid as uuid_module
 from collections import defaultdict
+from datetime import datetime
 from uuid import UUID
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
 from sqlalchemy import desc, func
 from sqlalchemy.orm import Session
 
-from models.database import AttackPath, Finding, get_db
+from models.database import AnalysisJob, AttackPath, Finding, get_db
 from models.schemas import (
+    AnalysisJobResponse,
+    AnalysisJobStatus,
+    AnalysisJobType,
     AttackPathAnalyzeRequest,
     AttackPathAnalyzeResponse,
     AttackPathEdge,
@@ -55,6 +62,7 @@ def _convert_path_to_response(path: AttackPath) -> AttackPathResponse:
     finding_ids = path.finding_ids or []
     mitre_tactics = path.mitre_tactics or []
     aws_services = path.aws_services or []
+    confidence_factors = path.confidence_factors or {}
 
     # Convert to Pydantic models
     nodes = [AttackPathNode(**n) for n in nodes_data]
@@ -86,6 +94,8 @@ def _convert_path_to_response(path: AttackPath) -> AttackPathResponse:
         mitre_tactics=mitre_tactics,
         aws_services=aws_services,
         created_at=path.created_at,
+        confidence_score=path.confidence_score,
+        confidence_factors=confidence_factors,
     )
 
 
@@ -346,6 +356,178 @@ async def analyze_attack_paths(
         raise HTTPException(status_code=500, detail=f"Attack path analyzer not available: {str(e)}")
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Analysis failed: {str(e)}")
+
+
+def _run_analysis_job(job_id: str, scan_id: str | None, db_url: str):
+    """Background task to run attack path analysis."""
+    from sqlalchemy import create_engine
+    from sqlalchemy.orm import sessionmaker
+
+    # Create separate session for background task
+    engine = create_engine(db_url)
+    SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+    db = SessionLocal()
+
+    try:
+        # Get the job
+        job = db.query(AnalysisJob).filter(AnalysisJob.job_id == job_id).first()
+        if not job:
+            return
+
+        # Update status to running
+        job.status = "running"
+        job.started_at = datetime.utcnow()
+        job.progress = 10
+        db.commit()
+
+        # Run the analyzer
+        sys.path.insert(0, "/app/report-processor")
+        from attack_path_analyzer import AttackPathAnalyzer
+
+        # Update progress
+        job.progress = 30
+        db.commit()
+
+        analyzer = AttackPathAnalyzer()
+        paths = analyzer.analyze(scan_id)
+
+        # Update progress
+        job.progress = 80
+        db.commit()
+
+        # Get summary
+        summary_data = analyzer.get_summary()
+
+        # Calculate final counts
+        total = db.query(AttackPath).count()
+        critical = db.query(AttackPath).filter(AttackPath.risk_score >= 80).count()
+        high = (
+            db.query(AttackPath)
+            .filter(AttackPath.risk_score >= 60, AttackPath.risk_score < 80)
+            .count()
+        )
+
+        # Update job as completed
+        job.status = "completed"
+        job.progress = 100
+        job.completed_at = datetime.utcnow()
+        job.result_summary = {
+            "paths_discovered": len(paths),
+            "total_paths": total,
+            "critical_paths": critical,
+            "high_risk_paths": high,
+        }
+        db.commit()
+
+    except Exception as e:
+        # Update job as failed
+        job = db.query(AnalysisJob).filter(AnalysisJob.job_id == job_id).first()
+        if job:
+            job.status = "failed"
+            job.error_message = str(e)
+            job.completed_at = datetime.utcnow()
+            db.commit()
+    finally:
+        db.close()
+
+
+@router.post("/analyze-async", response_model=AnalysisJobResponse)
+async def analyze_attack_paths_async(
+    request: AttackPathAnalyzeRequest,
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db),
+):
+    """
+    Trigger asynchronous attack path analysis.
+
+    Starts the analysis in the background and immediately returns a job ID.
+    Use GET /attack-paths/analysis-status/{job_id} to check progress.
+
+    Args:
+        request: Analysis request parameters
+            - scan_id: Optional scan ID to filter findings
+
+    Returns:
+        AnalysisJobResponse: Job info with job_id for status polling
+    """
+    from config import get_settings
+
+    settings = get_settings()
+
+    # Generate job ID
+    job_id = f"ap-{uuid_module.uuid4().hex[:12]}"
+
+    # Create job record
+    job = AnalysisJob(
+        job_id=job_id,
+        job_type="attack_path",
+        scan_id=request.scan_id,
+        status="pending",
+        progress=0,
+    )
+    db.add(job)
+    db.commit()
+    db.refresh(job)
+
+    # Start background task
+    scan_id_str = str(request.scan_id) if request.scan_id else None
+    background_tasks.add_task(
+        _run_analysis_job,
+        job_id,
+        scan_id_str,
+        settings.database_url,
+    )
+
+    return AnalysisJobResponse(
+        id=job.id,
+        job_id=job.job_id,
+        job_type=AnalysisJobType(job.job_type),
+        scan_id=job.scan_id,
+        status=AnalysisJobStatus(job.status),
+        progress=job.progress,
+        result_summary=job.result_summary,
+        error_message=job.error_message,
+        started_at=job.started_at,
+        completed_at=job.completed_at,
+        created_at=job.created_at,
+    )
+
+
+@router.get("/analysis-status/{job_id}", response_model=AnalysisJobResponse)
+async def get_analysis_status(
+    job_id: str,
+    db: Session = Depends(get_db),
+):
+    """
+    Get the status of an async analysis job.
+
+    Args:
+        job_id: The job ID returned from analyze-async
+
+    Returns:
+        AnalysisJobResponse: Current job status and progress
+
+    Raises:
+        HTTPException 404: If job not found
+    """
+    job = db.query(AnalysisJob).filter(AnalysisJob.job_id == job_id).first()
+
+    if not job:
+        raise HTTPException(status_code=404, detail="Analysis job not found")
+
+    return AnalysisJobResponse(
+        id=job.id,
+        job_id=job.job_id,
+        job_type=AnalysisJobType(job.job_type),
+        scan_id=job.scan_id,
+        status=AnalysisJobStatus(job.status),
+        progress=job.progress,
+        result_summary=job.result_summary,
+        error_message=job.error_message,
+        started_at=job.started_at,
+        completed_at=job.completed_at,
+        created_at=job.created_at,
+    )
 
 
 @router.get("/{path_id}/findings", response_model=list[dict])

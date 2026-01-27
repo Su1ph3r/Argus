@@ -93,6 +93,9 @@ class AttackPath:
     poc_steps: list[dict]
     mitre_tactics: list[str]
     aws_services: list[str]
+    # Confidence scoring fields
+    confidence_score: int = 0
+    confidence_factors: dict = field(default_factory=dict)
 
 
 class AttackPathAnalyzer:
@@ -407,6 +410,14 @@ class AttackPathAnalyzer:
         poc_steps = self._generate_poc_steps(path_edges)
         poc_available = len(poc_steps) > 0
 
+        # Calculate confidence score
+        confidence_score, confidence_factors = self._calculate_confidence_score(
+            finding_ids,
+            path_edges,
+            best_exploitability,
+            poc_available,
+        )
+
         # Build name and description
         name = f"{ENTRY_POINT_TYPES.get(entry_type, entry_type)} -> {TARGET_TYPES.get(target_type, target_type)}"
         description = f"Attack path from {entry_node.name} leading to {target_node.name}"
@@ -463,6 +474,8 @@ class AttackPathAnalyzer:
             poc_steps=poc_steps,
             mitre_tactics=mitre_tactics,
             aws_services=aws_services,
+            confidence_score=confidence_score,
+            confidence_factors=confidence_factors,
         )
 
     def _calculate_risk_score(
@@ -614,6 +627,120 @@ class AttackPathAnalyzer:
 
         return poc_steps
 
+    def _calculate_confidence_score(
+        self,
+        finding_ids: list[int],
+        path_edges: list[GraphEdge],
+        exploitability: str,
+        poc_available: bool,
+    ) -> tuple[int, dict]:
+        """
+        Calculate confidence score for an attack path (0-100).
+
+        Confidence factors:
+        - Tool agreement (30%): Multiple tools confirm same issue
+        - PoC validation (40%): Verified exploitable
+        - Evidence count (30%): Amount of supporting data
+
+        Returns:
+            tuple: (confidence_score, confidence_factors dict)
+        """
+        factors = {
+            "tool_agreement": {"score": 0, "weight": 30, "details": ""},
+            "poc_validation": {"score": 0, "weight": 40, "details": ""},
+            "evidence_count": {"score": 0, "weight": 30, "details": ""},
+        }
+
+        # =================================================================
+        # TOOL AGREEMENT (30%)
+        # Multiple tools reporting the same or related issues increases confidence
+        # =================================================================
+        tools_seen = set()
+        for finding in self.findings:
+            if finding.get("id") in finding_ids:
+                tool = finding.get("tool", "").lower()
+                if tool:
+                    tools_seen.add(tool)
+
+        num_tools = len(tools_seen)
+        if num_tools >= 3:
+            factors["tool_agreement"]["score"] = 100
+            factors["tool_agreement"]["details"] = f"Confirmed by {num_tools} tools: {', '.join(tools_seen)}"
+        elif num_tools == 2:
+            factors["tool_agreement"]["score"] = 75
+            factors["tool_agreement"]["details"] = f"Confirmed by 2 tools: {', '.join(tools_seen)}"
+        elif num_tools == 1:
+            factors["tool_agreement"]["score"] = 40
+            factors["tool_agreement"]["details"] = f"Single tool detection: {', '.join(tools_seen)}"
+        else:
+            factors["tool_agreement"]["score"] = 0
+            factors["tool_agreement"]["details"] = "No tool confirmation"
+
+        # =================================================================
+        # POC VALIDATION (40%)
+        # Whether the path has been validated as exploitable
+        # =================================================================
+        if exploitability == "confirmed":
+            factors["poc_validation"]["score"] = 100
+            factors["poc_validation"]["details"] = "Confirmed exploitable through validation"
+        elif exploitability == "likely" and poc_available:
+            factors["poc_validation"]["score"] = 75
+            factors["poc_validation"]["details"] = "Likely exploitable, PoC commands available"
+        elif exploitability == "likely":
+            factors["poc_validation"]["score"] = 60
+            factors["poc_validation"]["details"] = "Likely exploitable based on findings"
+        elif poc_available:
+            factors["poc_validation"]["score"] = 40
+            factors["poc_validation"]["details"] = "Theoretical, but PoC commands available"
+        else:
+            factors["poc_validation"]["score"] = 20
+            factors["poc_validation"]["details"] = "Theoretical vulnerability"
+
+        # =================================================================
+        # EVIDENCE COUNT (30%)
+        # Amount of supporting evidence (findings, edges, nodes)
+        # =================================================================
+        num_findings = len(finding_ids)
+        num_edges = len(path_edges)
+
+        # Also check for additional metadata evidence
+        evidence_details = []
+        for finding in self.findings:
+            if finding.get("id") in finding_ids:
+                metadata = finding.get("metadata") or {}
+                if metadata.get("evidence"):
+                    evidence_details.append("has evidence")
+                if metadata.get("resource_tags"):
+                    evidence_details.append("has resource tags")
+
+        total_evidence = num_findings + num_edges + len(set(evidence_details))
+
+        if total_evidence >= 10:
+            factors["evidence_count"]["score"] = 100
+            factors["evidence_count"]["details"] = f"Strong evidence: {num_findings} findings, {num_edges} edges"
+        elif total_evidence >= 5:
+            factors["evidence_count"]["score"] = 70
+            factors["evidence_count"]["details"] = f"Moderate evidence: {num_findings} findings, {num_edges} edges"
+        elif total_evidence >= 2:
+            factors["evidence_count"]["score"] = 40
+            factors["evidence_count"]["details"] = f"Limited evidence: {num_findings} findings, {num_edges} edges"
+        else:
+            factors["evidence_count"]["score"] = 20
+            factors["evidence_count"]["details"] = "Minimal evidence"
+
+        # =================================================================
+        # CALCULATE TOTAL SCORE
+        # =================================================================
+        total_score = 0
+        for factor_name, factor_data in factors.items():
+            weighted_score = (factor_data["score"] * factor_data["weight"]) / 100
+            total_score += weighted_score
+
+        # Round to integer and clamp to 0-100
+        confidence_score = max(0, min(100, int(total_score)))
+
+        return confidence_score, factors
+
     def save_paths(self, scan_id: str | None = None) -> int:
         """Save discovered attack paths to database."""
         conn = self.connect_db()
@@ -636,16 +763,19 @@ class AttackPathAnalyzer:
                             risk_score, exploitability, impact, hop_count,
                             requires_authentication, requires_privileges,
                             poc_available, poc_steps,
-                            mitre_tactics, aws_services
+                            mitre_tactics, aws_services,
+                            confidence_score, confidence_factors
                         ) VALUES (
                             %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s,
-                            %s, %s, %s, %s, %s, %s, %s, %s, %s, %s
+                            %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s
                         )
                         ON CONFLICT (path_id) DO UPDATE SET
                             scan_id = EXCLUDED.scan_id,
                             risk_score = EXCLUDED.risk_score,
                             exploitability = EXCLUDED.exploitability,
                             poc_steps = EXCLUDED.poc_steps,
+                            confidence_score = EXCLUDED.confidence_score,
+                            confidence_factors = EXCLUDED.confidence_factors,
                             updated_at = NOW()
                     """,
                         (
@@ -671,6 +801,8 @@ class AttackPathAnalyzer:
                             Json(path.poc_steps),
                             path.mitre_tactics,  # PostgreSQL text[] - pass as list
                             path.aws_services,  # PostgreSQL text[] - pass as list
+                            path.confidence_score,
+                            Json(path.confidence_factors),
                         ),
                     )
                     saved_count += 1

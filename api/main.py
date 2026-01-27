@@ -55,6 +55,7 @@ from routers import (
 from routers.aws_profiles import router as aws_profiles_router
 from routers.azure_profiles import router as azure_profiles_router
 from routers.database import router as database_router
+from routers.risk_exceptions import router as risk_exceptions_router
 from routers.health import set_startup_time
 from routers.iac import router as iac_router
 from routers.schedules import router as schedules_router
@@ -542,6 +543,7 @@ app.include_router(schedules_router, prefix="/api")
 app.include_router(blast_radius_router, prefix="/api")
 app.include_router(poc_validation_router, prefix="/api")
 app.include_router(runtime_correlation_router, prefix="/api")
+app.include_router(risk_exceptions_router, prefix="/api")
 
 
 # Root endpoint

@@ -556,6 +556,9 @@ class AttackPathResponse(BaseModel):
     mitre_tactics: list[str] = []
     aws_services: list[str] = []
     created_at: datetime | None = None
+    # Confidence scoring (Tier 1)
+    confidence_score: int | None = Field(default=None, ge=0, le=100, description="Confidence score 0-100")
+    confidence_factors: dict[str, Any] | None = Field(default=None, description="Breakdown of confidence factors")
 
     class Config:
         from_attributes = True
@@ -1493,3 +1496,271 @@ class ComplianceControlDetail(BaseModel):
     remediation_cli: str | None = None  # CLI command for remediation (AWS/Azure/GCP)
     cloud_provider: str | None = None  # aws, azure, gcp - for CLI label context
     reference_url: str | None = None
+
+
+# ============================================================================
+# Risk Exception Schemas (Tier 1)
+# ============================================================================
+
+
+class RiskExceptionStatus(str, Enum):
+    """Risk exception status enumeration."""
+
+    active = "active"
+    expired = "expired"
+    revoked = "revoked"
+
+
+class RiskExceptionCreate(BaseModel):
+    """Request schema for creating a risk exception."""
+
+    canonical_id: str = Field(
+        max_length=256, description="Canonical ID of the finding to accept risk for"
+    )
+    finding_id: int | None = Field(
+        default=None, description="Optional specific finding ID reference"
+    )
+    justification: str = Field(
+        min_length=10, max_length=2000, description="Business justification for accepting the risk"
+    )
+    expiration_date: datetime | None = Field(
+        default=None, description="Optional expiration date for the exception (null = permanent)"
+    )
+
+
+class RiskExceptionResponse(BaseModel):
+    """Response schema for risk exception details."""
+
+    id: int
+    exception_id: str
+    canonical_id: str
+    finding_id: int | None = None
+    justification: str
+    expiration_date: datetime | None = None
+    accepted_at: datetime
+    status: str = "active"
+    created_at: datetime | None = None
+    updated_at: datetime | None = None
+
+    class Config:
+        from_attributes = True
+
+
+class RiskExceptionListResponse(BaseModel):
+    """Response schema for listing risk exceptions."""
+
+    exceptions: list[RiskExceptionResponse]
+    total: int
+    page: int
+    page_size: int
+
+
+# ============================================================================
+# Analysis Job Schemas (Tier 2)
+# ============================================================================
+
+
+class AnalysisJobStatus(str, Enum):
+    """Analysis job status enumeration."""
+
+    pending = "pending"
+    running = "running"
+    completed = "completed"
+    failed = "failed"
+
+
+class AnalysisJobType(str, Enum):
+    """Analysis job type enumeration."""
+
+    attack_path = "attack_path"
+    privesc = "privesc"
+    blast_radius = "blast_radius"
+
+
+class AnalysisJobCreate(BaseModel):
+    """Request schema for creating an analysis job."""
+
+    scan_id: UUID | None = Field(default=None, description="Specific scan to analyze")
+    job_type: AnalysisJobType = Field(
+        default=AnalysisJobType.attack_path, description="Type of analysis to run"
+    )
+
+
+class AnalysisJobResponse(BaseModel):
+    """Response schema for analysis job details."""
+
+    id: int
+    job_id: str
+    job_type: str
+    scan_id: UUID | None = None
+    status: str = "pending"
+    progress: int = 0
+    result_summary: dict[str, Any] | None = None
+    error_message: str | None = None
+    started_at: datetime | None = None
+    completed_at: datetime | None = None
+    created_at: datetime | None = None
+
+    class Config:
+        from_attributes = True
+
+
+class AnalysisJobListResponse(BaseModel):
+    """Response schema for listing analysis jobs."""
+
+    jobs: list[AnalysisJobResponse]
+    total: int
+
+
+# ============================================================================
+# Finding Validation Schemas (Tier 1)
+# ============================================================================
+
+
+class FindingValidationCreate(BaseModel):
+    """Request schema for validating a finding."""
+
+    dry_run: bool = Field(default=False, description="Preview commands without executing")
+
+
+class FindingValidationEvidence(BaseModel):
+    """Evidence from finding validation."""
+
+    command: str
+    output: str | None = None
+    success: bool
+    timestamp: datetime | None = None
+    error: str | None = None
+
+
+class FindingValidationResponse(BaseModel):
+    """Response schema for finding validation details."""
+
+    id: int
+    validation_id: str
+    finding_id: int
+    validation_status: str
+    validation_timestamp: datetime | None = None
+    evidence: list[FindingValidationEvidence] = []
+    error_message: str | None = None
+    dry_run: bool = False
+    created_at: datetime | None = None
+
+    class Config:
+        from_attributes = True
+
+
+# ============================================================================
+# Bulk Operations Schemas (Tier 2)
+# ============================================================================
+
+
+class BulkFindingAction(str, Enum):
+    """Bulk finding action enumeration."""
+
+    update_status = "update_status"
+    accept_risk = "accept_risk"
+
+
+class BulkFindingUpdateRequest(BaseModel):
+    """Request schema for bulk finding updates."""
+
+    finding_ids: list[int] = Field(
+        min_length=1, max_length=500, description="List of finding IDs to update"
+    )
+    action: BulkFindingAction = Field(description="Action to perform")
+    status: FindingStatus | None = Field(
+        default=None, description="New status (required for update_status action)"
+    )
+    justification: str | None = Field(
+        default=None,
+        min_length=10,
+        max_length=2000,
+        description="Justification for accept_risk action",
+    )
+
+
+class BulkFindingResult(BaseModel):
+    """Result for a single finding in bulk operation."""
+
+    finding_id: int
+    success: bool
+    error: str | None = None
+
+
+class BulkFindingUpdateResponse(BaseModel):
+    """Response schema for bulk finding update."""
+
+    updated: int
+    failed: int
+    results: list[BulkFindingResult]
+
+
+# ============================================================================
+# Compliance Comparison Schemas (Tier 2)
+# ============================================================================
+
+
+class FrameworkOverlap(BaseModel):
+    """Overlap between two compliance frameworks."""
+
+    framework_a: str
+    framework_b: str
+    overlap_percentage: float = Field(description="Percentage of controls that overlap (0-1)")
+    shared_controls: int
+    total_controls_a: int
+    total_controls_b: int
+
+
+class ComplianceComparisonResponse(BaseModel):
+    """Response schema for compliance framework comparison."""
+
+    frameworks: list[str]
+    comparison_matrix: dict[str, dict[str, float]] = Field(
+        description="Matrix of overlap percentages between frameworks"
+    )
+    overlaps: list[FrameworkOverlap]
+
+
+# ============================================================================
+# Confidence Scoring Schemas (Tier 1)
+# ============================================================================
+
+
+class ConfidenceFactors(BaseModel):
+    """Breakdown of confidence score factors."""
+
+    tool_agreement: float = Field(
+        default=0, ge=0, le=30, description="Score from multiple tools confirming (0-30)"
+    )
+    poc_validation: float = Field(
+        default=0, ge=0, le=40, description="Score from PoC validation success (0-40)"
+    )
+    evidence_count: float = Field(
+        default=0, ge=0, le=30, description="Score from amount of supporting evidence (0-30)"
+    )
+    tools_confirming: list[str] = Field(default=[], description="List of tools that confirm this issue")
+    validation_status: str | None = Field(default=None, description="PoC validation status if attempted")
+
+
+class AttackPathWithConfidence(AttackPathResponse):
+    """Attack path response with confidence scoring."""
+
+    confidence_score: int = Field(default=0, ge=0, le=100, description="Confidence score 0-100")
+    confidence_factors: ConfidenceFactors | None = None
+
+
+# ============================================================================
+# Blast Radius Enhancement Schemas (Tier 1)
+# ============================================================================
+
+
+class RemediationImpact(BaseModel):
+    """Impact of remediating a finding on other findings."""
+
+    finding_id: int
+    canonical_id: str
+    findings_improved: int = Field(description="Number of other findings that would improve")
+    findings_resolved: int = Field(description="Number of other findings that would be resolved")
+    related_finding_ids: list[int] = Field(default=[], description="IDs of related findings")
+    impact_summary: str | None = Field(default=None, description="Human-readable impact summary")

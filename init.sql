@@ -1211,6 +1211,109 @@ GRANT ALL PRIVILEGES ON blast_radius_analyses TO auditor;
 GRANT ALL PRIVILEGES ON runtime_correlations TO auditor;
 
 -- ============================================================================
+-- Tier 1 & 2 Enhancement Tables
+-- ============================================================================
+
+-- Risk Exceptions table (Tier 1: Compliance Exception Tracking)
+CREATE TABLE IF NOT EXISTS risk_exceptions (
+    id SERIAL PRIMARY KEY,
+    exception_id VARCHAR(64) UNIQUE NOT NULL,
+    canonical_id VARCHAR(256) NOT NULL,  -- Cross-scan persistence
+    finding_id INTEGER REFERENCES findings(id) ON DELETE SET NULL,
+    justification TEXT NOT NULL,
+    expiration_date TIMESTAMP,  -- Optional: null = permanent exception
+    accepted_at TIMESTAMP DEFAULT NOW(),
+    status VARCHAR(32) DEFAULT 'active',  -- active, expired, revoked
+    created_at TIMESTAMP DEFAULT NOW(),
+    updated_at TIMESTAMP DEFAULT NOW()
+);
+
+-- Analysis Jobs table (Tier 2: Async Attack Path Analysis)
+CREATE TABLE IF NOT EXISTS analysis_jobs (
+    id SERIAL PRIMARY KEY,
+    job_id VARCHAR(64) UNIQUE NOT NULL,
+    job_type VARCHAR(32) NOT NULL,  -- attack_path, privesc, blast_radius
+    scan_id UUID REFERENCES scans(scan_id) ON DELETE SET NULL,
+    status VARCHAR(32) DEFAULT 'pending',  -- pending, running, completed, failed
+    progress INTEGER DEFAULT 0,  -- 0-100 percent
+    result_summary JSONB,
+    error_message TEXT,
+    started_at TIMESTAMP,
+    completed_at TIMESTAMP,
+    created_at TIMESTAMP DEFAULT NOW(),
+    updated_at TIMESTAMP DEFAULT NOW()
+);
+
+-- Finding Validations table (Tier 1: PoC Validation for Findings)
+CREATE TABLE IF NOT EXISTS finding_validations (
+    id SERIAL PRIMARY KEY,
+    validation_id VARCHAR(64) UNIQUE NOT NULL,
+    finding_id INTEGER REFERENCES findings(id) ON DELETE CASCADE NOT NULL,
+    validation_status VARCHAR(32) DEFAULT 'pending',  -- pending, validated, blocked, failed
+    validation_timestamp TIMESTAMP,
+    evidence JSONB DEFAULT '[]',
+    error_message TEXT,
+    dry_run BOOLEAN DEFAULT FALSE,
+    created_at TIMESTAMP DEFAULT NOW()
+);
+
+-- Add confidence scoring fields to attack_paths if not exists
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='attack_paths' AND column_name='confidence_score') THEN
+        ALTER TABLE attack_paths ADD COLUMN confidence_score INTEGER DEFAULT 0;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='attack_paths' AND column_name='confidence_factors') THEN
+        ALTER TABLE attack_paths ADD COLUMN confidence_factors JSONB DEFAULT '{}';
+    END IF;
+END $$;
+
+-- ============================================================================
+-- Tier 1 & 2 Indexes
+-- ============================================================================
+
+-- Risk exceptions indexes
+CREATE INDEX IF NOT EXISTS idx_risk_exceptions_canonical ON risk_exceptions(canonical_id);
+CREATE INDEX IF NOT EXISTS idx_risk_exceptions_status ON risk_exceptions(status);
+CREATE INDEX IF NOT EXISTS idx_risk_exceptions_finding ON risk_exceptions(finding_id);
+CREATE INDEX IF NOT EXISTS idx_risk_exceptions_expiration ON risk_exceptions(expiration_date) WHERE expiration_date IS NOT NULL;
+
+-- Analysis jobs indexes
+CREATE INDEX IF NOT EXISTS idx_analysis_jobs_status ON analysis_jobs(status);
+CREATE INDEX IF NOT EXISTS idx_analysis_jobs_type ON analysis_jobs(job_type);
+CREATE INDEX IF NOT EXISTS idx_analysis_jobs_scan ON analysis_jobs(scan_id);
+CREATE INDEX IF NOT EXISTS idx_analysis_jobs_created ON analysis_jobs(created_at DESC);
+
+-- Finding validations indexes
+CREATE INDEX IF NOT EXISTS idx_finding_validations_finding ON finding_validations(finding_id);
+CREATE INDEX IF NOT EXISTS idx_finding_validations_status ON finding_validations(validation_status);
+
+-- Tier 3: Additional optimized indexes for common query patterns
+CREATE INDEX IF NOT EXISTS idx_findings_canonical_status ON findings(canonical_id, status);
+CREATE INDEX IF NOT EXISTS idx_findings_canonical_open ON findings(canonical_id, severity)
+    WHERE status IN ('open', 'fail');
+
+-- Attack paths confidence index
+CREATE INDEX IF NOT EXISTS idx_attack_paths_confidence ON attack_paths(confidence_score DESC) WHERE confidence_score > 0;
+
+-- ============================================================================
+-- Tier 1 & 2 Triggers
+-- ============================================================================
+
+DROP TRIGGER IF EXISTS update_risk_exceptions_updated_at ON risk_exceptions;
+CREATE TRIGGER update_risk_exceptions_updated_at BEFORE UPDATE ON risk_exceptions
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+DROP TRIGGER IF EXISTS update_analysis_jobs_updated_at ON analysis_jobs;
+CREATE TRIGGER update_analysis_jobs_updated_at BEFORE UPDATE ON analysis_jobs
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+-- Grant permissions on new tables
+GRANT ALL PRIVILEGES ON risk_exceptions TO auditor;
+GRANT ALL PRIVILEGES ON analysis_jobs TO auditor;
+GRANT ALL PRIVILEGES ON finding_validations TO auditor;
+
+-- ============================================================================
 -- Maintenance
 -- ============================================================================
 

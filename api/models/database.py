@@ -197,6 +197,9 @@ class AttackPath(Base):
     # Runtime correlation fields (v2)
     runtime_confirmed = Column(Boolean, default=False)
     cloudtrail_events = Column(JSONB, default=[])
+    # Confidence scoring fields (Tier 1)
+    confidence_score = Column(Integer, default=0)  # 0-100 confidence score
+    confidence_factors = Column(JSONB, default={})  # Breakdown of score factors
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
@@ -649,3 +652,69 @@ class RuntimeCorrelation(Base):
     finding = relationship("Finding")
     attack_path = relationship("AttackPath")
     privesc_path = relationship("PrivescPath")
+
+
+# ============================================================================
+# Risk Exception & Analysis Job Models (Tier 1 & 2)
+# ============================================================================
+
+
+class RiskException(Base):
+    """Risk exception model for compliance exception tracking."""
+
+    __tablename__ = "risk_exceptions"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    exception_id = Column(String(64), unique=True, nullable=False)
+    canonical_id = Column(String(256), nullable=False)  # Cross-scan persistence
+    finding_id = Column(Integer, ForeignKey("findings.id", ondelete="SET NULL"))
+    justification = Column(Text, nullable=False)
+    expiration_date = Column(DateTime)  # Optional: null = permanent exception
+    accepted_at = Column(DateTime, default=datetime.utcnow)
+    status = Column(String(32), default="active")  # active, expired, revoked
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    # Relationships
+    finding = relationship("Finding")
+
+
+class AnalysisJob(Base):
+    """Analysis job model for async attack path analysis."""
+
+    __tablename__ = "analysis_jobs"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    job_id = Column(String(64), unique=True, nullable=False)
+    job_type = Column(String(32), nullable=False)  # attack_path, privesc, blast_radius
+    scan_id = Column(UUID(as_uuid=True), ForeignKey("scans.scan_id", ondelete="SET NULL"))
+    status = Column(String(32), default="pending")  # pending, running, completed, failed
+    progress = Column(Integer, default=0)  # 0-100 percent
+    result_summary = Column(JSONB)
+    error_message = Column(Text)
+    started_at = Column(DateTime)
+    completed_at = Column(DateTime)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    # Relationships
+    scan = relationship("Scan")
+
+
+class FindingValidation(Base):
+    """Finding validation model for individual finding PoC validation."""
+
+    __tablename__ = "finding_validations"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    validation_id = Column(String(64), unique=True, nullable=False)
+    finding_id = Column(Integer, ForeignKey("findings.id", ondelete="CASCADE"), nullable=False)
+    validation_status = Column(String(32), default="pending")  # pending, validated, blocked, failed
+    validation_timestamp = Column(DateTime)
+    evidence = Column(JSONB, default=[])  # List of validation evidence
+    error_message = Column(Text)
+    dry_run = Column(Boolean, default=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    # Relationships
+    finding = relationship("Finding")

@@ -29,6 +29,10 @@ from sqlalchemy.orm import Session
 from models.database import Finding, get_db
 from models.schemas import (
     AffectedResource,
+    BulkFindingAction,
+    BulkFindingResult,
+    BulkFindingUpdateRequest,
+    BulkFindingUpdateResponse,
     FindingListResponse,
     FindingResponse,
     FindingSummary,
@@ -456,6 +460,106 @@ async def get_findings_trend(
         "start_date": start_date.isoformat(),
         "end_date": end_date.isoformat(),
     }
+
+
+@router.patch("/bulk", response_model=BulkFindingUpdateResponse)
+async def bulk_update_findings(
+    request: BulkFindingUpdateRequest,
+    db: Session = Depends(get_db),
+):
+    """
+    Apply an action to multiple findings at once.
+
+    Supports bulk status updates for efficient finding management.
+
+    Args:
+        request: Bulk update request
+            - finding_ids: List of finding IDs to update (max 100)
+            - action: Action to perform (update_status)
+            - status: New status for update_status action
+
+    Returns:
+        BulkFindingUpdateResponse: Results of the bulk operation
+
+    Raises:
+        HTTPException 400: If no valid findings or invalid action
+    """
+    # Validate request
+    if len(request.finding_ids) > 100:
+        raise HTTPException(
+            status_code=400,
+            detail="Maximum 100 findings can be updated at once",
+        )
+
+    if request.action == BulkFindingAction.update_status and not request.status:
+        raise HTTPException(
+            status_code=400,
+            detail="Status is required for update_status action",
+        )
+
+    # Get the findings
+    findings = db.query(Finding).filter(Finding.id.in_(request.finding_ids)).all()
+
+    if not findings:
+        raise HTTPException(status_code=400, detail="No valid findings found")
+
+    # Track results
+    results = []
+    updated_count = 0
+    failed_count = 0
+
+    for finding in findings:
+        try:
+            if request.action == BulkFindingAction.update_status:
+                old_status = finding.status
+                finding.status = request.status.value
+                results.append(
+                    BulkFindingResult(
+                        finding_id=finding.id,
+                        success=True,
+                        error=None,
+                    )
+                )
+                updated_count += 1
+            else:
+                results.append(
+                    BulkFindingResult(
+                        finding_id=finding.id,
+                        success=False,
+                        error=f"Unknown action: {request.action}",
+                    )
+                )
+                failed_count += 1
+        except Exception as e:
+            results.append(
+                BulkFindingResult(
+                    finding_id=finding.id,
+                    success=False,
+                    error=str(e),
+                )
+            )
+            failed_count += 1
+
+    # Check for findings that weren't found
+    found_ids = {f.id for f in findings}
+    for fid in request.finding_ids:
+        if fid not in found_ids:
+            results.append(
+                BulkFindingResult(
+                    finding_id=fid,
+                    success=False,
+                    error="Finding not found",
+                )
+            )
+            failed_count += 1
+
+    db.commit()
+
+    return BulkFindingUpdateResponse(
+        updated=updated_count,
+        failed=failed_count,
+        results=results,
+    )
 
 
 @router.get("/{finding_id}/threat-intel")

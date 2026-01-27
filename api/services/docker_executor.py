@@ -1,4 +1,8 @@
-"""Docker container execution service for security tools."""
+"""Docker container execution service for security tools.
+
+Includes retry logic with exponential backoff for transient failures
+such as connection issues, timeouts, and 5xx errors from Docker daemon.
+"""
 
 import io
 import logging
@@ -11,8 +15,100 @@ from typing import Any
 
 import docker
 from docker.errors import APIError, ImageNotFound
+from tenacity import (
+    RetryError,
+    retry,
+    retry_if_exception,
+    stop_after_attempt,
+    wait_exponential,
+)
 
 logger = logging.getLogger(__name__)
+
+
+# ============================================================================
+# Retry Configuration
+# ============================================================================
+
+
+class RetryConfig:
+    """Configuration for retry logic."""
+
+    MAX_RETRIES = 3  # Maximum retry attempts
+    WAIT_MIN = 1  # Minimum wait time (seconds)
+    WAIT_MAX = 4  # Maximum wait time (seconds)
+    WAIT_MULTIPLIER = 2  # Exponential backoff multiplier
+
+
+def is_retryable_error(exception: BaseException) -> bool:
+    """
+    Determine if an exception is retryable.
+
+    Retryable errors include:
+    - Connection refused (Docker daemon not responding)
+    - Timeouts
+    - 5xx server errors
+    - Temporary resource unavailability
+    """
+    if isinstance(exception, docker.errors.DockerException):
+        error_msg = str(exception).lower()
+
+        # Connection issues
+        if any(
+            term in error_msg
+            for term in [
+                "connection refused",
+                "connection reset",
+                "connection aborted",
+                "connection timed out",
+                "timeout",
+                "temporary failure",
+                "service unavailable",
+            ]
+        ):
+            logger.debug(f"Retryable connection error: {exception}")
+            return True
+
+        # 5xx server errors
+        if "500" in error_msg or "502" in error_msg or "503" in error_msg:
+            logger.debug(f"Retryable server error: {exception}")
+            return True
+
+    if isinstance(exception, APIError):
+        # Docker API errors with retryable status codes
+        if hasattr(exception, "status_code"):
+            if exception.status_code in [500, 502, 503, 504]:
+                logger.debug(f"Retryable API error (status {exception.status_code})")
+                return True
+
+    if isinstance(exception, TimeoutError):
+        logger.debug(f"Retryable timeout: {exception}")
+        return True
+
+    if isinstance(exception, ConnectionError):
+        logger.debug(f"Retryable connection error: {exception}")
+        return True
+
+    if isinstance(exception, OSError):
+        # Socket errors
+        if "Errno" in str(exception):
+            logger.debug(f"Retryable OS error: {exception}")
+            return True
+
+    return False
+
+
+# Retry decorator for Docker operations
+docker_retry = retry(
+    retry=retry_if_exception(is_retryable_error),
+    stop=stop_after_attempt(RetryConfig.MAX_RETRIES),
+    wait=wait_exponential(
+        multiplier=RetryConfig.WAIT_MULTIPLIER,
+        min=RetryConfig.WAIT_MIN,
+        max=RetryConfig.WAIT_MAX,
+    ),
+    reraise=True,
+)
 
 # Default AWS profile - can be overridden by environment or passed dynamically
 # When aws_profile is passed to start_execution, it will override this default
@@ -722,46 +818,51 @@ class DockerExecutor:
 
     @property
     def client(self) -> docker.DockerClient:
-        """Get or create Docker client."""
+        """Get or create Docker client with retry logic."""
         if self._client is None:
-            try:
-                # Try multiple connection methods
-                socket_path = "/var/run/docker.sock"
-
-                # Method 1: Direct Unix socket connection (Linux/Docker Desktop)
-                if os.path.exists(socket_path):
-                    try:
-                        self._client = docker.DockerClient(base_url=f"unix://{socket_path}")
-                        self._client.ping()
-                        logger.info("Docker client connected via Unix socket")
-                        return self._client
-                    except Exception as e:
-                        logger.warning(f"Unix socket connection failed: {e}")
-
-                # Method 2: Environment-based connection (TCP/npipe)
-                try:
-                    self._client = docker.from_env()
-                    self._client.ping()
-                    logger.info("Docker client connected via environment")
-                    return self._client
-                except Exception as e:
-                    logger.warning(f"Environment connection failed: {e}")
-
-                # Method 3: Try TCP connection to Docker daemon
-                try:
-                    self._client = docker.DockerClient(base_url="tcp://localhost:2375")
-                    self._client.ping()
-                    logger.info("Docker client connected via TCP")
-                    return self._client
-                except Exception as e:
-                    logger.warning(f"TCP connection failed: {e}")
-
-                raise RuntimeError("All Docker connection methods failed")
-
-            except Exception as e:
-                logger.error(f"Failed to connect to Docker: {e}")
-                raise RuntimeError(f"Docker connection failed: {e}")
+            self._client = self._connect_with_retry()
         return self._client
+
+    @docker_retry
+    def _connect_with_retry(self) -> docker.DockerClient:
+        """Establish Docker connection with retry on transient failures."""
+        try:
+            # Try multiple connection methods
+            socket_path = "/var/run/docker.sock"
+
+            # Method 1: Direct Unix socket connection (Linux/Docker Desktop)
+            if os.path.exists(socket_path):
+                try:
+                    client = docker.DockerClient(base_url=f"unix://{socket_path}")
+                    client.ping()
+                    logger.info("Docker client connected via Unix socket")
+                    return client
+                except Exception as e:
+                    logger.warning(f"Unix socket connection failed: {e}")
+
+            # Method 2: Environment-based connection (TCP/npipe)
+            try:
+                client = docker.from_env()
+                client.ping()
+                logger.info("Docker client connected via environment")
+                return client
+            except Exception as e:
+                logger.warning(f"Environment connection failed: {e}")
+
+            # Method 3: Try TCP connection to Docker daemon
+            try:
+                client = docker.DockerClient(base_url="tcp://localhost:2375")
+                client.ping()
+                logger.info("Docker client connected via TCP")
+                return client
+            except Exception as e:
+                logger.warning(f"TCP connection failed: {e}")
+
+            raise RuntimeError("All Docker connection methods failed")
+
+        except Exception as e:
+            logger.error(f"Failed to connect to Docker: {e}")
+            raise RuntimeError(f"Docker connection failed: {e}")
 
     def _resolve_path(self, path: str) -> str:
         """Resolve container paths to host paths."""
@@ -950,11 +1051,11 @@ class DockerExecutor:
             logger.info(f"Image {image_name} not found, building...")
             return self._build_image(tool_type)
 
-        # For images from registries, try to pull
+        # For images from registries, try to pull with retry
         try:
-            logger.info(f"Pulling image {image_name}...")
-            self.client.images.pull(image_name)
-            return True, f"Successfully pulled image {image_name}"
+            return self._pull_image_with_retry(image_name)
+        except RetryError as e:
+            return False, f"Failed to pull image {image_name} after {RetryConfig.MAX_RETRIES} retries: {e}"
         except docker.errors.APIError as e:
             error_msg = str(e)
             # Check for common permission issues
@@ -974,6 +1075,13 @@ class DockerExecutor:
         except Exception as e:
             return False, f"Failed to pull image {image_name}: {e}"
 
+    @docker_retry
+    def _pull_image_with_retry(self, image_name: str) -> tuple[bool, str]:
+        """Pull Docker image with retry on transient failures."""
+        logger.info(f"Pulling image {image_name}...")
+        self.client.images.pull(image_name)
+        return True, f"Successfully pulled image {image_name}"
+
     def _get_volumes(self, tool_type: ToolType) -> dict[str, dict[str, str]]:
         """Get volume mappings for a tool."""
         config = TOOL_CONFIGS.get(tool_type, {})
@@ -992,6 +1100,12 @@ class DockerExecutor:
             volumes[volume_name] = mount_config
 
         return volumes
+
+    @docker_retry
+    def _run_container_with_retry(self, run_kwargs: dict[str, Any]):
+        """Run a Docker container with retry on transient failures."""
+        logger.debug(f"Running container: {run_kwargs.get('name', 'unnamed')}")
+        return self.client.containers.run(**run_kwargs)
 
     async def start_execution(
         self,
@@ -1070,7 +1184,16 @@ class DockerExecutor:
             if entrypoint is not None:
                 run_kwargs["entrypoint"] = entrypoint
 
-            container = self.client.containers.run(**run_kwargs)
+            # Run container with retry on transient failures
+            try:
+                container = self._run_container_with_retry(run_kwargs)
+            except RetryError as e:
+                logger.error(f"Container run failed after retries: {e}")
+                return {
+                    "execution_id": execution_id,
+                    "status": ExecutionStatus.FAILED,
+                    "error": f"Container run failed after {RetryConfig.MAX_RETRIES} retries",
+                }
 
             return {
                 "execution_id": execution_id,

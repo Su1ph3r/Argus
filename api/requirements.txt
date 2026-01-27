@@ -44,6 +44,10 @@ click==8.1.7
 # Scheduled Scanning (Phase 1 Feature)
 APScheduler>=3.10.0
 
+# Caching and Retry Logic (Tier 3 Robustness)
+cachetools>=5.3.0,<6.0  # Upper bound for google-auth compatibility
+tenacity>=8.2.0
+
 # Semantic versioning for K8s CVE checking
 semver>=3.0.0
 

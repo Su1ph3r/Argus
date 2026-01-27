@@ -10,9 +10,16 @@ Sync Strategy:
 2. Reconcile with PostgreSQL assets table
 3. Propagate finding counts from PostgreSQL to Neo4j nodes
 4. Report discrepancies and sync status
+
+Circuit Breaker Pattern:
+- CLOSED: Normal operation, requests pass through
+- OPEN: After threshold failures, reject requests for recovery_timeout
+- HALF_OPEN: After timeout, allow test requests to determine recovery
 """
 
 import logging
+import threading
+import time
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
@@ -27,6 +34,147 @@ from config import get_settings
 from models.database import Asset, Finding
 
 logger = logging.getLogger(__name__)
+
+
+# ============================================================================
+# Circuit Breaker Implementation
+# ============================================================================
+
+
+class CircuitState(str, Enum):
+    """Circuit breaker states."""
+
+    CLOSED = "closed"  # Normal operation
+    OPEN = "open"  # Failing, reject requests
+    HALF_OPEN = "half_open"  # Testing if service recovered
+
+
+@dataclass
+class CircuitBreakerConfig:
+    """Configuration for circuit breaker."""
+
+    failure_threshold: int = 5  # Failures before opening circuit
+    recovery_timeout: int = 60  # Seconds before attempting recovery
+    half_open_max_calls: int = 3  # Test calls in half-open state
+    success_threshold: int = 2  # Successes needed to close circuit
+
+
+class CircuitBreaker:
+    """
+    Circuit breaker for Neo4j operations.
+
+    Protects against cascading failures when Neo4j is unavailable
+    by fast-failing requests instead of waiting for timeouts.
+    """
+
+    def __init__(self, config: CircuitBreakerConfig | None = None):
+        self.config = config or CircuitBreakerConfig()
+        self._state = CircuitState.CLOSED
+        self._failure_count = 0
+        self._success_count = 0
+        self._last_failure_time: float | None = None
+        self._half_open_calls = 0
+        self._lock = threading.RLock()
+
+    @property
+    def state(self) -> CircuitState:
+        """Get current circuit state, checking for timeout transitions."""
+        with self._lock:
+            if self._state == CircuitState.OPEN:
+                # Check if recovery timeout has passed
+                if self._last_failure_time is not None:
+                    elapsed = time.time() - self._last_failure_time
+                    if elapsed >= self.config.recovery_timeout:
+                        logger.info("Circuit breaker transitioning to HALF_OPEN")
+                        self._state = CircuitState.HALF_OPEN
+                        self._half_open_calls = 0
+                        self._success_count = 0
+            return self._state
+
+    def is_available(self) -> bool:
+        """Check if requests should be allowed through."""
+        state = self.state
+        if state == CircuitState.CLOSED:
+            return True
+        if state == CircuitState.HALF_OPEN:
+            with self._lock:
+                if self._half_open_calls < self.config.half_open_max_calls:
+                    self._half_open_calls += 1
+                    return True
+                return False
+        # OPEN state
+        return False
+
+    def record_success(self) -> None:
+        """Record a successful operation."""
+        with self._lock:
+            if self._state == CircuitState.HALF_OPEN:
+                self._success_count += 1
+                if self._success_count >= self.config.success_threshold:
+                    logger.info("Circuit breaker closing after successful recovery")
+                    self._state = CircuitState.CLOSED
+                    self._failure_count = 0
+                    self._success_count = 0
+            elif self._state == CircuitState.CLOSED:
+                # Reset failure count on success
+                self._failure_count = 0
+
+    def record_failure(self, error: Exception | None = None) -> None:
+        """Record a failed operation."""
+        with self._lock:
+            self._failure_count += 1
+            self._last_failure_time = time.time()
+
+            if self._state == CircuitState.HALF_OPEN:
+                # Any failure in half-open reopens circuit
+                logger.warning(f"Circuit breaker reopening after half-open failure: {error}")
+                self._state = CircuitState.OPEN
+            elif self._state == CircuitState.CLOSED:
+                if self._failure_count >= self.config.failure_threshold:
+                    logger.warning(
+                        f"Circuit breaker opening after {self._failure_count} failures"
+                    )
+                    self._state = CircuitState.OPEN
+
+    def reset(self) -> None:
+        """Manually reset the circuit breaker to closed state."""
+        with self._lock:
+            logger.info("Circuit breaker manually reset to CLOSED")
+            self._state = CircuitState.CLOSED
+            self._failure_count = 0
+            self._success_count = 0
+            self._last_failure_time = None
+            self._half_open_calls = 0
+
+    def get_status(self) -> dict[str, Any]:
+        """Get circuit breaker status for monitoring."""
+        with self._lock:
+            time_until_retry = None
+            if self._state == CircuitState.OPEN and self._last_failure_time:
+                elapsed = time.time() - self._last_failure_time
+                remaining = self.config.recovery_timeout - elapsed
+                time_until_retry = max(0, int(remaining))
+
+            return {
+                "state": self.state.value,
+                "failure_count": self._failure_count,
+                "success_count": self._success_count,
+                "time_until_retry": time_until_retry,
+                "config": {
+                    "failure_threshold": self.config.failure_threshold,
+                    "recovery_timeout": self.config.recovery_timeout,
+                    "half_open_max_calls": self.config.half_open_max_calls,
+                    "success_threshold": self.config.success_threshold,
+                },
+            }
+
+
+class CircuitBreakerOpenError(Exception):
+    """Raised when circuit breaker is open and request is rejected."""
+
+    def __init__(self, message: str = "Circuit breaker is open"):
+        self.message = message
+        super().__init__(self.message)
 
 
 class SyncDirection(str, Enum):
@@ -71,16 +219,34 @@ class SyncStatus:
 
 
 class Neo4jConnection:
-    """Manages Neo4j connection with proper resource handling."""
+    """Manages Neo4j connection with proper resource handling and circuit breaker."""
 
-    def __init__(self, uri: str, user: str, password: str):
+    def __init__(
+        self,
+        uri: str,
+        user: str,
+        password: str,
+        circuit_breaker: CircuitBreaker | None = None,
+    ):
         self.uri = uri
         self.user = user
         self.password = password
         self._driver: Driver | None = None
+        self._circuit_breaker = circuit_breaker or CircuitBreaker()
+
+    @property
+    def circuit_breaker(self) -> CircuitBreaker:
+        """Get the circuit breaker instance."""
+        return self._circuit_breaker
 
     def connect(self) -> Driver:
-        """Establish connection to Neo4j."""
+        """Establish connection to Neo4j with circuit breaker protection."""
+        # Check circuit breaker before attempting connection
+        if not self._circuit_breaker.is_available():
+            raise CircuitBreakerOpenError(
+                f"Neo4j circuit breaker is open. State: {self._circuit_breaker.state.value}"
+            )
+
         if self._driver is None:
             try:
                 self._driver = GraphDatabase.driver(
@@ -91,13 +257,30 @@ class Neo4jConnection:
                 )
                 # Verify connectivity
                 self._driver.verify_connectivity()
+                self._circuit_breaker.record_success()
                 logger.info(f"Connected to Neo4j at {self.uri}")
             except AuthError as e:
+                self._circuit_breaker.record_failure(e)
                 logger.error(f"Neo4j authentication failed: {e}")
                 raise
             except ServiceUnavailable as e:
+                self._circuit_breaker.record_failure(e)
                 logger.error(f"Neo4j service unavailable: {e}")
                 raise
+            except Exception as e:
+                self._circuit_breaker.record_failure(e)
+                logger.error(f"Neo4j connection failed: {e}")
+                raise
+        else:
+            # Verify existing connection is still valid
+            try:
+                self._driver.verify_connectivity()
+                self._circuit_breaker.record_success()
+            except Exception as e:
+                self._circuit_breaker.record_failure(e)
+                self._driver = None
+                raise
+
         return self._driver
 
     def close(self):
@@ -116,6 +299,18 @@ class Neo4jConnection:
             return True
         except Exception:
             return False
+
+    def is_available(self) -> bool:
+        """Check if Neo4j service is available (circuit breaker not open)."""
+        return self._circuit_breaker.is_available()
+
+    def get_circuit_status(self) -> dict[str, Any]:
+        """Get circuit breaker status."""
+        return self._circuit_breaker.get_status()
+
+    def reset_circuit(self) -> None:
+        """Manually reset the circuit breaker."""
+        self._circuit_breaker.reset()
 
     def __enter__(self):
         self.connect()

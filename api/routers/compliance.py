@@ -29,13 +29,16 @@ from sqlalchemy.orm import Session
 from models.database import get_db
 from models.schemas import (
     ComplianceAffectedResource,
+    ComplianceComparisonResponse,
     ComplianceControl,
     ComplianceControlDetail,
     ComplianceFrameworkDetail,
     ComplianceFrameworksResponse,
     ComplianceFrameworkSummary,
     ComplianceSummaryResponse,
+    FrameworkOverlap,
 )
+from services.cache_service import cached, get_cache_service
 
 router: APIRouter = APIRouter(prefix="/compliance", tags=["Compliance"])
 logger = logging.getLogger(__name__)
@@ -119,10 +122,20 @@ async def get_compliance_summary(db: Session = Depends(get_db)):
     Get high-level compliance summary across all frameworks.
 
     Returns overall pass/fail statistics aggregated across all frameworks.
+    Results are cached for 1 hour.
 
     Returns:
         ComplianceSummaryResponse: Aggregated compliance statistics
     """
+    # Try to get from cache
+    cache = get_cache_service()
+    cache_key = "compliance_summary_all"
+    cached_result = cache.get("compliance_scores", cache_key)
+
+    if cached_result:
+        return ComplianceSummaryResponse(**cached_result)
+
+    # Calculate summary
     frameworks = _get_framework_summaries(db)
 
     total_controls = sum(f.controls_checked for f in frameworks)
@@ -133,7 +146,7 @@ async def get_compliance_summary(db: Session = Depends(get_db)):
     else:
         overall_pass_percentage = 0.0
 
-    return ComplianceSummaryResponse(
+    result = ComplianceSummaryResponse(
         frameworks_count=len(frameworks),
         total_controls=total_controls,
         total_passed=total_passed,
@@ -141,6 +154,127 @@ async def get_compliance_summary(db: Session = Depends(get_db)):
         overall_pass_percentage=overall_pass_percentage,
         by_framework=frameworks,
     )
+
+    # Cache the result
+    cache.set("compliance_scores", cache_key, result.model_dump())
+
+    return result
+
+
+@router.get("/comparison", response_model=ComplianceComparisonResponse)
+async def get_compliance_comparison(db: Session = Depends(get_db)):
+    """
+    Get cross-framework compliance comparison matrix.
+
+    Shows overlap percentages between different compliance frameworks,
+    helping to understand which frameworks share common controls.
+
+    Results are cached for 1 hour.
+
+    Returns:
+        ComplianceComparisonResponse: Matrix of framework overlap percentages
+    """
+    # Try to get from cache
+    cache = get_cache_service()
+    cache_key = "compliance_comparison_all"
+    cached_result = cache.get("compliance_comparison", cache_key)
+
+    if cached_result:
+        return ComplianceComparisonResponse(**cached_result)
+
+    # Get all controls for each framework
+    query = text("""
+        WITH framework_controls AS (
+            SELECT
+                framework_key as framework,
+                jsonb_array_elements_text(f.compliance_frameworks->framework_key) as control_id,
+                f.resource_id
+            FROM findings f,
+            LATERAL jsonb_object_keys(f.compliance_frameworks) as framework_key
+            WHERE f.compliance_frameworks IS NOT NULL
+              AND jsonb_typeof(f.compliance_frameworks) = 'object'
+        )
+        SELECT
+            framework,
+            array_agg(DISTINCT control_id) as controls,
+            array_agg(DISTINCT resource_id) as resources
+        FROM framework_controls
+        GROUP BY framework
+    """)
+
+    result = db.execute(query)
+    rows = result.fetchall()
+
+    if not rows:
+        return ComplianceComparisonResponse(
+            frameworks=[],
+            comparison_matrix={},
+            overlaps=[],
+        )
+
+    # Build framework data
+    framework_data = {}
+    for row in rows:
+        framework = row[0]
+        controls = set(row[1] or [])
+        resources = set(row[2] or [])
+        framework_data[framework] = {
+            "controls": controls,
+            "resources": resources,
+        }
+
+    frameworks = list(framework_data.keys())
+    total_frameworks = len(frameworks)
+
+    # Calculate overlap matrix
+    comparison_matrix = {}
+    framework_overlaps = []
+
+    for f1 in frameworks:
+        comparison_matrix[f1] = {}
+        for f2 in frameworks:
+            if f1 == f2:
+                comparison_matrix[f1][f2] = 1.0
+            else:
+                # Calculate overlap based on shared resources
+                resources1 = framework_data[f1]["resources"]
+                resources2 = framework_data[f2]["resources"]
+
+                if resources1 and resources2:
+                    intersection = len(resources1 & resources2)
+                    union = len(resources1 | resources2)
+                    overlap = intersection / union if union > 0 else 0.0
+                else:
+                    overlap = 0.0
+
+                comparison_matrix[f1][f2] = round(overlap, 3)
+
+                # Add to overlaps list (avoid duplicates)
+                if f1 < f2:  # Only add once per pair
+                    framework_overlaps.append(
+                        FrameworkOverlap(
+                            framework_a=f1,
+                            framework_b=f2,
+                            overlap_percentage=round(overlap * 100, 1),
+                            shared_controls=intersection if resources1 and resources2 else 0,
+                            total_controls_a=len(resources1) if resources1 else 0,
+                            total_controls_b=len(resources2) if resources2 else 0,
+                        )
+                    )
+
+    # Sort overlaps by percentage descending
+    framework_overlaps.sort(key=lambda x: x.overlap_percentage, reverse=True)
+
+    result = ComplianceComparisonResponse(
+        frameworks=list(framework_data.keys()),
+        comparison_matrix=comparison_matrix,
+        overlaps=framework_overlaps,
+    )
+
+    # Cache the result
+    cache.set("compliance_comparison", cache_key, result.model_dump())
+
+    return result
 
 
 @router.get("/frameworks/{framework}", response_model=ComplianceFrameworkDetail)

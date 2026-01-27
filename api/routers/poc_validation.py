@@ -28,7 +28,12 @@ from pydantic import BaseModel, Field
 from sqlalchemy import desc
 from sqlalchemy.orm import Session
 
-from models.database import AttackPath, PrivescPath, get_db
+from models.database import AttackPath, Finding, FindingValidation, PrivescPath, get_db
+from models.schemas import (
+    FindingValidationCreate,
+    FindingValidationEvidence,
+    FindingValidationResponse,
+)
 
 # Add report-processor to path for the validator
 sys.path.insert(0, "/app/report-processor")
@@ -352,6 +357,264 @@ async def validate_privesc_path(
         evidence=_convert_evidence_to_schema(result.get("evidence", [])),
         error=result.get("error"),
     )
+
+
+@router.post("/findings/{finding_id}/validate", response_model=FindingValidationResponse)
+async def validate_finding(
+    finding_id: int,
+    request: FindingValidationCreate = FindingValidationCreate(),
+    db: Session = Depends(get_db),
+):
+    """
+    Validate a finding using safe read-only commands.
+
+    This endpoint validates individual findings by generating and executing
+    safe verification commands based on the finding type. The validation
+    results are persisted for future reference.
+
+    Args:
+        finding_id: Database ID of the finding
+        request: Validation options (dry_run, etc.)
+
+    Returns:
+        FindingValidationResponse with validation status and evidence
+
+    Raises:
+        HTTPException 404: If finding is not found
+        HTTPException 500: If validation engine is not available
+    """
+    # Get the finding
+    finding = db.query(Finding).filter(Finding.id == finding_id).first()
+
+    if not finding:
+        raise HTTPException(status_code=404, detail="Finding not found")
+
+    # Get the validator
+    validator = _get_poc_validator()
+
+    # Generate validation ID
+    validation_id = _generate_validation_id(finding_id, "finding")
+
+    # Build validation commands based on finding type
+    poc_commands = _generate_finding_poc_commands(finding)
+
+    if not poc_commands:
+        # No PoC commands available for this finding type
+        validation = FindingValidation(
+            validation_id=validation_id,
+            finding_id=finding_id,
+            validation_status="no_poc_available",
+            validation_timestamp=datetime.utcnow(),
+            evidence=[],
+            error_message="No PoC commands available for this finding type",
+            dry_run=request.dry_run,
+        )
+        db.add(validation)
+        db.commit()
+        db.refresh(validation)
+
+        return FindingValidationResponse(
+            id=validation.id,
+            validation_id=validation.validation_id,
+            finding_id=finding_id,
+            validation_status=validation.validation_status,
+            validation_timestamp=validation.validation_timestamp,
+            evidence=[],
+            error_message=validation.error_message,
+            dry_run=validation.dry_run,
+            created_at=validation.created_at,
+        )
+
+    # Execute validation
+    evidence = []
+    all_success = True
+
+    for cmd in poc_commands:
+        is_safe, reason = validator.is_safe_command(cmd)
+
+        if request.dry_run:
+            evidence.append({
+                "command": cmd,
+                "output": f"[DRY RUN] Command would be executed: {cmd}",
+                "success": is_safe,
+                "timestamp": datetime.utcnow().isoformat(),
+                "error": None if is_safe else reason,
+            })
+        elif is_safe:
+            # Execute the command
+            result = validator.execute_safe_command(cmd)
+            evidence.append({
+                "command": cmd,
+                "output": result.get("output", ""),
+                "success": result.get("success", False),
+                "timestamp": datetime.utcnow().isoformat(),
+                "error": result.get("error"),
+            })
+            if not result.get("success", False):
+                all_success = False
+        else:
+            # Command is not safe, try to transform it
+            safe_cmd = validator.transform_to_safe_command({"command": cmd})
+            if safe_cmd:
+                result = validator.execute_safe_command(safe_cmd)
+                evidence.append({
+                    "command": safe_cmd,
+                    "output": result.get("output", ""),
+                    "success": result.get("success", False),
+                    "timestamp": datetime.utcnow().isoformat(),
+                    "error": result.get("error"),
+                })
+                if not result.get("success", False):
+                    all_success = False
+            else:
+                evidence.append({
+                    "command": cmd,
+                    "output": None,
+                    "success": False,
+                    "timestamp": datetime.utcnow().isoformat(),
+                    "error": f"Command blocked: {reason}",
+                })
+                all_success = False
+
+    # Determine validation status
+    if request.dry_run:
+        status = "dry_run_complete"
+    elif all_success:
+        status = "validated"
+    else:
+        status = "validation_failed"
+
+    # Persist validation result
+    validation = FindingValidation(
+        validation_id=validation_id,
+        finding_id=finding_id,
+        validation_status=status,
+        validation_timestamp=datetime.utcnow(),
+        evidence=evidence,
+        dry_run=request.dry_run,
+    )
+    db.add(validation)
+    db.commit()
+    db.refresh(validation)
+
+    # Convert evidence to response schema
+    evidence_response = [
+        FindingValidationEvidence(
+            command=e.get("command", ""),
+            output=e.get("output"),
+            success=e.get("success", False),
+            timestamp=datetime.fromisoformat(e["timestamp"]) if e.get("timestamp") else None,
+            error=e.get("error"),
+        )
+        for e in evidence
+    ]
+
+    return FindingValidationResponse(
+        id=validation.id,
+        validation_id=validation.validation_id,
+        finding_id=finding_id,
+        validation_status=validation.validation_status,
+        validation_timestamp=validation.validation_timestamp,
+        evidence=evidence_response,
+        error_message=validation.error_message,
+        dry_run=validation.dry_run,
+        created_at=validation.created_at,
+    )
+
+
+def _generate_finding_poc_commands(finding: Finding) -> list[str]:
+    """
+    Generate PoC commands for a finding based on its type.
+
+    This function analyzes the finding and generates appropriate
+    read-only verification commands.
+    """
+    commands = []
+
+    # Common patterns based on finding category
+    tool = finding.tool.lower() if finding.tool else ""
+    finding_id_str = finding.finding_id.lower() if finding.finding_id else ""
+    resource_type = finding.resource_type.lower() if finding.resource_type else ""
+    resource_id = finding.resource_id or ""
+
+    # AWS-specific checks
+    if "aws" in tool or "prowler" in tool or "scoutsuite" in tool:
+        # S3 bucket checks
+        if "s3" in finding_id_str or "s3" in resource_type:
+            if resource_id.startswith("arn:aws:s3"):
+                bucket_name = resource_id.split(":")[-1].split("/")[0]
+            else:
+                bucket_name = resource_id
+            commands.append(f"aws s3api get-bucket-acl --bucket {bucket_name}")
+            commands.append(f"aws s3api get-bucket-policy --bucket {bucket_name}")
+            commands.append(f"aws s3api get-public-access-block --bucket {bucket_name}")
+
+        # IAM checks
+        elif "iam" in finding_id_str or "iam" in resource_type:
+            if "user" in finding_id_str or "user" in resource_type:
+                if "/" in resource_id:
+                    user_name = resource_id.split("/")[-1]
+                else:
+                    user_name = resource_id
+                commands.append(f"aws iam get-user --user-name {user_name}")
+                commands.append(f"aws iam list-user-policies --user-name {user_name}")
+            elif "role" in finding_id_str or "role" in resource_type:
+                if "/" in resource_id:
+                    role_name = resource_id.split("/")[-1]
+                else:
+                    role_name = resource_id
+                commands.append(f"aws iam get-role --role-name {role_name}")
+                commands.append(f"aws iam list-role-policies --role-name {role_name}")
+            elif "policy" in finding_id_str:
+                commands.append(f"aws iam get-policy --policy-arn {resource_id}")
+
+        # EC2 checks
+        elif "ec2" in finding_id_str or "ec2" in resource_type:
+            if "security" in finding_id_str or "sg-" in resource_id:
+                if resource_id.startswith("sg-"):
+                    commands.append(f"aws ec2 describe-security-groups --group-ids {resource_id}")
+                else:
+                    commands.append("aws ec2 describe-security-groups")
+            elif "instance" in resource_type or "i-" in resource_id:
+                if resource_id.startswith("i-"):
+                    commands.append(f"aws ec2 describe-instances --instance-ids {resource_id}")
+
+        # RDS checks
+        elif "rds" in finding_id_str or "rds" in resource_type:
+            if ":" in resource_id:
+                db_id = resource_id.split(":")[-1]
+            else:
+                db_id = resource_id
+            commands.append(f"aws rds describe-db-instances --db-instance-identifier {db_id}")
+
+        # Lambda checks
+        elif "lambda" in finding_id_str or "lambda" in resource_type:
+            if ":" in resource_id:
+                func_name = resource_id.split(":")[-1]
+            else:
+                func_name = resource_id
+            commands.append(f"aws lambda get-function --function-name {func_name}")
+            commands.append(f"aws lambda get-function-configuration --function-name {func_name}")
+
+        # CloudTrail checks
+        elif "cloudtrail" in finding_id_str or "cloudtrail" in resource_type:
+            commands.append("aws cloudtrail describe-trails")
+
+        # KMS checks
+        elif "kms" in finding_id_str or "kms" in resource_type:
+            if resource_id:
+                commands.append(f"aws kms describe-key --key-id {resource_id}")
+
+    # Fallback: if no specific commands generated, try generic describe
+    if not commands and resource_id:
+        # Generic AWS describe patterns
+        if resource_id.startswith("arn:aws:"):
+            parts = resource_id.split(":")
+            if len(parts) >= 6:
+                service = parts[2]
+                commands.append(f"aws {service} describe-* --help")  # Safe help command
+
+    return commands
 
 
 @router.post("/batch-validate", response_model=PoCBatchValidationResponse)
