@@ -10,12 +10,18 @@
   >
     <div class="modal-content">
       <!-- Running State -->
-      <div v-if="isRunning" class="progress-state">
+      <div
+        v-if="isRunning"
+        class="progress-state"
+      >
         <ProgressSpinner style="width: 48px; height: 48px" />
         <h4>Analysis in Progress</h4>
         <p>Discovering attack paths from security findings...</p>
 
-        <div v-if="job?.progress" class="progress-bar">
+        <div
+          v-if="job?.progress"
+          class="progress-bar"
+        >
           <ProgressBar :value="job.progress" />
           <span class="progress-text">{{ job.progress }}% complete</span>
         </div>
@@ -25,18 +31,27 @@
             <i class="pi pi-spin pi-spinner" />
             {{ job?.status || 'Running' }}
           </span>
-          <span v-if="job?.started_at" class="elapsed-time">
+          <span
+            v-if="job?.started_at"
+            class="elapsed-time"
+          >
             Started {{ formatTimeAgo(job.started_at) }}
           </span>
         </div>
       </div>
 
       <!-- Completed State -->
-      <div v-else-if="isCompleted" class="completed-state">
+      <div
+        v-else-if="isCompleted"
+        class="completed-state"
+      >
         <i class="pi pi-check-circle success-icon" />
         <h4>Analysis Complete</h4>
 
-        <div v-if="job?.result_summary" class="results-summary">
+        <div
+          v-if="job?.result_summary"
+          class="results-summary"
+        >
           <div class="result-stat">
             <span class="stat-value">{{ job.result_summary.total_paths || 0 }}</span>
             <span class="stat-label">Attack Paths Found</span>
@@ -51,16 +66,24 @@
           </div>
         </div>
 
-        <div v-if="job?.completed_at" class="completion-info">
+        <div
+          v-if="job?.completed_at"
+          class="completion-info"
+        >
           Completed {{ formatTimeAgo(job.completed_at) }}
         </div>
       </div>
 
       <!-- Failed State -->
-      <div v-else-if="isFailed" class="failed-state">
+      <div
+        v-else-if="isFailed"
+        class="failed-state"
+      >
         <i class="pi pi-times-circle error-icon" />
         <h4>Analysis Failed</h4>
-        <p class="error-message">{{ job?.error_message || 'Unknown error occurred' }}</p>
+        <p class="error-message">
+          {{ job?.error_message || 'Unknown error occurred' }}
+        </p>
 
         <Button
           label="Retry Analysis"
@@ -70,7 +93,10 @@
       </div>
 
       <!-- Idle State -->
-      <div v-else class="idle-state">
+      <div
+        v-else
+        class="idle-state"
+      >
         <i class="pi pi-search" />
         <h4>Start Attack Path Analysis</h4>
         <p>Analyze security findings to discover potential attack paths and privilege escalation routes.</p>
@@ -84,7 +110,10 @@
     </div>
 
     <template #footer>
-      <div v-if="isCompleted" class="footer-actions">
+      <div
+        v-if="isCompleted"
+        class="footer-actions"
+      >
         <Button
           label="Close"
           severity="secondary"
@@ -95,7 +124,10 @@
           @click="$emit('view-paths')"
         />
       </div>
-      <div v-else-if="isRunning" class="footer-actions">
+      <div
+        v-else-if="isRunning"
+        class="footer-actions"
+      >
         <Button
           label="Run in Background"
           severity="secondary"

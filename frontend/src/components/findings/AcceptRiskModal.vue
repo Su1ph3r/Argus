@@ -11,9 +11,14 @@
     <div class="modal-content">
       <div class="finding-summary">
         <h4>Finding</h4>
-        <p class="finding-title">{{ finding?.title }}</p>
+        <p class="finding-title">
+          {{ finding?.title }}
+        </p>
         <div class="finding-meta">
-          <span class="severity-badge" :class="finding?.severity">
+          <span
+            class="severity-badge"
+            :class="finding?.severity"
+          >
             {{ finding?.severity }}
           </span>
           <span class="resource">{{ finding?.resource_name || finding?.resource_id }}</span>
@@ -30,10 +35,16 @@
           rows="4"
           :class="{ 'p-invalid': justificationError }"
         />
-        <small v-if="justificationError" class="p-error">
+        <small
+          v-if="justificationError"
+          class="p-error"
+        >
           {{ justificationError }}
         </small>
-        <small class="char-count" :class="{ warning: justification.length < 20 }">
+        <small
+          class="char-count"
+          :class="{ warning: justification.length < 20 }"
+        >
           {{ justification.length }}/20 minimum characters
         </small>
       </div>
@@ -55,7 +66,10 @@
         </small>
       </div>
 
-      <div v-if="error" class="error-message">
+      <div
+        v-if="error"
+        class="error-message"
+      >
         <i class="pi pi-exclamation-triangle" />
         {{ error }}
       </div>
@@ -155,7 +169,7 @@ async function submit() {
     const exception = await riskExceptionsStore.createException(
       [props.finding.id],
       justification.value,
-      formattedDate
+      formattedDate,
     )
 
     emit('accepted', exception)
