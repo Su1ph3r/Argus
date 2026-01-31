@@ -1,8 +1,8 @@
 <template>
   <div
+    v-tooltip.top="tooltipContent"
     class="confidence-badge"
     :class="confidenceLevel"
-    v-tooltip.top="tooltipContent"
   >
     <span class="confidence-value">{{ score }}%</span>
     <span class="confidence-label">confidence</span>

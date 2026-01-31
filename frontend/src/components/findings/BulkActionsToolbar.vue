@@ -1,5 +1,8 @@
 <template>
-  <div v-if="selectedCount > 0" class="bulk-actions-toolbar">
+  <div
+    v-if="selectedCount > 0"
+    class="bulk-actions-toolbar"
+  >
     <div class="selection-info">
       <Checkbox
         :model-value="allSelected"
@@ -126,13 +129,13 @@ async function applyStatusChange() {
 
     toast.success(
       'Status Updated',
-      `Updated ${result.updated} finding${result.updated !== 1 ? 's' : ''}`
+      `Updated ${result.updated} finding${result.updated !== 1 ? 's' : ''}`,
     )
 
     if (result.failed > 0) {
       toast.warning(
         'Some Updates Failed',
-        `${result.failed} finding${result.failed !== 1 ? 's' : ''} could not be updated`
+        `${result.failed} finding${result.failed !== 1 ? 's' : ''} could not be updated`,
       )
     }
 

@@ -24,54 +24,58 @@
       </div>
     </div>
 
-    <!-- Summary Cards -->
+    <!-- Summary Strip -->
     <div
       v-if="displayStats"
-      class="summary-cards"
+      class="summary-strip"
     >
-      <div class="summary-card">
-        <div class="card-icon frameworks">
+      <div class="summary-stat">
+        <div class="stat-icon frameworks">
           <i class="pi pi-th-large" />
         </div>
-        <div class="card-content">
-          <span class="card-value">{{ displayStats.frameworks_count }}</span>
-          <span class="card-label">{{ complianceStore.selectedFramework ? 'Framework' : 'Frameworks' }}</span>
+        <div class="stat-content">
+          <span class="stat-value">{{ displayStats.frameworks_count }}</span>
+          <span class="stat-label">{{ complianceStore.selectedFramework ? 'Framework' : 'Frameworks' }}</span>
         </div>
       </div>
-      <div class="summary-card">
-        <div class="card-icon controls">
+      <div class="stat-divider" />
+      <div class="summary-stat">
+        <div class="stat-icon controls">
           <i class="pi pi-check-square" />
         </div>
-        <div class="card-content">
-          <span class="card-value">{{ displayStats.total_controls }}</span>
-          <span class="card-label">Total Controls</span>
+        <div class="stat-content">
+          <span class="stat-value">{{ displayStats.total_controls }}</span>
+          <span class="stat-label">Controls</span>
         </div>
       </div>
-      <div class="summary-card">
-        <div class="card-icon passed">
+      <div class="stat-divider" />
+      <div class="summary-stat">
+        <div class="stat-icon passed">
           <i class="pi pi-check-circle" />
         </div>
-        <div class="card-content">
-          <span class="card-value">{{ displayStats.total_passed }}</span>
-          <span class="card-label">Passed</span>
+        <div class="stat-content">
+          <span class="stat-value">{{ displayStats.total_passed }}</span>
+          <span class="stat-label">Passed</span>
         </div>
       </div>
-      <div class="summary-card">
-        <div class="card-icon failed">
+      <div class="stat-divider" />
+      <div class="summary-stat">
+        <div class="stat-icon failed">
           <i class="pi pi-times-circle" />
         </div>
-        <div class="card-content">
-          <span class="card-value">{{ displayStats.total_failed }}</span>
-          <span class="card-label">Failed</span>
+        <div class="stat-content">
+          <span class="stat-value">{{ displayStats.total_failed }}</span>
+          <span class="stat-label">Failed</span>
         </div>
       </div>
-      <div class="summary-card wide">
-        <div class="card-icon percentage">
+      <div class="stat-divider" />
+      <div class="summary-stat">
+        <div class="stat-icon percentage">
           <i class="pi pi-percentage" />
         </div>
-        <div class="card-content">
-          <span class="card-value">{{ displayStats.overall_pass_percentage }}%</span>
-          <span class="card-label">Pass Rate</span>
+        <div class="stat-content">
+          <span class="stat-value">{{ displayStats.overall_pass_percentage }}%</span>
+          <span class="stat-label">Pass Rate</span>
         </div>
       </div>
     </div>
@@ -104,43 +108,49 @@
       />
     </div>
 
-    <!-- Framework Cards Grid (when no framework selected) -->
+    <!-- Framework List (when no framework selected) -->
     <div
       v-if="!complianceStore.selectedFramework && !complianceStore.loading"
-      class="frameworks-grid"
+      class="frameworks-list"
     >
       <div
         v-for="fw in complianceStore.frameworks"
         :key="fw.framework"
-        class="framework-card"
+        class="framework-row"
         @click="selectFramework(fw.framework)"
       >
-        <div class="framework-header">
+        <div class="framework-info">
           <span class="framework-name">{{ fw.framework }}</span>
+        </div>
+        <div class="framework-metrics">
+          <div class="metric">
+            <span class="metric-value">{{ fw.controls_checked }}</span>
+            <span class="metric-label">Controls</span>
+          </div>
+          <div class="metric passed">
+            <span class="metric-value">{{ fw.controls_passed }}</span>
+            <span class="metric-label">Passed</span>
+          </div>
+          <div class="metric failed">
+            <span class="metric-value">{{ fw.controls_failed }}</span>
+            <span class="metric-label">Failed</span>
+          </div>
+        </div>
+        <div class="framework-progress-wrapper">
+          <ProgressBar
+            :value="fw.pass_percentage"
+            :show-value="false"
+            class="framework-progress"
+          />
           <Tag
             :severity="getPassRateSeverity(fw.pass_percentage)"
             :value="`${fw.pass_percentage}%`"
+            class="pass-tag"
           />
         </div>
-        <div class="framework-stats">
-          <div class="stat">
-            <span class="stat-value">{{ fw.controls_checked }}</span>
-            <span class="stat-label">Controls</span>
-          </div>
-          <div class="stat passed">
-            <span class="stat-value">{{ fw.controls_passed }}</span>
-            <span class="stat-label">Passed</span>
-          </div>
-          <div class="stat failed">
-            <span class="stat-value">{{ fw.controls_failed }}</span>
-            <span class="stat-label">Failed</span>
-          </div>
+        <div class="framework-arrow">
+          <i class="pi pi-chevron-right" />
         </div>
-        <ProgressBar
-          :value="fw.pass_percentage"
-          :show-value="false"
-          class="framework-progress"
-        />
       </div>
     </div>
 
@@ -407,12 +417,12 @@ onMounted(() => {
 .compliance-header h2 {
   font-size: 1.75rem;
   font-weight: 700;
-  color: white;
+  color: var(--text-primary);
   margin: 0;
 }
 
 .compliance-header .subtitle {
-  color: rgba(255, 255, 255, 0.8);
+  color: var(--text-secondary);
   font-size: 0.875rem;
   margin-top: var(--spacing-xs);
 }
@@ -422,78 +432,86 @@ onMounted(() => {
   gap: var(--spacing-sm);
 }
 
-/* Summary Cards */
-.summary-cards {
-  display: grid;
-  grid-template-columns: repeat(5, 1fr);
-  gap: var(--spacing-md);
-  margin-bottom: var(--spacing-lg);
-}
-
-.summary-card {
-  background: var(--card-bg);
-  border: 1px solid var(--card-border);
-  border-radius: var(--radius-lg);
-  padding: var(--spacing-md);
+/* Summary Strip - Horizontal Layout */
+.summary-strip {
   display: flex;
   align-items: center;
-  gap: var(--spacing-md);
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  padding: var(--spacing-md) var(--spacing-lg);
+  margin-bottom: var(--spacing-lg);
+  gap: var(--spacing-lg);
+  flex-wrap: wrap;
 }
 
-.summary-card.wide {
-  grid-column: span 1;
+.summary-stat {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  flex: 1;
+  min-width: 120px;
 }
 
-.card-icon {
-  width: 48px;
-  height: 48px;
+.stat-divider {
+  width: 1px;
+  height: 40px;
+  background: var(--border-color);
+}
+
+.stat-icon {
+  width: 40px;
+  height: 40px;
   border-radius: var(--radius-md);
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 1.25rem;
+  font-size: 1rem;
+  flex-shrink: 0;
 }
 
-.card-icon.frameworks {
+.stat-icon.frameworks {
   background: rgba(99, 102, 241, 0.2);
   color: #6366f1;
 }
 
-.card-icon.controls {
+.stat-icon.controls {
   background: rgba(59, 130, 246, 0.2);
   color: #3b82f6;
 }
 
-.card-icon.passed {
+.stat-icon.passed {
   background: rgba(34, 197, 94, 0.2);
   color: #22c55e;
 }
 
-.card-icon.failed {
+.stat-icon.failed {
   background: rgba(239, 68, 68, 0.2);
   color: #ef4444;
 }
 
-.card-icon.percentage {
+.stat-icon.percentage {
   background: rgba(168, 85, 247, 0.2);
   color: #a855f7;
 }
 
-.card-content {
+.stat-content {
   display: flex;
   flex-direction: column;
 }
 
-.card-value {
-  font-size: 1.5rem;
+.stat-value {
+  font-size: 1.25rem;
   font-weight: 700;
-  color: white;
+  color: var(--text-primary);
+  line-height: 1.2;
 }
 
-.card-label {
-  font-size: 0.75rem;
-  color: rgba(255, 255, 255, 0.6);
+.stat-label {
+  font-size: 0.7rem;
+  color: var(--text-secondary);
   text-transform: uppercase;
+  letter-spacing: 0.025em;
 }
 
 /* Filters */
@@ -519,78 +537,115 @@ onMounted(() => {
   gap: var(--spacing-md);
   padding: var(--spacing-md);
   background: rgba(231, 76, 60, 0.2);
-  color: white;
+  color: var(--text-primary);
   border-radius: var(--radius-md);
   margin-bottom: var(--spacing-lg);
 }
 
-/* Framework Cards Grid */
-.frameworks-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-  gap: var(--spacing-md);
+/* Framework List - Horizontal Rows */
+.frameworks-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
 }
 
-.framework-card {
-  background: var(--card-bg);
-  border: 1px solid var(--card-border);
+.framework-row {
+  display: flex;
+  align-items: center;
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
   border-radius: var(--radius-lg);
-  padding: var(--spacing-lg);
+  padding: var(--spacing-md) var(--spacing-lg);
   cursor: pointer;
   transition: all 0.2s ease;
+  gap: var(--spacing-lg);
 }
 
-.framework-card:hover {
+.framework-row:hover {
   border-color: var(--primary-color);
-  transform: translateY(-2px);
+  transform: translateX(4px);
 }
 
-.framework-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: var(--spacing-md);
+.framework-row:hover .framework-arrow {
+  opacity: 1;
+  transform: translateX(4px);
+}
+
+.framework-info {
+  flex: 0 0 280px;
+  min-width: 0;
 }
 
 .framework-name {
-  font-size: 1.125rem;
+  font-size: 1rem;
   font-weight: 600;
-  color: white;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-.framework-stats {
+.framework-metrics {
   display: flex;
-  gap: var(--spacing-lg);
-  margin-bottom: var(--spacing-md);
+  gap: var(--spacing-xl);
+  flex-shrink: 0;
 }
 
-.stat {
+.metric {
   display: flex;
   flex-direction: column;
   align-items: center;
+  min-width: 60px;
 }
 
-.stat-value {
-  font-size: 1.25rem;
+.metric-value {
+  font-size: 1.125rem;
   font-weight: 600;
-  color: white;
+  color: var(--text-primary);
 }
 
-.stat-label {
-  font-size: 0.75rem;
-  color: rgba(255, 255, 255, 0.6);
+.metric-label {
+  font-size: 0.7rem;
+  color: var(--text-secondary);
+  text-transform: uppercase;
 }
 
-.stat.passed .stat-value {
+.metric.passed .metric-value {
   color: #22c55e;
 }
 
-.stat.failed .stat-value {
+.metric.failed .metric-value {
   color: #ef4444;
 }
 
+.framework-progress-wrapper {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+  min-width: 150px;
+}
+
 .framework-progress {
-  height: 6px;
+  flex: 1;
+  height: 8px;
+}
+
+.pass-tag {
+  flex-shrink: 0;
+  min-width: 50px;
+  text-align: center;
+}
+
+.framework-arrow {
+  flex-shrink: 0;
+  width: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0.3;
+  color: var(--text-tertiary);
+  transition: all 0.2s ease;
 }
 
 /* Controls Section */
@@ -608,12 +663,12 @@ onMounted(() => {
 .controls-header h3 {
   font-size: 1.25rem;
   font-weight: 600;
-  color: white;
+  color: var(--text-primary);
   margin: 0;
 }
 
 .controls-table {
-  background: var(--card-bg);
+  background: var(--bg-card);
   border-radius: var(--radius-lg);
   overflow: hidden;
 }
@@ -625,12 +680,12 @@ onMounted(() => {
 }
 
 .control-title {
-  color: white;
+  color: var(--text-primary);
 }
 
 .control-requirement {
   font-size: 0.75rem;
-  color: rgba(255, 255, 255, 0.6);
+  color: var(--text-secondary);
 }
 
 .has-findings {
@@ -654,20 +709,25 @@ onMounted(() => {
   align-items: center;
   justify-content: center;
   padding: var(--spacing-xl);
-  color: rgba(255, 255, 255, 0.6);
+  color: var(--text-secondary);
 }
 
-/* Responsive */
-@media (max-width: 1200px) {
-  .summary-cards {
-    grid-template-columns: repeat(3, 1fr);
+/* Responsive - Tablet */
+@media (max-width: 1024px) {
+  .framework-info {
+    flex: 0 0 200px;
   }
 
-  .summary-card.wide {
-    grid-column: span 1;
+  .framework-metrics {
+    gap: var(--spacing-md);
+  }
+
+  .metric {
+    min-width: 50px;
   }
 }
 
+/* Responsive - Mobile */
 @media (max-width: 768px) {
   .compliance-header {
     flex-direction: column;
@@ -675,12 +735,49 @@ onMounted(() => {
     gap: var(--spacing-md);
   }
 
-  .summary-cards {
-    grid-template-columns: repeat(2, 1fr);
+  .summary-strip {
+    flex-direction: column;
+    align-items: stretch;
+    gap: var(--spacing-md);
+    padding: var(--spacing-md);
   }
 
-  .frameworks-grid {
-    grid-template-columns: 1fr;
+  .summary-stat {
+    justify-content: flex-start;
+  }
+
+  .stat-divider {
+    display: none;
+  }
+
+  .framework-row {
+    flex-direction: column;
+    align-items: stretch;
+    gap: var(--spacing-md);
+    padding: var(--spacing-md);
+  }
+
+  .framework-row:hover {
+    transform: translateX(0);
+    transform: translateY(-2px);
+  }
+
+  .framework-info {
+    flex: none;
+    width: 100%;
+  }
+
+  .framework-metrics {
+    justify-content: space-around;
+    width: 100%;
+  }
+
+  .framework-progress-wrapper {
+    width: 100%;
+  }
+
+  .framework-arrow {
+    display: none;
   }
 }
 </style>

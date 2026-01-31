@@ -16,17 +16,26 @@
       />
     </div>
 
-    <div v-if="loading" class="loading-state">
+    <div
+      v-if="loading"
+      class="loading-state"
+    >
       <ProgressSpinner style="width: 24px; height: 24px" />
       <span>Calculating impact...</span>
     </div>
 
-    <div v-else-if="error" class="error-state">
+    <div
+      v-else-if="error"
+      class="error-state"
+    >
       <i class="pi pi-exclamation-triangle" />
       <span>{{ error }}</span>
     </div>
 
-    <div v-else-if="blastRadius" class="blast-content">
+    <div
+      v-else-if="blastRadius"
+      class="blast-content"
+    >
       <!-- Impact Summary -->
       <div class="impact-summary">
         <div class="impact-stat">
@@ -44,18 +53,30 @@
       </div>
 
       <!-- Remediation Impact -->
-      <div v-if="blastRadius.remediation_impact" class="remediation-impact">
+      <div
+        v-if="blastRadius.remediation_impact"
+        class="remediation-impact"
+      >
         <h4>If You Fix This</h4>
         <div class="impact-benefits">
-          <div v-if="blastRadius.remediation_impact.findings_resolved > 0" class="benefit">
+          <div
+            v-if="blastRadius.remediation_impact.findings_resolved > 0"
+            class="benefit"
+          >
             <i class="pi pi-check-circle" />
             <span>{{ blastRadius.remediation_impact.findings_resolved }} findings would be resolved</span>
           </div>
-          <div v-if="blastRadius.remediation_impact.paths_broken > 0" class="benefit">
+          <div
+            v-if="blastRadius.remediation_impact.paths_broken > 0"
+            class="benefit"
+          >
             <i class="pi pi-shield" />
             <span>{{ blastRadius.remediation_impact.paths_broken }} attack paths would be broken</span>
           </div>
-          <div v-if="blastRadius.remediation_impact.risk_reduction > 0" class="benefit">
+          <div
+            v-if="blastRadius.remediation_impact.risk_reduction > 0"
+            class="benefit"
+          >
             <i class="pi pi-trending-down" />
             <span>{{ blastRadius.remediation_impact.risk_reduction }}% risk reduction</span>
           </div>
@@ -63,7 +84,10 @@
       </div>
 
       <!-- Related Resources -->
-      <div v-if="blastRadius.related_resources?.length > 0" class="related-resources">
+      <div
+        v-if="blastRadius.related_resources?.length > 0"
+        class="related-resources"
+      >
         <h4>Affected Resources</h4>
         <ul class="resource-list">
           <li
@@ -86,7 +110,10 @@
       </div>
 
       <!-- Related Findings -->
-      <div v-if="blastRadius.related_findings?.length > 0" class="related-findings">
+      <div
+        v-if="blastRadius.related_findings?.length > 0"
+        class="related-findings"
+      >
         <h4>Related Findings</h4>
         <ul class="finding-list">
           <li
@@ -94,7 +121,10 @@
             :key="finding.id"
             class="finding-item"
           >
-            <span class="severity-dot" :class="finding.severity" />
+            <span
+              class="severity-dot"
+              :class="finding.severity"
+            />
             <span class="finding-title">{{ finding.title }}</span>
           </li>
         </ul>
@@ -109,7 +139,10 @@
       </div>
     </div>
 
-    <div v-else class="empty-state">
+    <div
+      v-else
+      class="empty-state"
+    >
       <i class="pi pi-info-circle" />
       <span>No blast radius data available</span>
     </div>
