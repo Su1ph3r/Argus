@@ -22,7 +22,7 @@ from uuid import uuid4
 
 from fastapi import APIRouter, Depends, Query
 from fastapi.responses import StreamingResponse
-from sqlalchemy import desc
+from sqlalchemy import desc, or_
 from sqlalchemy.orm import Session
 
 from models.database import Finding, get_db
@@ -175,6 +175,7 @@ async def export_findings_json(
 
     # Build JSON structure
     export_data = {
+        "export_source": "nubicustos",
         "export_timestamp": datetime.utcnow().isoformat(),
         "filters": {"severity": severity, "status": status, "cloud_provider": cloud_provider},
         "total_findings": len(findings),
@@ -309,4 +310,80 @@ async def export_summary(db: Session = Depends(get_db)):
         "by_severity": severity_data,
         "by_provider": {k: v for k, v in provider_data.items() if k},
         "by_tool": {k: v for k, v in tool_data.items() if k},
+    }
+
+
+@router.get("/containers")
+async def export_containers(
+    db: Session = Depends(get_db),
+    cloud_provider: str | None = Query(None, description="Filter by cloud provider"),
+    status: str | None = Query("open", description="Filter by status"),
+):
+    """
+    Export container-related findings for downstream tools.
+
+    Returns deduplicated container resources extracted from findings
+    with container-related resource types (container, ECS, EKS, Fargate, Docker).
+
+    Args:
+        cloud_provider: Filter by cloud provider
+        status: Filter by status (default: open)
+
+    Returns:
+        dict: Container export with export_source marker
+    """
+    query = db.query(Finding)
+
+    # Filter to container-related resource types
+    query = query.filter(
+        or_(
+            Finding.resource_type.ilike("%container%"),
+            Finding.resource_type.ilike("%ecs%"),
+            Finding.resource_type.ilike("%eks%"),
+            Finding.resource_type.ilike("%fargate%"),
+            Finding.resource_type.ilike("%docker%"),
+        )
+    )
+
+    if cloud_provider:
+        query = query.filter(Finding.cloud_provider == cloud_provider.lower())
+
+    if status:
+        statuses = [s.strip().lower() for s in status.split(",")]
+        query = query.filter(Finding.status.in_(statuses))
+
+    findings = query.all()
+
+    # Deduplicate containers by resource_id (fallback to finding id for NULL resource_id)
+    seen = set()
+    containers = []
+    for f in findings:
+        key = f.resource_id or f"finding-{f.id}"
+        if key in seen:
+            continue
+        seen.add(key)
+
+        # Extract container metadata from finding_metadata if available
+        metadata = f.finding_metadata or {}
+        containers.append(
+            {
+                "resource_id": f.resource_id,
+                "resource_name": f.resource_name,
+                "resource_type": f.resource_type,
+                "cloud_provider": f.cloud_provider,
+                "region": f.region,
+                "account_id": f.account_id,
+                "container_image": metadata.get("container_image"),
+                "runtime": metadata.get("runtime"),
+                "privileged": metadata.get("privileged", False),
+                "namespace": metadata.get("namespace"),
+            }
+        )
+
+    return {
+        "export_source": "nubicustos",
+        "export_timestamp": datetime.utcnow().isoformat(),
+        "filters": {"cloud_provider": cloud_provider, "status": status},
+        "total_containers": len(containers),
+        "containers": containers,
     }

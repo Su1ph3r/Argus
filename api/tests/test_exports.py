@@ -1,6 +1,12 @@
 """Tests for export endpoints."""
 
+from datetime import datetime
+from uuid import uuid4
+
 from fastapi.testclient import TestClient
+from sqlalchemy.orm import Session
+
+from models.database import Finding, Scan
 
 
 class TestCSVExport:
@@ -202,3 +208,121 @@ class TestExportSummary:
         assert isinstance(data["by_severity"], dict)
         assert isinstance(data["by_provider"], dict)
         assert isinstance(data["by_tool"], dict)
+
+
+class TestJSONExportSource:
+    """Test export_source field in JSON export."""
+
+    def test_export_json_has_export_source(self, client: TestClient) -> None:
+        """Test JSON export includes export_source field."""
+        response = client.get("/api/exports/json")
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["export_source"] == "nubicustos"
+
+
+class TestContainerExport:
+    """Test cases for container export endpoint."""
+
+    def test_export_containers_empty(self, client: TestClient) -> None:
+        """Test container export with no findings."""
+        response = client.get("/api/exports/containers")
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["containers"] == []
+        assert data["total_containers"] == 0
+
+    def test_export_containers_with_data(
+        self, client: TestClient, db_session: Session, sample_scan: Scan
+    ) -> None:
+        """Test container export includes container findings."""
+        # Create container-related findings
+        container_finding = Finding(
+            finding_id=f"finding-{uuid4().hex[:8]}",
+            scan_id=sample_scan.scan_id,
+            tool="prowler",
+            cloud_provider="aws",
+            severity="high",
+            status="open",
+            title="ECS Container Misconfiguration",
+            description="Container running as root",
+            resource_type="ECS::Container",
+            resource_id="ecs-container-001",
+            resource_name="web-app-container",
+            region="us-east-1",
+            account_id="123456789012",
+            scan_date=datetime.utcnow(),
+            finding_metadata={
+                "container_image": "nginx:latest",
+                "runtime": "docker",
+                "privileged": True,
+                "namespace": "production",
+            },
+        )
+        db_session.add(container_finding)
+        db_session.commit()
+
+        response = client.get("/api/exports/containers")
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["total_containers"] == 1
+        assert len(data["containers"]) == 1
+
+        container = data["containers"][0]
+        assert container["resource_id"] == "ecs-container-001"
+        assert container["resource_name"] == "web-app-container"
+        assert container["resource_type"] == "ECS::Container"
+        assert container["cloud_provider"] == "aws"
+        assert container["region"] == "us-east-1"
+        assert container["account_id"] == "123456789012"
+        assert container["container_image"] == "nginx:latest"
+        assert container["runtime"] == "docker"
+        assert container["privileged"] is True
+        assert container["namespace"] == "production"
+
+    def test_export_containers_has_export_source(self, client: TestClient) -> None:
+        """Test container export includes export_source field."""
+        response = client.get("/api/exports/containers")
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["export_source"] == "nubicustos"
+        assert "export_timestamp" in data
+        assert "filters" in data
+
+    def test_export_containers_filter_by_cloud_provider(
+        self, client: TestClient, db_session: Session, sample_scan: Scan
+    ) -> None:
+        """Test container export filters by cloud provider."""
+        # Create findings for different providers
+        for provider, rid in [("aws", "ecs-001"), ("gcp", "gke-001")]:
+            finding = Finding(
+                finding_id=f"finding-{uuid4().hex[:8]}",
+                scan_id=sample_scan.scan_id,
+                tool="prowler",
+                cloud_provider=provider,
+                severity="high",
+                status="open",
+                title=f"Container issue ({provider})",
+                description="Container misconfiguration",
+                resource_type="ECS::Container" if provider == "aws" else "GKE::Container",
+                resource_id=rid,
+                resource_name=f"container-{provider}",
+                region="us-east-1",
+                account_id="123456789012",
+                scan_date=datetime.utcnow(),
+            )
+            db_session.add(finding)
+        db_session.commit()
+
+        # Filter to AWS only
+        response = client.get("/api/exports/containers?cloud_provider=aws")
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["total_containers"] == 1
+        assert data["containers"][0]["cloud_provider"] == "aws"
+        assert data["filters"]["cloud_provider"] == "aws"

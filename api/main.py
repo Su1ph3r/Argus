@@ -260,8 +260,12 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     set_startup_time()
 
     # Register signal handlers for graceful shutdown
-    signal.signal(signal.SIGTERM, handle_sigterm)
-    signal.signal(signal.SIGINT, handle_sigterm)
+    try:
+        signal.signal(signal.SIGTERM, handle_sigterm)
+        signal.signal(signal.SIGINT, handle_sigterm)
+    except ValueError:
+        # signal() only works in the main thread; skip in test environments
+        pass
 
     # Run database migrations to ensure schema is up to date
     try:

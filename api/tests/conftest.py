@@ -8,9 +8,30 @@ from uuid import uuid4
 
 import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy import create_engine
+from sqlalchemy import JSON, String, create_engine
 from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.pool import StaticPool
+
+# Patch PostgreSQL JSONB to use generic JSON before any models load.
+# This must happen before `from models.database import ...` which uses
+# `from sqlalchemy.dialects.postgresql import JSONB`.
+# We replace the class in the module so future `from ... import JSONB` gets JSON.
+import sqlalchemy.dialects.postgresql as _pg_mod
+import sqlalchemy.dialects.postgresql.json as _pg_json_mod
+
+_OrigJSONB = _pg_mod.JSONB
+_pg_mod.JSONB = JSON
+_pg_json_mod.JSONB = JSON
+
+# Similarly patch UUID to work with SQLite (renders as VARCHAR)
+_OrigUUID = _pg_mod.UUID
+_pg_mod.UUID = lambda *a, **kw: String(36)
+
+# Register UUID adapter for SQLite so it can bind uuid.UUID objects
+import sqlite3
+import uuid as _uuid_mod
+
+sqlite3.register_adapter(_uuid_mod.UUID, str)
 
 # Ensure the api directory is in the path for imports
 api_dir = Path(__file__).parent.parent
