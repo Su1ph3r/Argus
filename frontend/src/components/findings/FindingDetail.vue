@@ -313,7 +313,7 @@ const formatToolName = (tool) => {
   font-weight: 500;
   background: var(--accent-primary-bg);
   color: var(--accent-primary);
-  border: 1px solid rgba(99, 102, 241, 0.2);
+  border: 1px solid rgba(59, 130, 246, 0.2);
 }
 
 .description {
@@ -352,7 +352,7 @@ const formatToolName = (tool) => {
 }
 
 .detail-item .value.code {
-  font-family: 'JetBrains Mono', 'Fira Code', 'Consolas', monospace;
+  font-family: 'Source Code Pro', 'Consolas', monospace;
   font-size: 0.8125rem;
   background: var(--bg-card);
   padding: 4px 8px;
@@ -408,7 +408,7 @@ const formatToolName = (tool) => {
 }
 
 .affected-resource-item .resource-id {
-  font-family: 'JetBrains Mono', 'Fira Code', 'Consolas', monospace;
+  font-family: 'Source Code Pro', 'Consolas', monospace;
   font-size: 0.8125rem;
   color: var(--text-primary);
   display: flex;
@@ -468,7 +468,7 @@ const formatToolName = (tool) => {
 }
 
 .resource-poc .poc-content {
-  font-family: 'JetBrains Mono', 'Fira Code', 'Consolas', monospace;
+  font-family: 'Source Code Pro', 'Consolas', monospace;
   font-size: 0.75rem;
 }
 

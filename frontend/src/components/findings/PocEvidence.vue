@@ -170,7 +170,7 @@ const handleImageError = () => {
   color: #d4d4d4;
   padding: var(--spacing-md);
   overflow-x: auto;
-  font-family: 'Consolas', 'Monaco', monospace;
+  font-family: 'Source Code Pro', monospace;
   font-size: 0.8125rem;
   line-height: 1.5;
   max-height: 300px;

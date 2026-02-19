@@ -83,7 +83,7 @@ const copyToClipboard = async () => {
 }
 
 .command-block code {
-  font-family: 'JetBrains Mono', 'Fira Code', 'Consolas', monospace;
+  font-family: 'Source Code Pro', 'Consolas', monospace;
   font-size: 0.8125rem;
   line-height: 1.6;
   color: #98c379;

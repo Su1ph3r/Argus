@@ -445,7 +445,7 @@ const copyAllCommands = async () => {
 }
 
 .node-resource {
-  font-family: 'JetBrains Mono', monospace;
+  font-family: 'Source Code Pro', monospace;
   font-size: 0.75rem;
   color: var(--text-secondary);
   word-break: break-all;
@@ -547,7 +547,7 @@ const copyAllCommands = async () => {
 
 .step-command code {
   flex: 1;
-  font-family: 'JetBrains Mono', monospace;
+  font-family: 'Source Code Pro', monospace;
   font-size: 0.8125rem;
   color: var(--accent-primary);
   word-break: break-all;

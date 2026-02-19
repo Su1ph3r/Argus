@@ -351,7 +351,7 @@ watch(() => props.findingId, () => {
 .severity-dot.high { background: #ea580c; }
 .severity-dot.medium { background: #ca8a04; }
 .severity-dot.low { background: #2563eb; }
-.severity-dot.info { background: #4f46e5; }
+.severity-dot.info { background: #0891b2; }
 
 .finding-title {
   font-size: 0.875rem;

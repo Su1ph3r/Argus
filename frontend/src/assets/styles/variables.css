@@ -1,5 +1,5 @@
 /* ============================================================================
-   Nubicustos Theme System
+   Nubicustos Theme System — Ecosystem Design System
    ============================================================================ */
 
 :root {
@@ -22,27 +22,27 @@
   --transition-slow: 0.4s ease;
 
   /* Severity colors (consistent across themes) */
-  --severity-critical: #ef4444;
-  --severity-critical-bg: rgba(239, 68, 68, 0.12);
-  --severity-critical-border: rgba(239, 68, 68, 0.3);
-  --severity-high: #f97316;
-  --severity-high-bg: rgba(249, 115, 22, 0.12);
-  --severity-high-border: rgba(249, 115, 22, 0.3);
-  --severity-medium: #eab308;
-  --severity-medium-bg: rgba(234, 179, 8, 0.12);
-  --severity-medium-border: rgba(234, 179, 8, 0.3);
-  --severity-low: #22c55e;
-  --severity-low-bg: rgba(34, 197, 94, 0.12);
-  --severity-low-border: rgba(34, 197, 94, 0.3);
-  --severity-info: #3b82f6;
-  --severity-info-bg: rgba(59, 130, 246, 0.12);
-  --severity-info-border: rgba(59, 130, 246, 0.3);
+  --severity-critical: #dc2626;
+  --severity-critical-bg: rgba(220, 38, 38, 0.12);
+  --severity-critical-border: rgba(220, 38, 38, 0.3);
+  --severity-high: #ea580c;
+  --severity-high-bg: rgba(234, 88, 12, 0.12);
+  --severity-high-border: rgba(234, 88, 12, 0.3);
+  --severity-medium: #ca8a04;
+  --severity-medium-bg: rgba(202, 138, 4, 0.12);
+  --severity-medium-border: rgba(202, 138, 4, 0.3);
+  --severity-low: #2563eb;
+  --severity-low-bg: rgba(37, 99, 235, 0.12);
+  --severity-low-border: rgba(37, 99, 235, 0.3);
+  --severity-info: #0891b2;
+  --severity-info-bg: rgba(8, 145, 178, 0.12);
+  --severity-info-border: rgba(8, 145, 178, 0.3);
 
   /* Status colors */
-  --status-open: #ef4444;
+  --status-open: #dc2626;
   --status-closed: #22c55e;
   --status-mitigated: #3b82f6;
-  --status-accepted: #8b5cf6;
+  --status-accepted: #3b82f6;
 }
 
 /* ============================================================================
@@ -52,50 +52,50 @@
 :root,
 html.dark {
   /* Backgrounds */
-  --bg-primary: #09090b;
-  --bg-secondary: #18181b;
-  --bg-tertiary: #27272a;
-  --bg-card: #1c1c1f;
-  --bg-card-hover: #222225;
-  --bg-elevated: #27272a;
-  --bg-input: #18181b;
+  --bg-primary: #0f172a;
+  --bg-secondary: #1e293b;
+  --bg-tertiary: #334155;
+  --bg-card: #1e293b;
+  --bg-card-hover: #263548;
+  --bg-elevated: #334155;
+  --bg-input: #1e293b;
 
   /* Text */
-  --text-primary: #fafafa;
-  --text-secondary: #a1a1aa;
-  --text-tertiary: #71717a;
-  --text-muted: #52525b;
-  --text-inverse: #09090b;
+  --text-primary: #e2e8f0;
+  --text-secondary: #94a3b8;
+  --text-tertiary: #64748b;
+  --text-muted: #475569;
+  --text-inverse: #0f172a;
 
   /* Borders */
-  --border-color: #27272a;
-  --border-color-light: #3f3f46;
-  --border-color-focus: #6366f1;
+  --border-color: #334155;
+  --border-color-light: #475569;
+  --border-color-focus: #3b82f6;
 
   /* Accent colors */
-  --accent-primary: #6366f1;
-  --accent-primary-hover: #818cf8;
-  --accent-primary-bg: rgba(99, 102, 241, 0.15);
-  --gradient-start: #6366f1;
-  --gradient-end: #8b5cf6;
+  --accent-primary: #3b82f6;
+  --accent-primary-hover: #60a5fa;
+  --accent-primary-bg: rgba(59, 130, 246, 0.15);
+  --gradient-start: #3b82f6;
+  --gradient-end: #2563eb;
 
   /* Header */
-  --header-bg: linear-gradient(135deg, #18181b 0%, #27272a 100%);
-  --header-border: #3f3f46;
+  --header-bg: linear-gradient(135deg, #1e293b 0%, #334155 100%);
+  --header-border: #475569;
 
   /* Shadows */
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
   --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.4);
   --shadow-lg: 0 10px 40px rgba(0, 0, 0, 0.5);
-  --shadow-glow: 0 0 20px rgba(99, 102, 241, 0.2);
+  --shadow-glow: 0 0 20px rgba(59, 130, 246, 0.2);
 
   /* Overlays */
   --overlay-bg: rgba(0, 0, 0, 0.6);
 
   /* Table */
   --table-row-hover: rgba(255, 255, 255, 0.03);
-  --table-row-expanded: rgba(99, 102, 241, 0.05);
-  --table-header-bg: #18181b;
+  --table-row-expanded: rgba(59, 130, 246, 0.05);
+  --table-header-bg: #1e293b;
 }
 
 /* ============================================================================
@@ -122,30 +122,30 @@ html.light {
   /* Borders */
   --border-color: #e4e4e7;
   --border-color-light: #d4d4d8;
-  --border-color-focus: #4f46e5;
+  --border-color-focus: #2563eb;
 
   /* Accent colors */
-  --accent-primary: #4f46e5;
-  --accent-primary-hover: #6366f1;
-  --accent-primary-bg: rgba(79, 70, 229, 0.1);
-  --gradient-start: #4f46e5;
-  --gradient-end: #7c3aed;
+  --accent-primary: #2563eb;
+  --accent-primary-hover: #3b82f6;
+  --accent-primary-bg: rgba(37, 99, 235, 0.1);
+  --gradient-start: #2563eb;
+  --gradient-end: #1d4ed8;
 
   /* Header */
-  --header-bg: linear-gradient(135deg, #4f46e5 0%, #6366f1 100%);
+  --header-bg: linear-gradient(135deg, #2563eb 0%, #3b82f6 100%);
   --header-border: transparent;
 
   /* Shadows */
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
   --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.08);
   --shadow-lg: 0 10px 40px rgba(0, 0, 0, 0.12);
-  --shadow-glow: 0 0 20px rgba(79, 70, 229, 0.15);
+  --shadow-glow: 0 0 20px rgba(37, 99, 235, 0.15);
 
   /* Overlays */
   --overlay-bg: rgba(0, 0, 0, 0.4);
 
   /* Table */
   --table-row-hover: rgba(0, 0, 0, 0.02);
-  --table-row-expanded: rgba(79, 70, 229, 0.05);
+  --table-row-expanded: rgba(37, 99, 235, 0.05);
   --table-header-bg: #f4f4f5;
 }

@@ -25,7 +25,7 @@ import AccordionTab from 'primevue/accordiontab'
 import Dialog from 'primevue/dialog'
 
 // Styles - Use dark theme as base since our CSS variables handle theming
-import 'primevue/resources/themes/lara-dark-indigo/theme.css'
+import 'primevue/resources/themes/lara-dark-blue/theme.css'
 import 'primevue/resources/primevue.min.css'
 import 'primeicons/primeicons.css'
 import './assets/styles/main.css'

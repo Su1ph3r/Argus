@@ -121,7 +121,7 @@ const copyCode = async () => {
 }
 
 .code-content code {
-  font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+  font-family: 'Source Code Pro', monospace;
   font-size: 0.8125rem;
   line-height: 1.5;
   color: #d4d4d4;

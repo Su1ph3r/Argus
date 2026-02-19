@@ -173,8 +173,8 @@ const findingsStore = useFindingsStore()
 let refreshInterval = null
 
 // Generate colors for tool/provider charts
-const toolColors = ['#6366f1', '#8b5cf6', '#ec4899', '#f43f5e', '#f97316', '#eab308', '#22c55e', '#14b8a6']
-const providerColors = ['#3b82f6', '#6366f1', '#8b5cf6', '#a855f7', '#d946ef', '#ec4899']
+const toolColors = ['#3b82f6', '#2563eb', '#ec4899', '#f43f5e', '#ea580c', '#ca8a04', '#0891b2', '#14b8a6']
+const providerColors = ['#3b82f6', '#2563eb', '#1d4ed8', '#0891b2', '#d946ef', '#ec4899']
 
 const toolChartData = computed(() =>
   summaryStore.byTool.map((item, index) => ({

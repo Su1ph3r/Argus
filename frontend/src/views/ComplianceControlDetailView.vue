@@ -353,7 +353,7 @@ onMounted(() => {
 }
 
 .control-id {
-  font-family: 'Consolas', monospace;
+  font-family: 'Source Code Pro', monospace;
   font-size: 0.875rem;
   color: rgba(255, 255, 255, 0.6);
   margin: 0;
@@ -403,15 +403,15 @@ onMounted(() => {
 }
 
 .severity-badge.low {
-  background: rgba(59, 130, 246, 0.2);
-  color: #3b82f6;
+  background: rgba(37, 99, 235, 0.2);
+  color: #2563eb;
 }
 
 .framework-badge {
   display: inline-block;
   padding: var(--spacing-xs) var(--spacing-sm);
-  background: rgba(99, 102, 241, 0.2);
-  color: #6366f1;
+  background: rgba(59, 130, 246, 0.2);
+  color: #3b82f6;
   border-radius: var(--radius-sm);
   font-size: 0.75rem;
   font-weight: 500;
@@ -536,7 +536,7 @@ onMounted(() => {
 }
 
 .resource-id {
-  font-family: 'Consolas', monospace;
+  font-family: 'Source Code Pro', monospace;
   font-size: 0.875rem;
   color: white;
   word-break: break-all;
@@ -641,7 +641,7 @@ onMounted(() => {
 .cli-code {
   margin: 0;
   padding: var(--spacing-md);
-  font-family: 'Consolas', 'Monaco', monospace;
+  font-family: 'Source Code Pro', monospace;
   font-size: 0.8125rem;
   color: #22c55e;
   white-space: pre-wrap;
@@ -679,7 +679,7 @@ onMounted(() => {
 }
 
 .detail-item .value.code {
-  font-family: 'Consolas', monospace;
+  font-family: 'Source Code Pro', monospace;
   font-size: 0.8125rem;
 }
 

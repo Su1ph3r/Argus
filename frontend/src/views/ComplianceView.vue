@@ -370,7 +370,7 @@ const exportPdf = () => {
       body: tableData,
       startY: startY,
       styles: { fontSize: 8 },
-      headStyles: { fillColor: [99, 102, 241] },
+      headStyles: { fillColor: [59, 130, 246] },
     })
   } else {
     // Framework-level data
@@ -386,7 +386,7 @@ const exportPdf = () => {
       body: tableData,
       startY: startY,
       styles: { fontSize: 10 },
-      headStyles: { fillColor: [99, 102, 241] },
+      headStyles: { fillColor: [59, 130, 246] },
     })
   }
 
@@ -471,8 +471,8 @@ onMounted(() => {
 }
 
 .stat-icon.frameworks {
-  background: rgba(99, 102, 241, 0.2);
-  color: #6366f1;
+  background: rgba(59, 130, 246, 0.2);
+  color: #3b82f6;
 }
 
 .stat-icon.controls {
@@ -699,7 +699,7 @@ onMounted(() => {
 }
 
 .controls-table :deep(.clickable-row:hover) {
-  background: rgba(99, 102, 241, 0.1) !important;
+  background: rgba(59, 130, 246, 0.1) !important;
 }
 
 /* Loading State */
