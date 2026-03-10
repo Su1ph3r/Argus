@@ -17,6 +17,7 @@ Endpoints:
 import csv
 import io
 import json
+import re
 from datetime import datetime
 from uuid import uuid4
 
@@ -29,6 +30,17 @@ from models.database import Finding, get_db
 from models.schemas import ExportRequest, ExportResponse
 
 router: APIRouter = APIRouter(prefix="/exports", tags=["Exports"])
+
+
+def _strip_instance_parts(finding_id: str) -> str:
+    """Strip account_id (12-digit) and region from finding_id to get a check-type canonical ID.
+
+    Examples:
+        ec2_openallportsprotocols_991249186791_us-east-1 -> ec2_openallportsprotocols
+        iam_maxpasswordage_991249186791_global -> iam_maxpasswordage
+        awsec2instance_ec2_instance_account_imdsv2_enabled_390804086868 -> awsec2instance_ec2_instance_account_imdsv2_enabled
+    """
+    return re.sub(r'_\d{12}(_[a-z][-a-z0-9]*)?$', '', finding_id)
 
 
 @router.get("/csv")
@@ -82,6 +94,7 @@ async def export_findings_csv(
     # Header row
     headers = [
         "finding_id",
+        "canonical_id",
         "tool",
         "cloud_provider",
         "severity",
@@ -102,6 +115,7 @@ async def export_findings_csv(
     for f in findings:
         row = [
             f.finding_id,
+            _strip_instance_parts(f.finding_id),
             f.tool,
             f.cloud_provider,
             f.severity,
@@ -182,6 +196,7 @@ async def export_findings_json(
         "findings": [
             {
                 "finding_id": f.finding_id,
+                "canonical_id": _strip_instance_parts(f.finding_id),
                 "tool": f.tool,
                 "cloud_provider": f.cloud_provider,
                 "severity": f.severity,
