@@ -4,6 +4,7 @@ import { ref, watch, computed } from 'vue'
 export const useThemeStore = defineStore('theme', () => {
   // State
   const theme = ref('system') // 'light' | 'dark' | 'system'
+  const style = ref('modern') // 'modern' | 'classic'
   const systemPrefersDark = ref(false)
 
   // Store reference to media query and handler for cleanup
@@ -19,12 +20,19 @@ export const useThemeStore = defineStore('theme', () => {
   })
 
   const isDark = computed(() => resolvedTheme.value === 'dark')
+  const isClassic = computed(() => style.value === 'classic')
 
   // Actions
   function setTheme(newTheme) {
     theme.value = newTheme
     localStorage.setItem('nubicustos-theme', newTheme)
     applyTheme()
+  }
+
+  function setStyle(newStyle) {
+    style.value = newStyle
+    localStorage.setItem('nubicustos-style', newStyle)
+    applyStyle()
   }
 
   function toggle() {
@@ -38,6 +46,14 @@ export const useThemeStore = defineStore('theme', () => {
     const html = document.documentElement
     html.classList.remove('light', 'dark')
     html.classList.add(resolvedTheme.value)
+  }
+
+  function applyStyle() {
+    const html = document.documentElement
+    html.classList.remove('theme-classic')
+    if (style.value === 'classic') {
+      html.classList.add('theme-classic')
+    }
   }
 
   function detectSystem() {
@@ -76,11 +92,18 @@ export const useThemeStore = defineStore('theme', () => {
       theme.value = saved
     }
 
+    // Load saved style preference
+    const savedStyle = localStorage.getItem('nubicustos-style')
+    if (savedStyle && ['modern', 'classic'].includes(savedStyle)) {
+      style.value = savedStyle
+    }
+
     // Detect system preference
     detectSystem()
 
-    // Apply initial theme
+    // Apply initial theme and style
     applyTheme()
+    applyStyle()
   }
 
   // Watch for theme changes
@@ -90,9 +113,12 @@ export const useThemeStore = defineStore('theme', () => {
 
   return {
     theme,
+    style,
     resolvedTheme,
     isDark,
+    isClassic,
     setTheme,
+    setStyle,
     toggle,
     init,
     cleanup,

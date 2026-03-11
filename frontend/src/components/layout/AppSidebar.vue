@@ -43,10 +43,10 @@
               y2="32"
               gradientUnits="userSpaceOnUse"
             >
-              <stop stop-color="#3b82f6" />
+              <stop :stop-color="gradientStart" />
               <stop
                 offset="1"
-                stop-color="#2563eb"
+                :stop-color="gradientEnd"
               />
             </linearGradient>
           </defs>
@@ -271,6 +271,9 @@ import { useThemeStore } from '../../stores/theme'
 const route = useRoute()
 const sidebarStore = useSidebarStore()
 const themeStore = useThemeStore()
+
+const gradientStart = computed(() => themeStore.isClassic ? '#3b82f6' : '#7DD3FC')
+const gradientEnd = computed(() => themeStore.isClassic ? '#2563eb' : '#E0F2FE')
 
 const pentestOpen = ref(false)
 

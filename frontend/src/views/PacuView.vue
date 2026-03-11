@@ -532,7 +532,7 @@ onUnmounted(() => {
   word-break: break-word;
   max-height: 200px;
   overflow: auto;
-  color: #ef4444;
+  color: var(--severity-critical);
 }
 .logs-content {
   background: var(--surface-ground);

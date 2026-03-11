@@ -123,11 +123,11 @@ function getStepIcon(tool) {
 
 .current-tool {
   font-weight: 600;
-  color: var(--primary-color, #3b82f6);
+  color: var(--accent-primary, #E0F2FE);
 }
 
 .progress-count {
-  color: var(--text-color-secondary, #6b7280);
+  color: var(--text-secondary, #9BA0BE);
 }
 
 .stepper-list {
@@ -150,19 +150,19 @@ function getStepIcon(tool) {
   top: -0.5rem;
   width: 2px;
   height: 1rem;
-  background-color: var(--surface-border, #e5e7eb);
+  background-color: var(--border-color, #1A1D2E);
 }
 
 .step-item.completed .step-connector {
-  background-color: var(--green-500, #22c55e);
+  background-color: var(--status-closed, #059669);
 }
 
 .step-item.running .step-connector {
-  background-color: var(--primary-color, #3b82f6);
+  background-color: var(--accent-primary, #E0F2FE);
 }
 
 .step-item.failed .step-connector {
-  background-color: var(--red-500, #ef4444);
+  background-color: var(--severity-critical, #EF4444);
 }
 
 .step-icon {
@@ -178,19 +178,19 @@ function getStepIcon(tool) {
 }
 
 .step-item.completed .step-icon i {
-  color: var(--green-500, #22c55e);
+  color: var(--status-closed, #059669);
 }
 
 .step-item.running .step-icon i {
-  color: var(--primary-color, #3b82f6);
+  color: var(--accent-primary, #E0F2FE);
 }
 
 .step-item.failed .step-icon i {
-  color: var(--red-500, #ef4444);
+  color: var(--severity-critical, #EF4444);
 }
 
 .step-item.pending .step-icon i {
-  color: var(--text-color-secondary, #9ca3af);
+  color: var(--text-secondary, #9BA0BE);
 }
 
 .step-content {
@@ -204,26 +204,26 @@ function getStepIcon(tool) {
 }
 
 .step-item.completed .step-label {
-  color: var(--green-700, #15803d);
+  color: var(--status-closed, #059669);
 }
 
 .step-item.running .step-label {
-  color: var(--primary-color, #3b82f6);
+  color: var(--accent-primary, #E0F2FE);
   font-weight: 500;
 }
 
 .step-item.failed .step-label {
-  color: var(--red-700, #b91c1c);
+  color: var(--severity-critical, #EF4444);
 }
 
 .step-item.pending .step-label {
-  color: var(--text-color-secondary, #6b7280);
+  color: var(--text-secondary, #9BA0BE);
 }
 
 .step-error {
   font-size: 0.75rem;
-  color: var(--red-500, #ef4444);
-  background-color: var(--red-50, #fef2f2);
+  color: var(--severity-critical, #EF4444);
+  background-color: var(--severity-critical-bg, rgba(239, 68, 68, 0.1));
   padding: 0.125rem 0.375rem;
   border-radius: 0.25rem;
 }

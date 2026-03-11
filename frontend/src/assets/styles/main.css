@@ -1,6 +1,293 @@
 @import './variables.css';
 
 /* ============================================================================
+   PrimeVue Theme Overrides for Dark Mode
+   --primary-color is ice-blue (#E0F2FE) which is LIGHT. PrimeVue uses it as
+   background for buttons/active states with white text → unreadable.
+   Override: when primary-color is used as background, text must be black.
+   ============================================================================ */
+
+:root,
+html.dark {
+  --primary-color-text: #000000;
+  --highlight-bg: rgba(224, 242, 254, 0.15);
+  --highlight-text-color: #E0F2FE;
+}
+
+/* PrimeVue primary buttons: ice-blue bg, black text */
+.p-button {
+  background: var(--accent-primary) !important;
+  border-color: var(--accent-primary) !important;
+  color: var(--text-on-accent) !important;
+}
+
+.p-button:not(:disabled):hover {
+  background: var(--accent-primary-hover) !important;
+  border-color: var(--accent-primary-hover) !important;
+  color: var(--text-on-accent) !important;
+}
+
+/* Secondary buttons — transparent with border */
+.p-button.p-button-secondary {
+  background: transparent !important;
+  border-color: var(--border-color-light) !important;
+  color: var(--text-primary) !important;
+}
+
+.p-button.p-button-secondary:not(:disabled):hover {
+  background: var(--bg-tertiary) !important;
+  border-color: var(--accent-primary) !important;
+  color: var(--text-primary) !important;
+}
+
+/* Text/link buttons — no bg */
+.p-button.p-button-text,
+.p-button.p-button-link {
+  background: transparent !important;
+  border-color: transparent !important;
+  color: var(--accent-primary) !important;
+}
+
+.p-button.p-button-text:not(:disabled):hover,
+.p-button.p-button-link:not(:disabled):hover {
+  background: var(--accent-primary-bg) !important;
+  color: var(--accent-primary-hover) !important;
+}
+
+/* Outlined buttons */
+.p-button.p-button-outlined {
+  background: transparent !important;
+  border-color: var(--accent-primary) !important;
+  color: var(--accent-primary) !important;
+}
+
+.p-button.p-button-outlined:not(:disabled):hover {
+  background: var(--accent-primary-bg) !important;
+  color: var(--accent-primary) !important;
+}
+
+/* Danger buttons — keep red */
+.p-button.p-button-danger {
+  background: var(--severity-critical) !important;
+  border-color: var(--severity-critical) !important;
+  color: #FFFFFF !important;
+}
+
+.p-button.p-button-danger:not(:disabled):hover {
+  background: #DC2626 !important;
+  border-color: #DC2626 !important;
+}
+
+/* Success buttons — keep green */
+.p-button.p-button-success {
+  background: var(--status-closed) !important;
+  border-color: var(--status-closed) !important;
+  color: #FFFFFF !important;
+}
+
+/* Warning buttons */
+.p-button.p-button-warning {
+  background: var(--severity-medium) !important;
+  border-color: var(--severity-medium) !important;
+  color: #FFFFFF !important;
+}
+
+/* Info buttons */
+.p-button.p-button-info {
+  background: var(--severity-low) !important;
+  border-color: var(--severity-low) !important;
+  color: #FFFFFF !important;
+}
+
+/* Paginator active page */
+.p-paginator .p-paginator-pages .p-paginator-page.p-highlight {
+  background: var(--accent-primary) !important;
+  color: var(--text-on-accent) !important;
+}
+
+/* Tags / badges — override hardcoded blue */
+.p-tag {
+  background: var(--accent-primary) !important;
+  color: var(--text-on-accent) !important;
+}
+
+.p-tag.p-tag-success {
+  background: var(--status-closed) !important;
+  color: #FFFFFF !important;
+}
+
+.p-tag.p-tag-danger {
+  background: var(--severity-critical) !important;
+  color: #FFFFFF !important;
+}
+
+.p-tag.p-tag-warning,
+.p-tag.p-tag-warn {
+  background: var(--severity-medium) !important;
+  color: #FFFFFF !important;
+}
+
+.p-tag.p-tag-info {
+  background: var(--severity-low) !important;
+  color: #FFFFFF !important;
+}
+
+.p-tag.p-tag-secondary {
+  background: var(--bg-tertiary) !important;
+  color: var(--text-secondary) !important;
+}
+
+/* Badge component */
+.p-badge {
+  background: var(--accent-primary) !important;
+  color: var(--text-on-accent) !important;
+}
+
+/* Checkbox / Radio highlight */
+.p-checkbox.p-highlight .p-checkbox-box {
+  background: var(--accent-primary) !important;
+  border-color: var(--accent-primary) !important;
+}
+
+.p-radiobutton.p-highlight .p-radiobutton-box {
+  background: var(--accent-primary) !important;
+  border-color: var(--accent-primary) !important;
+}
+
+/* ProgressBar */
+.p-progressbar .p-progressbar-value {
+  background: var(--accent-primary) !important;
+}
+
+/* ============================================================================
+   PrimeVue Theme Overrides for Light Mode
+   The lara-dark-blue theme sets --text-color etc. on :root. Our html.light
+   block in variables.css has the same specificity but PrimeVue's theme may
+   set additional vars we miss. Force all PrimeVue surface/text vars here.
+   ============================================================================ */
+
+html.light {
+  --text-color: #0F1017 !important;
+  --text-color-secondary: #5A5F7A !important;
+  --surface-ground: #F0F1F6 !important;
+  --surface-card: #FFFFFF !important;
+  --surface-section: #F0F1F6 !important;
+  --surface-border: #D0D1DA !important;
+  --surface-hover: #E8E9F0 !important;
+  --surface-overlay: #FFFFFF !important;
+  --surface-0: #FFFFFF !important;
+  --surface-50: #F8F9FC !important;
+  --surface-100: #F0F1F6 !important;
+  --surface-200: #E8E9F0 !important;
+  --surface-300: #D8D9E2 !important;
+  --surface-400: #B8BACF !important;
+  --surface-500: #8B90A8 !important;
+  --surface-600: #5A5F7A !important;
+  --surface-700: #3A3E58 !important;
+  --surface-800: #1A1C28 !important;
+  --surface-900: #0F1017 !important;
+  --primary-color: #0F1017 !important;
+  --primary-color-text: #FFFFFF !important;
+  --primary-50: rgba(15, 16, 23, 0.05) !important;
+  --primary-100: rgba(15, 16, 23, 0.1) !important;
+  --primary-200: rgba(15, 16, 23, 0.2) !important;
+  --primary-300: rgba(15, 16, 23, 0.3) !important;
+  --primary-400: rgba(15, 16, 23, 0.5) !important;
+  --primary-500: #3A3E58 !important;
+  --primary-600: #000000 !important;
+  --primary-700: #000000 !important;
+  --primary-800: #000000 !important;
+  --primary-900: #000000 !important;
+  --highlight-bg: rgba(15, 16, 23, 0.08) !important;
+  --highlight-text-color: #0F1017 !important;
+  --focus-ring: 0 0 0 2px #FFFFFF, 0 0 0 4px rgba(15, 16, 23, 0.3) !important;
+  --maskbg: rgba(0, 0, 0, 0.4) !important;
+}
+
+/* Force light-mode text on PrimeVue components (exclude buttons — they have their own color rules) */
+html.light .p-component:not(.p-button):not(.p-tag):not(.p-badge),
+html.light .p-inputtext,
+html.light .p-dropdown .p-dropdown-label,
+html.light .p-multiselect .p-multiselect-label {
+  color: #0F1017 !important;
+}
+
+/* Buttons in light mode: ensure text-on-accent is respected */
+html.light .p-button {
+  color: var(--text-on-accent) !important;
+}
+
+html.light .p-button.p-button-secondary {
+  color: var(--text-primary) !important;
+}
+
+html.light .p-button.p-button-text,
+html.light .p-button.p-button-link {
+  color: var(--accent-primary) !important;
+}
+
+html.light .p-button.p-button-outlined {
+  color: var(--accent-primary) !important;
+}
+
+html.light .p-inputtext::placeholder,
+html.light input::placeholder,
+html.light textarea::placeholder {
+  color: #8B90A8 !important;
+}
+
+html.light .p-inputtext {
+  background: #FFFFFF !important;
+  border-color: #D0D1DA !important;
+}
+
+html.light .p-dropdown-panel,
+html.light .p-multiselect-panel {
+  background: #FFFFFF !important;
+}
+
+html.light .p-dropdown-panel .p-dropdown-items .p-dropdown-item,
+html.light .p-multiselect-panel .p-multiselect-items .p-multiselect-item {
+  color: #0F1017 !important;
+}
+
+html.light .p-dialog {
+  background: #FFFFFF !important;
+}
+
+html.light .p-dialog .p-dialog-header {
+  background: #FFFFFF !important;
+  color: #0F1017 !important;
+}
+
+html.light .p-dialog .p-dialog-content {
+  background: #FFFFFF !important;
+  color: #0F1017 !important;
+}
+
+html.light .p-datatable .p-datatable-tbody > tr {
+  background: #FFFFFF !important;
+}
+
+html.light .p-datatable .p-datatable-thead > tr > th {
+  background: #F0F1F6 !important;
+  color: #3A3E58 !important;
+}
+
+/* Native form inputs in light mode */
+html.light input,
+html.light select,
+html.light textarea {
+  color: #0F1017 !important;
+  background: #FFFFFF !important;
+}
+
+html.light input::placeholder,
+html.light textarea::placeholder {
+  color: #8B90A8 !important;
+}
+
+/* ============================================================================
    Global Reset & Base Styles
    ============================================================================ */
 
@@ -96,7 +383,8 @@ a:hover {
 
 .card:hover {
   background: var(--bg-card-hover);
-  box-shadow: var(--shadow-md);
+  box-shadow: var(--shadow-card-hover);
+  transform: scale(1.01) translateY(-1px);
 }
 
 /* ============================================================================
@@ -161,22 +449,22 @@ a:hover {
 }
 
 .status-open, .status-fail {
-  background: rgba(239, 68, 68, 0.12);
+  background: rgba(239, 68, 68, 0.1);
   color: var(--status-open);
 }
 
 .status-closed, .status-pass {
-  background: rgba(34, 197, 94, 0.12);
+  background: rgba(5, 150, 105, 0.1);
   color: var(--status-closed);
 }
 
 .status-mitigated {
-  background: rgba(59, 130, 246, 0.12);
+  background: rgba(37, 99, 235, 0.1);
   color: var(--status-mitigated);
 }
 
 .status-accepted {
-  background: rgba(139, 92, 246, 0.12);
+  background: rgba(37, 99, 235, 0.1);
   color: var(--status-accepted);
 }
 
@@ -193,7 +481,7 @@ a:hover {
   font-weight: 500;
   background: var(--accent-primary-bg);
   color: var(--accent-primary);
-  border: 1px solid rgba(59, 130, 246, 0.2);
+  border: 1px solid var(--border-color-light);
 }
 
 /* ============================================================================
@@ -284,7 +572,7 @@ input, select, textarea {
 input:focus, select:focus, textarea:focus {
   outline: none;
   border-color: var(--border-color-focus);
-  box-shadow: 0 0 0 3px var(--accent-primary-bg);
+  box-shadow: var(--shadow-input-focus);
 }
 
 /* ============================================================================
@@ -313,12 +601,21 @@ input:focus, select:focus, textarea:focus {
    PrimeVue Overrides
    ============================================================================ */
 
-.p-component {
-  font-family: inherit;
+.p-component,
+.p-dropdown-label,
+.p-dropdown-item,
+.p-multiselect-label,
+.p-multiselect-item,
+.p-inputtext,
+.p-inputnumber-input,
+.p-dialog .p-dialog-header,
+.p-dialog .p-dialog-content,
+.p-tabview .p-tabview-nav-link {
+  font-family: inherit !important;
 }
 
 .p-button {
-  font-family: inherit;
+  font-family: inherit !important;
   font-weight: 500;
 }
 
@@ -386,6 +683,7 @@ input:focus, select:focus, textarea:focus {
 
 .p-dropdown .p-dropdown-label {
   color: var(--text-primary);
+  font-size: 0.875rem;
 }
 
 .p-dropdown-panel {
@@ -395,6 +693,7 @@ input:focus, select:focus, textarea:focus {
 
 .p-dropdown-panel .p-dropdown-items .p-dropdown-item {
   color: var(--text-primary);
+  font-size: 0.875rem;
 }
 
 .p-dropdown-panel .p-dropdown-items .p-dropdown-item:hover {
@@ -405,11 +704,12 @@ input:focus, select:focus, textarea:focus {
   background: var(--bg-input) !important;
   border-color: var(--border-color) !important;
   color: var(--text-primary) !important;
+  font-size: 0.875rem !important;
 }
 
 .p-inputtext:focus {
   border-color: var(--border-color-focus) !important;
-  box-shadow: 0 0 0 3px var(--accent-primary-bg) !important;
+  box-shadow: var(--shadow-input-focus) !important;
 }
 
 /* MultiSelect (for Severity/Status filters) - Comprehensive dark mode fixes */
@@ -424,6 +724,7 @@ input:focus, select:focus, textarea:focus {
 .p-multiselect .p-multiselect-label,
 .p-multiselect .p-multiselect-label.p-placeholder {
   color: var(--text-primary) !important;
+  font-size: 0.875rem;
 }
 
 .p-multiselect .p-multiselect-trigger {
@@ -459,6 +760,7 @@ input:focus, select:focus, textarea:focus {
   color: var(--text-primary) !important;
   background: transparent !important;
   background-color: transparent !important;
+  font-size: 0.875rem;
 }
 
 .p-multiselect-panel .p-multiselect-items .p-multiselect-item:hover,
@@ -638,6 +940,119 @@ input:focus, select:focus, textarea:focus {
 .p-tabview .p-tabview-panels {
   background: transparent !important;
   padding: var(--spacing-lg) 0 !important;
+}
+
+/* ============================================================================
+   Global Button Hover Effects
+   ============================================================================ */
+
+/* PrimeVue buttons — lift + glow on hover */
+.p-button:not(.p-button-text):not(.p-button-link):not(.p-row-toggler):not(.p-paginator-page) {
+  transition: all var(--transition-fast);
+}
+
+.p-button:not(.p-button-text):not(.p-button-link):not(.p-row-toggler):not(.p-paginator-page):hover {
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-button-hover);
+}
+
+/* Native buttons that act as primary actions */
+.btn-verify,
+.btn-use-credentials,
+.action-btn.primary {
+  transition: all var(--transition-fast) !important;
+}
+
+.btn-verify:hover:not(:disabled),
+.btn-use-credentials:hover:not(:disabled),
+.action-btn.primary:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-button-hover);
+}
+
+/* PrimeVue paginator highlight — use accent */
+.p-paginator .p-paginator-pages .p-paginator-page.p-highlight {
+  background: var(--accent-primary) !important;
+  color: var(--text-on-accent) !important;
+}
+
+/* PrimeVue InputSwitch checked — use accent */
+.p-inputswitch.p-inputswitch-checked .p-inputswitch-slider {
+  background: var(--accent-primary) !important;
+}
+
+/* ============================================================================
+   Classic Theme — PrimeVue overrides
+   Classic uses blue accent with white text on all buttons/badges.
+   The CSS variables handle most of the work; these overrides ensure
+   PrimeVue light-mode components also respect the classic palette.
+   ============================================================================ */
+
+html.theme-classic.light {
+  --text-color: #09090b !important;
+  --text-color-secondary: #52525b !important;
+  --surface-ground: #ffffff !important;
+  --surface-card: #ffffff !important;
+  --surface-section: #f4f4f5 !important;
+  --surface-border: #e4e4e7 !important;
+  --surface-hover: #f4f4f5 !important;
+  --surface-overlay: #ffffff !important;
+  --primary-color: #2563eb !important;
+  --primary-color-text: #FFFFFF !important;
+  --highlight-bg: rgba(37, 99, 235, 0.1) !important;
+  --highlight-text-color: #2563eb !important;
+  --focus-ring: 0 0 0 2px #ffffff, 0 0 0 4px rgba(37, 99, 235, 0.3) !important;
+}
+
+html.theme-classic.light .p-component:not(.p-button):not(.p-tag):not(.p-badge) {
+  color: #09090b !important;
+}
+
+html.theme-classic.light .p-inputtext {
+  background: #ffffff !important;
+  border-color: #e4e4e7 !important;
+  color: #09090b !important;
+}
+
+html.theme-classic.light .p-inputtext::placeholder,
+html.theme-classic.light input::placeholder,
+html.theme-classic.light textarea::placeholder {
+  color: #a1a1aa !important;
+}
+
+html.theme-classic.light .p-dropdown-panel,
+html.theme-classic.light .p-multiselect-panel {
+  background: #ffffff !important;
+}
+
+html.theme-classic.light .p-dialog,
+html.theme-classic.light .p-dialog .p-dialog-header,
+html.theme-classic.light .p-dialog .p-dialog-content {
+  background: #ffffff !important;
+  color: #09090b !important;
+}
+
+html.theme-classic.light .p-datatable .p-datatable-tbody > tr {
+  background: #ffffff !important;
+}
+
+html.theme-classic.light .p-datatable .p-datatable-thead > tr > th {
+  background: #f4f4f5 !important;
+  color: #52525b !important;
+}
+
+html.theme-classic.light input,
+html.theme-classic.light select,
+html.theme-classic.light textarea {
+  color: #09090b !important;
+  background: #ffffff !important;
+}
+
+/* Classic dark — override highlight vars */
+html.theme-classic.dark,
+html.theme-classic:not(.light) {
+  --highlight-bg: rgba(59, 130, 246, 0.15);
+  --highlight-text-color: #3b82f6;
 }
 
 /* ============================================================================

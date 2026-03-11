@@ -260,12 +260,14 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useComplianceStore } from '../stores/compliance'
+import { useThemeStore } from '../stores/theme'
 import { jsPDF } from 'jspdf'
 import autoTable from 'jspdf-autotable'
 import api from '../services/api'
 
 const router = useRouter()
 const complianceStore = useComplianceStore()
+const themeStore = useThemeStore()
 const selectedFrameworkFilter = ref(null)
 
 // Computed stats for selected framework or overall summary
@@ -339,6 +341,7 @@ const exportCsv = () => {
 const exportPdf = () => {
   const doc = new jsPDF()
   const framework = complianceStore.selectedFramework || 'All Frameworks'
+  const pdfHeaderColor = themeStore.isClassic ? [37, 99, 235] : [15, 16, 23]
 
   // Title
   doc.setFontSize(18)
@@ -370,7 +373,7 @@ const exportPdf = () => {
       body: tableData,
       startY: startY,
       styles: { fontSize: 8 },
-      headStyles: { fillColor: [59, 130, 246] },
+      headStyles: { fillColor: pdfHeaderColor },
     })
   } else {
     // Framework-level data
@@ -386,7 +389,7 @@ const exportPdf = () => {
       body: tableData,
       startY: startY,
       styles: { fontSize: 10 },
-      headStyles: { fillColor: [59, 130, 246] },
+      headStyles: { fillColor: pdfHeaderColor },
     })
   }
 
@@ -471,23 +474,23 @@ onMounted(() => {
 }
 
 .stat-icon.frameworks {
-  background: rgba(59, 130, 246, 0.2);
-  color: #3b82f6;
+  background: var(--accent-primary-bg);
+  color: var(--accent-primary);
 }
 
 .stat-icon.controls {
-  background: rgba(59, 130, 246, 0.2);
-  color: #3b82f6;
+  background: var(--accent-primary-bg);
+  color: var(--accent-primary);
 }
 
 .stat-icon.passed {
-  background: rgba(34, 197, 94, 0.2);
-  color: #22c55e;
+  background: rgba(5, 150, 105, 0.15);
+  color: var(--status-closed);
 }
 
 .stat-icon.failed {
-  background: rgba(239, 68, 68, 0.2);
-  color: #ef4444;
+  background: var(--severity-critical-bg);
+  color: var(--severity-critical);
 }
 
 .stat-icon.percentage {
@@ -611,11 +614,11 @@ onMounted(() => {
 }
 
 .metric.passed .metric-value {
-  color: #22c55e;
+  color: var(--status-closed);
 }
 
 .metric.failed .metric-value {
-  color: #ef4444;
+  color: var(--severity-critical);
 }
 
 .framework-progress-wrapper {
@@ -689,7 +692,7 @@ onMounted(() => {
 }
 
 .has-findings {
-  color: #ef4444;
+  color: var(--severity-critical);
   font-weight: 600;
 }
 
@@ -699,7 +702,7 @@ onMounted(() => {
 }
 
 .controls-table :deep(.clickable-row:hover) {
-  background: rgba(59, 130, 246, 0.1) !important;
+  background: var(--accent-primary-bg) !important;
 }
 
 /* Loading State */

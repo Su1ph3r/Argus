@@ -1432,7 +1432,7 @@ async function useForScans() {
 
 .provider-tab.active {
   background: var(--primary-color);
-  color: white;
+  color: var(--primary-color-text, #000000);
 }
 
 .provider-tab i {
@@ -1519,7 +1519,7 @@ async function useForScans() {
   border: none;
   border-radius: 6px;
   background: var(--primary-color);
-  color: white;
+  color: var(--primary-color-text, #000000);
   font-size: 0.95rem;
   font-weight: 500;
   cursor: pointer;
@@ -1812,7 +1812,7 @@ async function useForScans() {
 
 .profile-card.selected {
   border-color: var(--green-500);
-  background: rgba(34, 197, 94, 0.1);
+  background: var(--green-50);
 }
 
 .profile-header {
@@ -1893,8 +1893,8 @@ async function useForScans() {
   gap: 0.75rem;
   margin-top: 1rem;
   padding: 0.75rem 1rem;
-  background: rgba(34, 197, 94, 0.1);
-  border: 1px solid rgba(34, 197, 94, 0.3);
+  background: var(--green-50);
+  border: 1px solid rgba(5, 150, 105, 0.3);
   border-radius: 6px;
   color: var(--green-700);
 }
@@ -1972,7 +1972,7 @@ async function useForScans() {
 
 .toggle-btn.active {
   background: var(--primary-color);
-  color: white;
+  color: var(--primary-color-text, #000000);
 }
 
 .cli-auth-info {
@@ -2044,8 +2044,8 @@ async function useForScans() {
   align-items: center;
   gap: 0.5rem;
   padding: 0.75rem 1rem;
-  background: rgba(34, 197, 94, 0.1);
-  border: 1px solid rgba(34, 197, 94, 0.3);
+  background: var(--green-50);
+  border: 1px solid rgba(5, 150, 105, 0.3);
   border-radius: 6px;
   color: var(--green-700);
 }

@@ -347,11 +347,11 @@ watch(() => props.findingId, () => {
   border-radius: 50%;
 }
 
-.severity-dot.critical { background: #dc2626; }
-.severity-dot.high { background: #ea580c; }
-.severity-dot.medium { background: #ca8a04; }
-.severity-dot.low { background: #2563eb; }
-.severity-dot.info { background: #0891b2; }
+.severity-dot.critical { background: var(--severity-critical); }
+.severity-dot.high { background: var(--severity-high); }
+.severity-dot.medium { background: var(--severity-medium); }
+.severity-dot.low { background: var(--severity-low); }
+.severity-dot.info { background: var(--severity-info); }
 
 .finding-title {
   font-size: 0.875rem;

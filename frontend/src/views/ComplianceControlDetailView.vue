@@ -369,13 +369,13 @@ onMounted(() => {
 }
 
 .status-badge.pass {
-  background: rgba(34, 197, 94, 0.2);
-  color: #22c55e;
+  background: rgba(5, 150, 105, 0.2);
+  color: var(--status-closed);
 }
 
 .status-badge.fail {
   background: rgba(239, 68, 68, 0.2);
-  color: #ef4444;
+  color: var(--severity-critical);
 }
 
 .severity-badge {
@@ -388,30 +388,30 @@ onMounted(() => {
 }
 
 .severity-badge.critical {
-  background: rgba(239, 68, 68, 0.2);
-  color: #ef4444;
+  background: var(--severity-critical-bg);
+  color: var(--severity-critical);
 }
 
 .severity-badge.high {
-  background: rgba(249, 115, 22, 0.2);
-  color: #f97316;
+  background: var(--severity-high-bg);
+  color: var(--severity-high);
 }
 
 .severity-badge.medium {
-  background: rgba(234, 179, 8, 0.2);
-  color: #eab308;
+  background: var(--severity-medium-bg);
+  color: var(--severity-medium);
 }
 
 .severity-badge.low {
-  background: rgba(37, 99, 235, 0.2);
-  color: #2563eb;
+  background: var(--severity-low-bg);
+  color: var(--severity-low);
 }
 
 .framework-badge {
   display: inline-block;
   padding: var(--spacing-xs) var(--spacing-sm);
-  background: rgba(59, 130, 246, 0.2);
-  color: #3b82f6;
+  background: var(--accent-primary-bg);
+  color: var(--accent-primary);
   border-radius: var(--radius-sm);
   font-size: 0.75rem;
   font-weight: 500;
@@ -457,8 +457,8 @@ onMounted(() => {
 .count-badge {
   font-size: 0.7rem;
   padding: 2px 8px;
-  background: rgba(239, 68, 68, 0.2);
-  color: #ef4444;
+  background: var(--severity-critical-bg);
+  color: var(--severity-critical);
   border-radius: 999px;
   margin-left: var(--spacing-sm);
 }
@@ -499,11 +499,11 @@ onMounted(() => {
 }
 
 .stat-card.passed .stat-number {
-  color: #22c55e;
+  color: var(--status-closed);
 }
 
 .stat-card.failed .stat-number {
-  color: #ef4444;
+  color: var(--severity-critical);
 }
 
 .affected-resources-list {
@@ -574,14 +574,14 @@ onMounted(() => {
   align-items: center;
   gap: var(--spacing-md);
   padding: var(--spacing-lg);
-  background: rgba(34, 197, 94, 0.1);
-  border: 1px solid rgba(34, 197, 94, 0.3);
+  background: rgba(5, 150, 105, 0.1);
+  border: 1px solid rgba(5, 150, 105, 0.3);
   border-radius: var(--radius-md);
 }
 
 .compliant-message > i {
   font-size: 2rem;
-  color: #22c55e;
+  color: var(--status-closed);
 }
 
 .compliant-message strong {
@@ -643,7 +643,7 @@ onMounted(() => {
   padding: var(--spacing-md);
   font-family: 'Source Code Pro', monospace;
   font-size: 0.8125rem;
-  color: #22c55e;
+  color: var(--status-closed);
   white-space: pre-wrap;
   word-break: break-all;
   line-height: 1.5;

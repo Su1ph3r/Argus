@@ -225,7 +225,7 @@ const showViewResultsButton = computed(() => {
   background: rgba(239, 68, 68, 0.15);
   border: 1px solid rgba(239, 68, 68, 0.3);
   border-radius: 4px;
-  color: #ef4444;
+  color: var(--severity-critical);
   font-size: 0.9rem;
   font-family: monospace;
   white-space: pre-wrap;

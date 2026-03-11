@@ -77,7 +77,7 @@ const copyToClipboard = async () => {
 }
 
 .command-block {
-  background: #1e1e1e;
+  background: var(--bg-secondary);
   padding: var(--spacing-md);
   overflow-x: auto;
 }
@@ -86,7 +86,7 @@ const copyToClipboard = async () => {
   font-family: 'Source Code Pro', 'Consolas', monospace;
   font-size: 0.8125rem;
   line-height: 1.6;
-  color: #98c379;
+  color: var(--accent-primary);
   white-space: pre-wrap;
   word-break: break-word;
 }

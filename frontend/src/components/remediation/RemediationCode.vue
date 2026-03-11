@@ -84,7 +84,7 @@ const copyCode = async () => {
 .code-container {
   border-radius: var(--radius-sm);
   overflow: hidden;
-  background: #1e1e1e;
+  background: var(--bg-secondary);
 }
 
 .code-header {
@@ -92,18 +92,18 @@ const copyCode = async () => {
   align-items: center;
   justify-content: space-between;
   padding: var(--spacing-xs) var(--spacing-md);
-  background: #2d2d2d;
-  border-bottom: 1px solid #3d3d3d;
+  background: var(--bg-tertiary);
+  border-bottom: 1px solid var(--border-color);
 }
 
 .language-label {
   font-size: 0.75rem;
-  color: #888;
+  color: var(--text-tertiary);
   text-transform: uppercase;
 }
 
 .code-header :deep(.p-button) {
-  color: #888;
+  color: var(--text-tertiary);
 }
 
 .code-header :deep(.p-button:hover) {
@@ -124,7 +124,7 @@ const copyCode = async () => {
   font-family: 'Source Code Pro', monospace;
   font-size: 0.8125rem;
   line-height: 1.5;
-  color: #d4d4d4;
+  color: var(--text-primary);
   white-space: pre-wrap;
   word-break: break-word;
 }
@@ -132,24 +132,24 @@ const copyCode = async () => {
 /* Basic syntax highlighting classes */
 .language-terraform code,
 .language-hcl code {
-  color: #9cdcfe;
+  color: var(--accent-primary);
 }
 
 .language-bash code,
 .language-sh code,
 .language-cli code {
-  color: #98c379;
+  color: var(--text-primary);
 }
 
 .language-python code {
-  color: #dcdcaa;
+  color: var(--accent-primary);
 }
 
 .language-json code {
-  color: #ce9178;
+  color: var(--text-secondary);
 }
 
 .language-yaml code {
-  color: #4ec9b0;
+  color: var(--text-primary);
 }
 </style>

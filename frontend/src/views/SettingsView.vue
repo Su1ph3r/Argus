@@ -247,8 +247,8 @@
           <div class="setting-group">
             <div class="setting-item">
               <div class="setting-label">
-                <h4>Theme</h4>
-                <p>Application color theme</p>
+                <h4>Color Mode</h4>
+                <p>Switch between light, dark, or system preference</p>
               </div>
               <Dropdown
                 v-model="localSettings.theme"
@@ -256,6 +256,22 @@
                 option-label="label"
                 option-value="value"
                 class="setting-input"
+                @change="onThemeChange"
+              />
+            </div>
+
+            <div class="setting-item">
+              <div class="setting-label">
+                <h4>Style</h4>
+                <p>Visual style for the application</p>
+              </div>
+              <Dropdown
+                v-model="localSettings.style"
+                :options="styleOptions"
+                option-label="label"
+                option-value="value"
+                class="setting-input"
+                @change="onStyleChange"
               />
             </div>
 
@@ -372,6 +388,7 @@
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue'
 import { useSettingsStore } from '../stores/settings'
+import { useThemeStore } from '../stores/theme'
 import { useToast } from 'primevue/usetoast'
 import TabView from 'primevue/tabview'
 import TabPanel from 'primevue/tabpanel'
@@ -385,6 +402,7 @@ import Dialog from 'primevue/dialog'
 import ProgressSpinner from 'primevue/progressspinner'
 
 const store = useSettingsStore()
+const themeStore = useThemeStore()
 const toast = useToast()
 
 const showResetDialog = ref(false)
@@ -404,7 +422,8 @@ const localSettings = ref({
   email_alerts_enabled: false,
   email_alert_address: null,
   email_alert_threshold: 'critical',
-  theme: 'dark',
+  theme: themeStore.theme,
+  style: themeStore.style,
   findings_per_page: 50,
 })
 
@@ -448,9 +467,23 @@ const exportFormatOptions = [
 ]
 
 const themeOptions = [
+  { label: 'System', value: 'system' },
   { label: 'Dark', value: 'dark' },
   { label: 'Light', value: 'light' },
 ]
+
+const styleOptions = [
+  { label: 'Modern — Pure black, ice-blue accent', value: 'modern' },
+  { label: 'Classic — Slate blue, traditional accent', value: 'classic' },
+]
+
+function onThemeChange(e) {
+  themeStore.setTheme(e.value)
+}
+
+function onStyleChange(e) {
+  themeStore.setStyle(e.value)
+}
 
 const pageeSizeOptions = [
   { label: '25 per page', value: 25 },
@@ -479,7 +512,8 @@ async function loadSettings() {
     email_alerts_enabled: s.notifications?.email_alerts_enabled || false,
     email_alert_address: s.notifications?.email_alert_address || null,
     email_alert_threshold: s.notifications?.email_alert_threshold || 'critical',
-    theme: s.display?.theme || 'dark',
+    theme: themeStore.theme,
+    style: themeStore.style,
     findings_per_page: s.display?.findings_per_page || 50,
   }
 
@@ -489,14 +523,20 @@ async function loadSettings() {
 async function saveAllSettings() {
   const updates = {}
 
+  // Keys managed locally (not sent to backend API)
+  const localOnlyKeys = ['theme', 'style']
+
   // Compare and collect changed settings
   for (const [key, value] of Object.entries(localSettings.value)) {
+    if (localOnlyKeys.includes(key)) continue
     if (JSON.stringify(value) !== JSON.stringify(originalSettings.value[key])) {
       updates[key] = value
     }
   }
 
   if (Object.keys(updates).length === 0) {
+    // Only local-only keys changed — already persisted to localStorage
+    originalSettings.value = { ...localSettings.value }
     return
   }
 
